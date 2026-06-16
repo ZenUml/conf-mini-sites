@@ -15,6 +15,9 @@
 export interface GrantPayload {
   /** instanceId — the path's `<instanceId>` MUST equal this (§2.7 step 4b, unforgeable bind). */
   readonly i: string;
+  /** clientKey — the tenant install. Carried so a sub-resource request (which has ONLY the grant, no fresh
+   *  JWT) can re-run the permission check: the PermissionContext needs clientKey (INV-GW-08). */
+  readonly ck: string;
   /** contentId — the Confluence content the grant authorizes (from a signed claim, never a header). */
   readonly c: string;
   /** accountId — the verified `sub` the permission re-check runs for. */
@@ -161,6 +164,7 @@ function isGrantPayload(p: unknown): p is GrantPayload {
   const o = p as Record<string, unknown>;
   return (
     typeof o.i === 'string' &&
+    typeof o.ck === 'string' &&
     typeof o.c === 'string' &&
     typeof o.a === 'string' &&
     typeof o.cl === 'string' &&

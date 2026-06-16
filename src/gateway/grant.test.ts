@@ -10,6 +10,7 @@ const now = () => FIXED_NOW;
 
 const basePayload: GrantPayload = {
   i: 'inst-1',
+  ck: 'ck-1',
   c: 'page-1',
   a: 'acct-1',
   cl: 'cloud-1',

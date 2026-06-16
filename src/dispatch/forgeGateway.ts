@@ -74,7 +74,15 @@ export async function handleForgeServe(request: Request, deps: ForgeGatewayDeps)
     grantedAt: deps.now(),
   };
 
-  const served = await deps.provider.serve(handle, route.filePath, auth);
+  // The dispatch-namespace binding THROWS for a missing/unreachable per-instance Worker (an un-provisioned or
+  // deleted instance) rather than returning 404. Catch it and serve a clean 404 — never a 1101 — so a viewer
+  // hitting a torn-down instance gets a normal not-found, not a Worker crash.
+  let served: Response;
+  try {
+    served = await deps.provider.serve(handle, route.filePath, auth);
+  } catch {
+    return withSecurityHeaders(deny(404), deps);
+  }
   if (served.status !== 200) return withSecurityHeaders(served, deps); // pass through 404 etc. (still hardened)
 
   // Inject <base> into HTML so relative sub-resources resolve under the same signed /g/<grant>/ path.

@@ -15,7 +15,13 @@ import { validateBundle } from '../pipeline/bundleValidation';
 import type { RawBundleFile } from '../pipeline/bundleValidation';
 import { scanForSecrets } from '../pipeline/secretScan';
 import { verifyForgeToken, forgeJwks, extractBearer } from '../gateway/forgeToken';
+import type { VerifyForgeResult } from '../gateway/forgeToken';
+import { mintGrant } from '../gateway/grant';
 import type { InstanceHandle } from '../hosting/HostingProvider';
+
+/** Serve-grant TTL — long enough for an iframe to load all of a bundle's assets at render, short enough to
+ *  bound replay. Under Forge there is no permission-cache to couple to; this is purely the replay bound. */
+const SERVE_GRANT_TTL_MS = 300_000;
 
 export interface Env {
   /** Comma-separated Forge app ids allowed to provision (last ARI segment). */
@@ -26,6 +32,13 @@ export interface Env {
   WFP_NAMESPACE: string;
   /** Cloudflare API token (Workers Scripts:Edit) — a Worker secret. Never logged. */
   WFP_API_TOKEN: string;
+  /** K_grant raw key material — the HMAC key shared with the dispatch Worker, to MINT serve grants. Secret. */
+  K_GRANT: string;
+  /** Public base URL of the dispatch Worker, e.g. https://conf-mini-sites-dispatch-dev.zenuml.workers.dev */
+  DISPATCH_BASE_URL: string;
+  /** Shared secret proving the caller is our Forge resolver (sent as x-mini-sites-secret). A Worker secret;
+   *  its twin is the Forge variable the resolver reads. The primary resolver→control auth (no OAuth scopes). */
+  CONTROL_SHARED_SECRET: string;
   /** Optional Forge JWKS URL override (tests/staging). */
   FORGE_JWKS_URL?: string;
   [binding: string]: unknown;
@@ -61,14 +74,33 @@ function makeProvider(env: Env): CloudflareWfPProvider {
   );
 }
 
-async function authorize(request: Request, env: Env): Promise<{ ok: true } | { ok: false; res: Response }> {
+/** Constant-time string compare (avoids leaking the secret via timing). Unequal lengths → false. */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+type AuthCtx = Extract<VerifyForgeResult, { ok: true }>['context'];
+type AuthOk = { ok: true; context: AuthCtx };
+
+// Authorize a control call. PRIMARY: the shared secret our resolver sends (x-mini-sites-secret) — no OAuth
+// scopes, the secret lives only in the resolver's Forge variable + this Worker. FALLBACK/UPGRADE: a verified
+// Forge invocation token (when the remote is later configured with appUserToken + scopes — forgeToken.ts).
+// Both prove "this is our app"; either suffices.
+async function authorize(request: Request, env: Env): Promise<AuthOk | { ok: false; res: Response }> {
+  const provided = request.headers.get('x-mini-sites-secret');
+  if (env.CONTROL_SHARED_SECRET && provided && timingSafeEqual(provided, env.CONTROL_SHARED_SECRET)) {
+    return { ok: true, context: { appId: 'shared-secret', payload: {} } };
+  }
   const token = extractBearer(request.headers.get('authorization'));
   const result = await verifyForgeToken(token, {
     getKey: forgeJwks(env.FORGE_JWKS_URL),
     allowedAppIds: (env.ALLOWED_FORGE_APP_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   });
   if (!result.ok) return { ok: false, res: cors(json({ ok: false, code: 'UNAUTHORIZED', reason: result.reason }, 401)) };
-  return { ok: true };
+  return { ok: true, context: result.context };
 }
 
 export default {
@@ -98,8 +130,38 @@ export default {
       }
 
       const handle: InstanceHandle = { id: instanceId, providerRef: `ms-${instanceId}` };
-      await makeProvider(env).createInstance(handle, validated.bundle);
+      try {
+        await makeProvider(env).createInstance(handle, validated.bundle);
+      } catch (e) {
+        return cors(json({ ok: false, code: 'PROVISION_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+      }
       return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));
+    }
+
+    // POST /serve-url?instanceId=ID → verify Forge token, mint a short-lived grant, return the dispatch URL.
+    // The resolver derives instanceId from its (server-side) macro context, so a client can't request a grant
+    // for an instance it isn't bound to; this Worker holds K_GRANT and mints — keeping the grant key and the
+    // grant format (shared with the dispatch Worker's verify) in one place.
+    if (request.method === 'POST' && url.pathname === '/serve-url') {
+      const auth = await authorize(request, env);
+      if (!auth.ok) return auth.res;
+      const instanceId = url.searchParams.get('instanceId') ?? '';
+      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+      if (!env.K_GRANT || !env.DISPATCH_BASE_URL) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+      const now = Date.now();
+      // Audit-only grant fields (the dispatch Worker verifies i + exp + sig; cl/a/c are for logs). Prefer the
+      // verified token context; fall back to values the resolver passes (shared-secret auth has no token).
+      const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
+      const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
+      const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
+      const grant = await mintGrant(
+        { i: instanceId, ck: auth.context.appId, c: '', a: accountId, cl: cloudId, exp: now + SERVE_GRANT_TTL_MS },
+        new TextEncoder().encode(env.K_GRANT),
+        () => now,
+      );
+      const base = env.DISPATCH_BASE_URL.replace(/\/+$/, '');
+      return cors(json({ ok: true, instanceId, url: `${base}/v/${encodeURIComponent(instanceId)}/g/${grant}/`, ttlMs: SERVE_GRANT_TTL_MS }));
     }
 
     // DELETE /instance?instanceId=ID → tear down the per-instance Worker (macro/page deleted — orphan cleanup).
@@ -108,7 +170,11 @@ export default {
       if (!auth.ok) return auth.res;
       const instanceId = url.searchParams.get('instanceId') ?? '';
       if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
-      await makeProvider(env).deleteInstance({ id: instanceId, providerRef: `ms-${instanceId}` });
+      try {
+        await makeProvider(env).deleteInstance({ id: instanceId, providerRef: `ms-${instanceId}` });
+      } catch (e) {
+        return cors(json({ ok: false, code: 'DELETE_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+      }
       return cors(json({ ok: true, instanceId, deleted: true }));
     }
 

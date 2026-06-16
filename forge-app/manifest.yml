@@ -1,0 +1,50 @@
+# Conf Mini-Sites — Forge Confluence app (CONTEXT.md 2026-06-17). Forge shell + Cloudflare Workers-for-Platforms
+# backend. This app is a SEPARATE deployable from the Cloudflare Workers (which live at the repo root); it is
+# kept in its own directory so Forge's bundled toolchain never sees the Workers' tsconfig. The macro is a
+# Custom UI that:
+#   • asks the resolver for a grant-signed serve URL and embeds the mini-site in a nested iframe served by the
+#     Cloudflare DISPATCH Worker (the bytes never enter Forge — the WfP per-instance Worker serves them);
+#   • lets an editor upload a multi-file bundle → resolver `publish` → Cloudflare CONTROL Worker (which the
+#     Forge invocation token authorizes) → provisions a per-instance Worker.
+# Forge inherits Confluence permissions, so there is no self-built permission gateway.
+modules:
+  macro:
+    - key: mini-site
+      title: Mini-Site
+      description: Embed a multi-file interactive mini-site (prototype, dashboard,
+        tool) on this page.
+      resource: view
+      resolver:
+        function: resolver
+  function:
+    - key: resolver
+      handler: index.handler
+
+resources:
+  - key: view
+    path: static/view
+
+# The CONTROL Worker is a Forge remote (egress target for api.fetch). Auth is a shared secret the resolver
+# sends (x-mini-sites-secret) — no OAuth-token config, so no admin-consent scopes. (Upgrade path: add
+# auth.appUserToken + scopes to have Forge attach a verifiable invocation token instead.)
+remotes:
+  - key: control
+    baseUrl: https://conf-mini-sites-remote-dev.zenuml.workers.dev
+    operations:
+      - fetch
+
+app:
+  runtime:
+    name: nodejs22.x
+  id: ari:cloud:ecosystem::app/2efdb7d9-ee5a-4294-b56a-b514e36e1a98
+  # CONTROL_BASE_URL (read by the resolver as process.env.CONTROL_BASE_URL) is set via the CLI:
+  #   forge variables set CONTROL_BASE_URL https://conf-mini-sites-remote-dev.zenuml.workers.dev
+
+permissions:
+  scopes: []
+  external:
+    fetch:
+      backend:
+        - address: https://conf-mini-sites-remote-dev.zenuml.workers.dev
+    frames:
+      - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev

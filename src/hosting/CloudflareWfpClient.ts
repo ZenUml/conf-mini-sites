@@ -42,7 +42,10 @@ export class CloudflareWfpClient implements WfpClient {
 
   constructor(private readonly env: CloudflareWfpEnv) {
     this.base = (env.apiBase ?? DEFAULT_API_BASE).replace(/\/+$/, '');
-    this.doFetch = env.fetchImpl ?? fetch;
+    // The global fetch must keep its `this` bound to globalThis — calling it via a stored property (this.do-
+    // Fetch(...)) detaches it and the Workers runtime throws "Illegal invocation". Wrap so the global is called
+    // with the right receiver. (Node is lenient, so this only bites in the Worker — caught by live testing.)
+    this.doFetch = env.fetchImpl ?? ((input, init) => fetch(input, init));
   }
 
   private scriptUrl(workerName: string): string {

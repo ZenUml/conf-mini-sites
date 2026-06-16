@@ -94,8 +94,11 @@ be **CommonJS** (no `type:module`) with default imports; (b) the precomputed ins
 Forge's `extension.localId` equals the ADF node `localId`.
 
 **Polish / follow-ups (non-blocking — the pipeline works):**
-1. **Macro iframe height** — the Forge macro renders the mini-site clipped to ~150px tall. Make the Custom UI
-   drive the macro height (Forge auto-resize / explicit height) so the full mini-site shows.
+1. **Macro height / fullscreen** — the inline Forge macro renders the mini-site compact (~150px). Setting the
+   Custom UI content height did NOT grow it and `@forge/bridge` exposes no resize API: Forge inline macros are
+   compact by design. The right pattern (as ZenUML's own macros do) is a **fullscreen modal** —
+   `custom-ui-fullscreen-modal-dialog` — with an "expand" button for the full mini-site; the inline view stays a
+   compact preview/launcher.
 2. **Upload UI path** — verified the resolver/serve path via a pre-published bundle; still exercise the actual
    in-page folder upload (`Choose files` → `Publish`) end-to-end. Consider moving upload to the macro **config**
    (edit-only) so viewers can't re-publish.

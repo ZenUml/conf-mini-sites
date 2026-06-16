@@ -42,10 +42,16 @@ function el(tag, attrs = {}, ...children) {
 }
 
 function renderPreview(url) {
+  // Forge auto-resizes the macro iframe to the Custom UI content height. Give the document a determinate height
+  // (set on html/body/#root) so the macro reserves the full preview, not the ~150px initial-state height.
+  const H = 600;
+  document.documentElement.style.height = `${H + 8}px`;
+  document.body.style.height = `${H + 8}px`;
+  root.style.height = `${H}px`;
   root.replaceChildren(
     el('iframe', {
       src: url,
-      style: 'width:100%;height:600px;border:0;border-radius:6px;',
+      style: `width:100%;height:${H}px;border:0;border-radius:6px;display:block;`,
       sandbox: 'allow-scripts allow-forms allow-popups allow-same-origin',
       title: 'Mini-Site',
     }),
@@ -53,6 +59,10 @@ function renderPreview(url) {
 }
 
 function renderUpload(message) {
+  // Compact, content-sized height for the upload state (reset any preview height).
+  document.documentElement.style.height = 'auto';
+  document.body.style.height = 'auto';
+  root.style.height = 'auto';
   const status = el('p', { style: 'color:#6B778C;font:13px system-ui;margin:8px 0;' }, message || '');
   const input = el('input', { type: 'file', multiple: 'true', webkitdirectory: 'true' });
   const publishBtn = el(

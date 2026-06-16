@@ -15,11 +15,12 @@ import { PermissionGate } from '../gateway/permissionCache';
 import type { PermissionChecker, PermissionContext } from '../gateway/permissionCache';
 import { D1InstanceStore } from '../db/D1InstanceStore';
 import { CloudflareWfPProvider } from '../hosting/CloudflareWfPProvider';
-import { CloudflareWfpClient } from '../hosting/CloudflareWfpClient';
+import { DispatchBindingWfpClient } from '../hosting/DispatchBindingWfpClient';
+import type { DispatchNamespaceBinding } from '../hosting/DispatchBindingWfpClient';
 
 export interface Env {
   DB: D1Database;
-  // MINISITES: DispatchNamespace;  // WfP dispatch namespace — wired in Stage 2 via CloudflareWfpClient
+  MINISITES: DispatchNamespaceBinding; // WfP dispatch namespace binding — env.MINISITES.get(name).fetch()
   K_GRANT: string; // K_grant raw key material (a Cloudflare secret) — DESIGN §2.7
   APP_KEY: string; // this app's descriptor key — the (clientKey, key) variant selector for secret lookup
   [binding: string]: unknown;
@@ -50,7 +51,7 @@ function buildDeps(env: Env): GatewayDeps {
     store: new D1InstanceStore(env.DB),
     lookupSecret: installSecretLookup(env),
     gate: new PermissionGate({ checker: confluencePermissionChecker(env), now: () => Date.now() }),
-    provider: new CloudflareWfPProvider(new CloudflareWfpClient(env)),
+    provider: new CloudflareWfPProvider(new DispatchBindingWfpClient(env.MINISITES)),
     grantKey: enc.encode(env.K_GRANT),
     appKey: env.APP_KEY,
     now: () => Date.now(),

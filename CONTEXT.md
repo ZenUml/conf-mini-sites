@@ -2,19 +2,31 @@
 
 A Confluence-embedded app that lets a user **upload a multi-file static bundle** (an AI-generated interactive mini-site: clickable prototype, filterable dashboard, troubleshooting tool) and host it as a live, embedded object on a Confluence page.
 
-**Status: GO — Forge-native (decided 2026-06-16; pivoted from Cloudflare+Connect 2026-06-17).** Ship as a
-**Forge** Confluence app — NOT Atlassian Connect, NOT external Cloudflare. Why the pivot: (a) **Workers for
-Platforms is not entitled** on the Cloudflare account (dispatch namespaces are a paid/Enterprise add-on — error
-10121), so the external WfP hosting can't be provisioned; (b) Atlassian is **deprecating Connect** in favour of
-Forge; (c) Forge **deploys natively via the CLI** (creds + a conf-app template on hand) — the most shippable
-path. **Forge inherits Confluence permissions**, so the entire self-built auth gateway (the CVE-2021-26073 /
-CVSS-9.1 component — JWT/qsh verify, signed-path grants, permission cache) is **no longer needed** — the
-scariest piece evaporates (this is the DESIGN §6 insight). The hard part shifts to **client-side multi-file
-reassembly** in a Custom UI (rendering a bundle with relative paths inside the Forge iframe). Reused above the
-seam: **bundle validation, secret scan, the bundle types**. The Cloudflare/Connect code (gateway, grants, WfP/
-R2 providers — all tested) is **retained but shelved** as the seam's alternative substrate, usable if WfP is
-ever enabled. Gates: G1 (residency) is largely **moot** on Forge (data stays in Atlassian's boundary); demand
-still validated via the live Marketplace listing.
+**Status: GO — Forge shell + Cloudflare Workers-for-Platforms backend (settled 2026-06-17).** This is the
+final architecture, reached through the user's sequential directives: use **Forge** (not Connect); **keep
+Cloudflare Workers** ("Forge + Workers, that's fundamental"); **each macro instance is paired with its own
+Worker**; **Workers for Platforms is now purchased** (the earlier 10121 not-entitled blocker is gone — a
+`dispatch-namespace list` now succeeds, namespace `mini-sites-dev` is live).
+
+**Split of responsibilities:**
+- **Forge** owns the app shell: the macro module, install/distribution via the Marketplace, and **user auth —
+  Forge inherits Confluence permissions**, so there is NO self-built Confluence ACL (the CVE-2021-26073 /
+  CVSS-9.1 permission-gateway class evaporates). The Forge **resolver** runs server-side as the authorized
+  viewer; it mints a short-lived **HMAC signed-path grant** and hands the Custom UI a serve URL. Publish goes
+  resolver → control Worker over a Forge **remote** carrying the Forge invocation token (RS256/JWKS).
+- **Cloudflare WfP** owns hosting + serving: a **control Worker** (verifies the Forge token, validates +
+  secret-scans the bundle, provisions the per-instance Worker via the WfP script API) and a **dispatch Worker**
+  (verifies the grant, routes to the per-instance Worker via the dispatch-namespace binding, injects `<base>` +
+  CSP). Each macro instance = one **per-instance user Worker** in the dispatch namespace, **non-routable** (no
+  public URL — verified live), serving its bundle.
+
+**What this keeps vs. drops from the earlier Connect build:** KEEPS (above the seam, all tested) — bundle
+validation, secret scan, bundle types, the **HMAC signed-path grant** (now minted by the Forge resolver, not a
+Connect JWT flow), the HostingProvider seam + CloudflareWfPProvider, InstanceStore. DROPS under Forge —
+`connectJwt.ts` (Connect JWT/qsh verify) and `permissionCache.ts` (Confluence permission/check): Forge inherits
+permissions, so these are retained-but-shelved in the tree, not on the live path. R2HostingProvider stays as
+the seam's large-bundle / residency substrate. Gates: G1 (residency) is largely moot for the Atlassian-shell
+half; bundle bytes do live on Cloudflare, so the external-processor disclosure still applies for that segment.
 
 ## Glossary
 
@@ -22,12 +34,37 @@ still validated via the live Marketplace listing.
 - **Macro instance** — one embedded mini-site on one Confluence page.
 - **Auth gateway** — the request path that authenticates the viewer and enforces the Confluence page's permissions before serving a bundle.
 
-## Architecture (current decision — Cloudflare; conditional)
+## Architecture (settled — Forge shell + Cloudflare WfP backend)
 
-- **Hosting:** Cloudflare **Workers for Platforms** — one dispatch namespace; each macro instance = one user Worker serving its bundle via **Workers Static Assets** (native relative-path serving). Plain Workers/Pages are capped (500 / 100 per account), so WfP is required. Cost ≈ $25/mo base (incl. 1,000 scripts) → ~$205–230/mo at 10k instances.
-- **Access:** the **dispatch Worker is the auth gateway** — verify the Atlassian JWT (`qsh`/`iss`/`exp`), call Confluence `permission/check` (read), then route to the tenant Worker. User Workers are not independently routable → no public-URL bypass.
-- **Trade-off (accepted):** files live on Cloudflare → **NOT "Runs on Atlassian", NOT no-egress, permissions are app-enforced not inherited.** Consequence: must *pass* a Cloud Fortified security review (not skip it), and the auth gateway is self-built ACL code (CVE-2021-26073 / CVSS-9.1 class — must be threat-modeled and pen-tested).
-- **Forge fallback:** only if a customer's security **rejects the external processor** — and only if a Forge feasibility spike first passes (Forge needs a client-side-reassembly hack, ~100 MB/file cap; Object Store is EAP-only). Not the default path.
+```
+Confluence page
+  └─ Forge macro (Custom UI iframe)
+       │  invoke('getServeUrl')                 invoke('publish', files)
+       ▼                                            │
+     Forge resolver  ── mints HMAC grant ──┐        │  Forge remote (invocation token, RS256)
+       │ returns  /v/<instanceId>/g/<grant>/│        ▼
+       ▼                                    │   Cloudflare CONTROL Worker
+   browser loads iframe src ───────────────▼    (verify Forge token → validate+scan
+                                     Cloudflare DISPATCH Worker          → WfP script API)
+                                     (verify grant → env.MINISITES        │ provisions
+                                      .get('ms-<id>').fetch())            ▼
+                                            └────────────────────► per-instance user Worker
+                                                                   (in dispatch namespace,
+                                                                    non-routable, serves bundle)
+```
+
+- **Hosting:** Cloudflare **Workers for Platforms** (purchased) — dispatch namespace `mini-sites-dev`; each
+  macro instance = one **per-instance user Worker** `ms-<instanceId>`, **non-routable** (only reachable through
+  the dispatch Worker — verified live). Small bundles are served from the per-instance Worker directly;
+  R2HostingProvider remains the seam's large-bundle substrate.
+- **Auth (two distinct checks, neither is a Confluence ACL):** (1) **publish** — the control Worker verifies the
+  **Forge invocation token** (RS256/JWKS, app-id allowlist) so only our Forge app can provision. (2) **serve** —
+  the dispatch Worker verifies the **HMAC signed-path grant** minted by the Forge resolver. The resolver only
+  runs for a user Forge has already authorized to view the page, so **Confluence permissions are inherited** —
+  there is no `permission/check` call and no self-built ACL.
+- **Trade-off (accepted):** bundle bytes live on Cloudflare → for that data path it is **not "Runs on
+  Atlassian" / not no-egress**; the external-processor disclosure + secret-scan + CSP sandboxing still apply.
+  What's gone vs. the Connect design is the *permission* gateway, not the *hosting* disclosure.
 
 ## Design constraints (acceptance criteria — each needs a testable invariant + threat model BEFORE code)
 

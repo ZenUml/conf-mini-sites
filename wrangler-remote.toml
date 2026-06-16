@@ -1,10 +1,17 @@
-# The Forge app's remote backend — a standard Cloudflare Worker (NOT Workers-for-Platforms; WfP is not
-# entitled). Hosts + serves the multi-file bundle from R2 and runs the publish pipeline. Forge fronts auth +
-# distribution; this Worker verifies the Forge token (added next) and serves bytes from R2.
+# The Forge app's CONTROL Worker (a Forge `remote`; CONTEXT.md 2026-06-17). Verifies the Forge invocation
+# token, validates + secret-scans the uploaded bundle, and provisions the per-instance user Worker into the
+# dispatch namespace via the WfP REST API. It does NOT serve viewer bytes — the dispatch Worker does that.
 name = "conf-mini-sites-remote-dev"
 main = "src/worker/index.ts"
 compatibility_date = "2026-06-16"
 
-[[r2_buckets]]
-binding = "BUNDLES"
-bucket_name = "conf-mini-sites-bundles-dev"
+[vars]
+# Forge app ids allowed to provision (comma-separated, last ARI segment). Our app id from manifest.yml.
+ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
+# Cloudflare account + dispatch namespace the per-instance Workers are uploaded into.
+WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"
+WFP_NAMESPACE = "mini-sites-dev"
+
+# Secret (set out-of-band, never committed):
+#   WFP_API_TOKEN — Cloudflare API token with Workers Scripts:Edit. Set with:
+#     npx wrangler secret put WFP_API_TOKEN --config wrangler-remote.toml

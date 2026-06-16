@@ -12,6 +12,9 @@
 // Forge only invokes this resolver for a user it has already authorized for the macro, so there is no
 // permission check here (DESIGN §6 insight).
 
+// Default imports — the working Forge-resolver pattern (Planning-Poker, ui-kit-2-page-approver). This requires
+// the app package to be CommonJS (no "type":"module" in package.json); with type:module Forge's bundler
+// mis-applies ESM interop and `new Resolver()` throws "not a constructor" (caught live on first render).
 import Resolver from '@forge/resolver';
 import api from '@forge/api';
 

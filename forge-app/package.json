@@ -2,8 +2,8 @@
   "name": "conf-mini-sites-forge",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "description": "Conf Mini-Sites — Forge app shell (macro + resolver + Custom UI). Backend Workers live at the repo root.",
+  "comment": "CommonJS (no type:module) — required for Forge's bundler to resolve @forge/resolver's default export.",
   "scripts": {
     "build:ui": "esbuild static/view/src/app.js --bundle --outfile=static/view/main.js --format=iife --minify"
   },

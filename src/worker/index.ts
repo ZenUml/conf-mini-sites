@@ -68,10 +68,12 @@ const b64ToBytes = (b64: string): Uint8Array => {
 // name. Constrain instanceId so `ms-<id>` stays ≤63 chars of [a-z0-9_-] (a uuid or nanoid qualifies).
 const INSTANCE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,55}$/;
 
+function makeClient(env: Env): CloudflareWfpClient {
+  return new CloudflareWfpClient({ accountId: env.WFP_ACCOUNT_ID, namespace: env.WFP_NAMESPACE, apiToken: env.WFP_API_TOKEN });
+}
+
 function makeProvider(env: Env): CloudflareWfPProvider {
-  return new CloudflareWfPProvider(
-    new CloudflareWfpClient({ accountId: env.WFP_ACCOUNT_ID, namespace: env.WFP_NAMESPACE, apiToken: env.WFP_API_TOKEN }),
-  );
+  return new CloudflareWfPProvider(makeClient(env));
 }
 
 /** Constant-time string compare (avoids leaking the secret via timing). Unequal lengths → false. */
@@ -148,6 +150,17 @@ export default {
       const instanceId = url.searchParams.get('instanceId') ?? '';
       if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
       if (!env.K_GRANT || !env.DISPATCH_BASE_URL) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+      // Only mint a serve grant if this instance actually has a published bundle. Otherwise the Custom UI would
+      // embed an iframe to a non-existent per-instance Worker (blank 404); returning NOT_PUBLISHED makes it show
+      // the upload panel instead.
+      let exists: boolean;
+      try {
+        exists = await makeClient(env).workerExists(`ms-${instanceId}`);
+      } catch (e) {
+        return cors(json({ ok: false, code: 'CHECK_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+      }
+      if (!exists) return cors(json({ ok: false, code: 'NOT_PUBLISHED', instanceId }));
 
       const now = Date.now();
       // Audit-only grant fields (the dispatch Worker verifies i + exp + sig; cl/a/c are for logs). Prefer the

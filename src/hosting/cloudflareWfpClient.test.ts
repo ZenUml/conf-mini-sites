@@ -85,6 +85,29 @@ describe('CloudflareWfpClient.deleteWorker', () => {
   });
 });
 
+describe('CloudflareWfpClient.workerExists', () => {
+  const ok = (script: unknown) => new Response(JSON.stringify({ success: true, result: { script } }), { status: 200 });
+  it('true when result.script is present (GET script metadata)', async () => {
+    const { fetchImpl, calls } = recordingFetch(() => ok({ id: 'ms-inst-1' }));
+    const client = new CloudflareWfpClient(baseEnv(fetchImpl));
+    expect(await client.workerExists('ms-inst-1')).toBe(true);
+    expect(calls[0]!.method).toBe('GET');
+    expect(calls[0]!.url).toContain('/scripts/ms-inst-1');
+  });
+  it('false when 200 but result.script is null (WfP "not provisioned" shape — does NOT 404)', async () => {
+    const { fetchImpl } = recordingFetch(() => ok(null));
+    expect(await new CloudflareWfpClient(baseEnv(fetchImpl)).workerExists('ms-x')).toBe(false);
+  });
+  it('false on a real 404', async () => {
+    const { fetchImpl } = recordingFetch(() => new Response('not found', { status: 404 }));
+    expect(await new CloudflareWfpClient(baseEnv(fetchImpl)).workerExists('ms-x')).toBe(false);
+  });
+  it('throws on other errors', async () => {
+    const { fetchImpl } = recordingFetch(() => new Response('boom', { status: 500 }));
+    await expect(new CloudflareWfpClient(baseEnv(fetchImpl)).workerExists('ms-x')).rejects.toThrow(/500/);
+  });
+});
+
 describe('CloudflareWfpClient.dispatchFetch', () => {
   it('throws — serving routes through the dispatch-namespace binding, not the REST control client', async () => {
     const { fetchImpl } = recordingFetch(() => new Response(null, { status: 200 }));

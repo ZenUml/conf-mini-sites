@@ -82,6 +82,18 @@ export class CloudflareWfpClient implements WfpClient {
     }
   }
 
+  /** True iff the per-instance Worker `workerName` exists in the dispatch namespace. Used by /serve-url to
+   *  decide "published vs not" — an un-provisioned instance must surface the upload UI, not a broken iframe.
+   *  NOTE: the WfP dispatch metadata GET returns HTTP 200 with `result.script === null` for a NON-existent
+   *  script (it does not 404), so existence is the presence of `result.script`, not the status code. */
+  async workerExists(workerName: string): Promise<boolean> {
+    const res = await this.doFetch(this.scriptUrl(workerName), { method: 'GET', headers: this.authHeaders() });
+    if (res.status === 404) return false;
+    if (!res.ok) throw new Error(`WfP workerExists(${workerName}) failed: ${res.status} ${await safeText(res)}`);
+    const body = (await res.json().catch(() => null)) as { result?: { script?: unknown } } | null;
+    return body?.result?.script != null;
+  }
+
   /** Delete the per-instance Worker. Idempotent: a 404 (already gone) is success — orphan reconciliation
    *  calls this blindly (DESIGN §6.1 deleteInstance). */
   async deleteWorker(workerName: string): Promise<void> {

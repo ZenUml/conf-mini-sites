@@ -2,15 +2,19 @@
 
 A Confluence-embedded app that lets a user **upload a multi-file static bundle** (an AI-generated interactive mini-site: clickable prototype, filterable dashboard, troubleshooting tool) and host it as a live, embedded object on a Confluence page.
 
-**Status: GO — build for Marketplace (decided 2026-06-16).** Ship the real app to the Atlassian Marketplace on
-**Cloudflare**, **target the residency-agnostic segment**, and let **paid installs be the demand signal**. The
-gates below are **reframed, not abandoned**: G1 (residency) → a listing/targeting choice + listing-hygiene
-(privacy policy, DSAR-delete, a DPA on request), not a build blocker; G2 (demand) → the live listing is the
-test; G4 (EV) → near-zero cost makes shipping plainly +EV. **The one item retained as build-discipline (not a
-gate):** the auth gateway is a self-built ACL serving multi-tenant content from a public edge (CVE-2021-26073 /
-CVSS-9.1 class) — an IDOR bug there is cross-tenant disclosure → Marketplace delisting risk, independent of
-segment or cost; so Stage 3 is built and pen-tested against the threat model (DESIGN §2). Forge fallback (§6) is
-**shelved** unless a future enterprise deal demands no external processor.
+**Status: GO — Forge-native (decided 2026-06-16; pivoted from Cloudflare+Connect 2026-06-17).** Ship as a
+**Forge** Confluence app — NOT Atlassian Connect, NOT external Cloudflare. Why the pivot: (a) **Workers for
+Platforms is not entitled** on the Cloudflare account (dispatch namespaces are a paid/Enterprise add-on — error
+10121), so the external WfP hosting can't be provisioned; (b) Atlassian is **deprecating Connect** in favour of
+Forge; (c) Forge **deploys natively via the CLI** (creds + a conf-app template on hand) — the most shippable
+path. **Forge inherits Confluence permissions**, so the entire self-built auth gateway (the CVE-2021-26073 /
+CVSS-9.1 component — JWT/qsh verify, signed-path grants, permission cache) is **no longer needed** — the
+scariest piece evaporates (this is the DESIGN §6 insight). The hard part shifts to **client-side multi-file
+reassembly** in a Custom UI (rendering a bundle with relative paths inside the Forge iframe). Reused above the
+seam: **bundle validation, secret scan, the bundle types**. The Cloudflare/Connect code (gateway, grants, WfP/
+R2 providers — all tested) is **retained but shelved** as the seam's alternative substrate, usable if WfP is
+ever enabled. Gates: G1 (residency) is largely **moot** on Forge (data stays in Atlassian's boundary); demand
+still validated via the live Marketplace listing.
 
 ## Glossary
 

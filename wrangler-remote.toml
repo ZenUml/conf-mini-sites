@@ -1,0 +1,10 @@
+# The Forge app's remote backend — a standard Cloudflare Worker (NOT Workers-for-Platforms; WfP is not
+# entitled). Hosts + serves the multi-file bundle from R2 and runs the publish pipeline. Forge fronts auth +
+# distribution; this Worker verifies the Forge token (added next) and serves bytes from R2.
+name = "conf-mini-sites-remote-dev"
+main = "src/worker/index.ts"
+compatibility_date = "2026-06-16"
+
+[[r2_buckets]]
+binding = "BUNDLES"
+bucket_name = "conf-mini-sites-bundles-dev"

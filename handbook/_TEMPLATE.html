@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!-- =====================================================================
+  HANDBOOK PAGE TEMPLATE — every content page MUST follow this shell.
+  Rules for generators:
+   1. Copy <head> verbatim (CSS link + mermaid module init at the bottom).
+   2. Copy the <aside class="sidebar"> nav VERBATIM, then set class="active"
+      on the ONE link matching this page (and remove it from Overview).
+   3. Put the page title in .topbar .crumbs <b> and keep the status badge.
+   4. All real content goes in <main class="content">.
+   5. Diagrams: <figure class="diagram"><div class="mermaid">…</div>
+      <figcaption>…</figcaption></figure>. Use flowchart / sequenceDiagram /
+      erDiagram / stateDiagram-v2 / classDiagram as fits.
+   6. Callouts: <div class="callout gated|danger|ok|info"><span class="c-ico">⚑</span><div>…</div></div>
+   7. Tables: wrap in <div class="table-wrap">…</div>.
+   8. End with <nav class="footer-nav"> prev/next links.
+   9. NEVER inline page-specific CSS beyond tiny tweaks; use the design system.
+  ===================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAGE TITLE — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>PAGE TITLE</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">SECTION EYEBROW</span>Page heading</h1>
+      <p class="lead">One- or two-sentence framing of what this page covers.</p>
+
+      <!-- example diagram -->
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart LR
+  A[Example] --> B{Decision} --> C[Result]
+        </div>
+        <figcaption>Caption describing the diagram.</figcaption>
+      </figure>
+
+      <nav class="footer-nav">
+        <a href="PREV.html"><span class="dir">← Previous</span> Prev page</a>
+        <a class="next" href="NEXT.html"><span class="dir">Next →</span> Next page</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini-Sites Publisher · Upload & Live Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['Sora', 'system-ui', 'sans-serif'],
+          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+          mono: ['JetBrains Mono', 'SFMono-Regular', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:    '#172B4D',
+          subink: '#44546F',
+          brand:  '#0C66E4',
+          brandhi:'#4C9AFF',
+          good:   '#22A06B',
+          goodhi: '#4BCE97',
+          warn:   '#E2B203',
+          bad:    '#CA3521',
+          badhi:  '#FF8F73',
+        },
+        borderRadius: {
+          xl2: '18px',
+        },
+        boxShadow: {
+          glass: '0 8px 40px -12px rgba(8,15,40,0.55), inset 0 1px 0 rgba(255,255,255,0.14)',
+          lift:  '0 2px 10px -2px rgba(8,15,40,0.35)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  :root {
+    /* modular type scale (1.18 ratio, base 14px) */
+    --fs-foot: 11.5px;
+    --fs-meta: 12.5px;
+    --fs-body: 14px;
+    --fs-lead: 16.5px;
+    --fs-h:    19px;
+    --fs-num:  44px;
+    /* spacing rhythm (8px base) */
+    --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px;
+  }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    color: #EAF0FB;
+    background:
+      radial-gradient(circle at 50% -10%, #1b2c52 0%, #0d1730 45%, #070d20 100%);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* ---------- AURORA FIELD ---------- */
+  .aurora { position: fixed; inset: -20%; z-index: 0; filter: blur(70px); pointer-events: none; }
+  .blob { position: absolute; border-radius: 50%; opacity: 0.55; mix-blend-mode: screen; will-change: transform; }
+  .b1 { width: 46vw; height: 46vw; left: -6vw; top: -4vw;
+        background: radial-gradient(circle, #0C66E4 0%, transparent 68%); animation: drift1 26s ease-in-out infinite; }
+  .b2 { width: 40vw; height: 40vw; right: -8vw; top: 8vw;
+        background: radial-gradient(circle, #22A06B 0%, transparent 66%); animation: drift2 32s ease-in-out infinite; }
+  .b3 { width: 38vw; height: 38vw; left: 22vw; bottom: -14vw;
+        background: radial-gradient(circle, #7A5AF8 0%, transparent 66%); animation: drift3 29s ease-in-out infinite; }
+  .b4 { width: 30vw; height: 30vw; right: 16vw; bottom: -6vw;
+        background: radial-gradient(circle, #4C9AFF 0%, transparent 70%); animation: drift1 35s ease-in-out infinite reverse; }
+
+  @keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(6vw,4vw) scale(1.12)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,5vw) scale(0.92)} }
+  @keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(4vw,-5vw) scale(1.1)} }
+
+  /* grain veil for premium depth */
+  .veil { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+          background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+          background-size: 3px 3px; opacity: 0.6; }
+
+  /* ---------- GLASS SURFACES ---------- */
+  .glass {
+    background: linear-gradient(160deg, rgba(28,40,72,0.62) 0%, rgba(16,25,50,0.52) 100%);
+    backdrop-filter: blur(26px) saturate(150%);
+    -webkit-backdrop-filter: blur(26px) saturate(150%);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 8px 40px -12px rgba(8,15,40,0.6), inset 0 1px 0 rgba(255,255,255,0.14);
+  }
+  .glass-soft {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.09);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .glass-inset {
+    background: rgba(8,14,32,0.42);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  .hair { border-color: rgba(255,255,255,0.10); }
+
+  .label {
+    font-size: var(--fs-foot);
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #8FA3C7;
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-ligatures: none; }
+
+  /* segmented switch */
+  .seg-track { background: rgba(8,14,32,0.5); border: 1px solid rgba(255,255,255,0.10); }
+  .seg-thumb {
+    background: linear-gradient(150deg, rgba(76,154,255,0.30), rgba(12,102,228,0.22));
+    border: 1px solid rgba(124,180,255,0.45);
+    box-shadow: 0 2px 14px -2px rgba(12,102,228,0.6), inset 0 1px 0 rgba(255,255,255,0.25);
+    transition: transform .42s cubic-bezier(.22,1,.36,1);
+  }
+  .seg-btn { transition: color .25s ease; }
+  .seg-btn[aria-selected="true"] { color: #EAF0FB; }
+  .seg-btn[aria-selected="false"] { color: #8FA3C7; }
+
+  /* progress bar */
+  .pbar-track { background: rgba(8,14,32,0.55); border: 1px solid rgba(255,255,255,0.08); overflow: hidden; }
+  .pbar-fill {
+    background: linear-gradient(90deg, #0C66E4 0%, #4C9AFF 100%);
+    box-shadow: 0 0 18px -2px rgba(76,154,255,0.7);
+    transition: width .9s cubic-bezier(.22,1,.36,1);
+    position: relative;
+  }
+  .pbar-fill::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.55) 50%, transparent 80%);
+    background-size: 220% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+  @keyframes shimmer { 0%{background-position: 180% 0} 100%{background-position: -80% 0} }
+
+  /* spinner */
+  .spin { animation: rot 0.9s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  /* check pop */
+  @keyframes pop { 0%{transform:scale(.4);opacity:0} 60%{transform:scale(1.18)} 100%{transform:scale(1);opacity:1} }
+  .pop { animation: pop .4s cubic-bezier(.22,1.4,.4,1) both; }
+
+  /* manifest row tick */
+  .row-uploaded { animation: rowGlow .6s ease both; }
+  @keyframes rowGlow { 0%{background: rgba(34,160,107,0.18)} 100%{background: transparent} }
+
+  /* pulse dot */
+  .pulse { position: relative; }
+  .pulse::before {
+    content:""; position:absolute; inset:-5px; border-radius:50%;
+    background: rgba(75,206,151,0.5); animation: pulseRing 1.8s ease-out infinite;
+  }
+  @keyframes pulseRing { 0%{transform:scale(.6);opacity:.8} 100%{transform:scale(2.2);opacity:0} }
+
+  /* state reveal */
+  .state { display: none; }
+  .state.active { display: block; animation: stateIn .5s ease both; }
+  @keyframes stateIn { from{opacity:0; transform: translateY(8px)} to{opacity:1; transform:none} }
+
+  /* preview reveal */
+  .reveal-wrap.show .reveal {
+    animation: previewIn .85s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes previewIn {
+    0%   { opacity:0; transform: translateY(18px) scale(.965); filter: blur(8px); }
+    100% { opacity:1; transform: none; filter: blur(0); }
+  }
+  .reveal-glow.show {
+    animation: glowPulse 1.6s ease-out both;
+  }
+  @keyframes glowPulse {
+    0%{ box-shadow: 0 0 0 0 rgba(76,154,255,0), 0 8px 40px -12px rgba(8,15,40,0.6); }
+    35%{ box-shadow: 0 0 60px -6px rgba(76,154,255,0.55), 0 0 100px -10px rgba(34,160,107,0.35); }
+    100%{ box-shadow: 0 0 0 0 rgba(76,154,255,0), 0 8px 40px -12px rgba(8,15,40,0.6); }
+  }
+
+  /* chart bars: full height by default (no transform). Entrance is additive polish only —
+     'forwards' (not 'both') means the bar shows its natural full height before/without the
+     animation, so a paused/throttled tab can never strand it collapsed at scaleY(0). */
+  .gbar { transform-origin: bottom center; }
+  .gbar.grow-anim { animation: barGrow .85s cubic-bezier(.22,1,.36,1) forwards; }
+  @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+  /* buttons */
+  .btn-primary {
+    background: linear-gradient(150deg, #0C66E4, #1d76f0);
+    border: 1px solid rgba(124,180,255,0.5);
+    box-shadow: 0 4px 18px -4px rgba(12,102,228,0.75), inset 0 1px 0 rgba(255,255,255,0.25);
+    transition: transform .18s ease, box-shadow .25s ease, filter .25s ease;
+  }
+  .btn-primary:hover { filter: brightness(1.08); box-shadow: 0 6px 26px -4px rgba(12,102,228,0.9), inset 0 1px 0 rgba(255,255,255,0.3); }
+  .btn-primary:active { transform: scale(.985); }
+  .btn-ghost {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    transition: background .2s ease, border-color .2s ease, transform .18s ease;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.22); }
+  .btn-ghost:active { transform: scale(.985); }
+
+  .chip {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.11);
+  }
+  .chip-good {
+    background: rgba(34,160,107,0.14);
+    border: 1px solid rgba(75,206,151,0.4);
+    color: #8AE7C2;
+  }
+  .chip-active {
+    background: linear-gradient(150deg, rgba(76,154,255,0.28), rgba(12,102,228,0.18));
+    border: 1px solid rgba(124,180,255,0.5);
+    color: #DCEAFF;
+  }
+
+  /* focus ring */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #7CB4FF;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* copy feedback */
+  .copied { color: #4BCE97 !important; }
+
+  .ico { width: 16px; height: 16px; stroke-width: 2; }
+  .ico-sm { width: 14px; height: 14px; stroke-width: 2; }
+  .ico-lg { width: 18px; height: 18px; stroke-width: 2; }
+
+  /* error notice */
+  .err-box {
+    background: rgba(202,53,33,0.10);
+    border: 1px solid rgba(255,143,115,0.42);
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blob { animation: none !important; }
+    .pbar-fill::after { animation: none !important; display:none; }
+    .spin { animation: none !important; }
+    .pulse::before { animation: none !important; }
+    .reveal-wrap.show .reveal, .reveal-glow.show { animation: none !important; opacity:1 !important; transform:none !important; filter:none !important; }
+    .state.active { animation: none !important; }
+    .pop { animation: none !important; }
+    .pbar-fill { transition: none !important; }
+    .gbar { transition: none !important; }
+    .seg-thumb { transition: none !important; }
+  }
+</style>
+</head>
+
+<body class="font-sans">
+
+  <div class="aurora" aria-hidden="true">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+  </div>
+  <div class="veil" aria-hidden="true"></div>
+
+  <!-- Page framing copy (outside the tool panel) -->
+  <div class="relative z-10 mx-auto w-full" style="max-width: 760px; padding: 40px 20px 64px;">
+
+    <header class="mb-8 text-center">
+      <p class="label mb-3">Conf Mini-Sites · In-macro panel</p>
+      <h1 class="font-display font-semibold tracking-tight" style="font-size: clamp(26px,5vw,38px); line-height:1.08;">
+        Watch it go live, right inside the page.
+      </h1>
+      <p class="mx-auto mt-3 max-w-xl" style="color:#A9BAD9; font-size:15px; line-height:1.6;">
+        Drop a bundle in. It streams up, gets validated and secret-scanned,
+        then comes alive as a permission-gated preview — without ever leaving the editor.
+      </p>
+    </header>
+
+    <!-- ================= THE PANEL ================= -->
+    <main class="glass mx-auto overflow-hidden" style="max-width: 720px; border-radius: 18px;" aria-label="Add mini-site panel">
+
+      <!-- Panel header -->
+      <div class="flex items-center gap-3 px-5 py-4 border-b hair">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+             style="background: linear-gradient(150deg, rgba(76,154,255,0.35), rgba(12,102,228,0.2)); border:1px solid rgba(124,180,255,0.4);">
+          <i data-lucide="boxes" class="ico-lg" style="color:#BBD6FF;"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <h2 class="font-display font-semibold" style="font-size: var(--fs-lead); color:#EAF0FB;">Add mini-site</h2>
+            <span class="hidden sm:inline-flex items-center gap-1 rounded-md px-2 py-0.5 chip" style="font-size:11px; color:#9FB4D8;">
+              <i data-lucide="layout-template" class="ico-sm"></i> Confluence macro
+            </span>
+          </div>
+          <p class="mono mt-0.5 truncate" style="font-size: var(--fs-meta); color:#8FA3C7;">
+            publishing&nbsp;<span style="color:#CFE0FF;">rel-dashboard.zip</span>
+          </p>
+        </div>
+        <button class="btn-ghost flex h-8 w-8 items-center justify-center rounded-lg" aria-label="Close panel">
+          <i data-lucide="x" class="ico" style="color:#A9BAD9;"></i>
+        </button>
+      </div>
+
+      <!-- State switcher -->
+      <div class="px-5 pt-4">
+        <div class="seg-track relative flex rounded-xl p-1" role="tablist" aria-label="Panel state">
+          <div id="segThumb" class="seg-thumb absolute rounded-lg" style="top:4px; bottom:4px; left:4px; width:calc(50% - 4px);"></div>
+          <button id="tab-up" class="seg-btn relative z-10 flex flex-1 items-center justify-center gap-2 rounded-lg py-2"
+                  role="tab" aria-selected="true" aria-controls="state-uploading" style="font-size:13px; font-weight:500;">
+            <i data-lucide="upload-cloud" class="ico-sm"></i> Uploading
+          </button>
+          <button id="tab-pv" class="seg-btn relative z-10 flex flex-1 items-center justify-center gap-2 rounded-lg py-2"
+                  role="tab" aria-selected="false" aria-controls="state-preview" style="font-size:13px; font-weight:500;">
+            <i data-lucide="sparkles" class="ico-sm"></i> Preview
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ STATE 1 · UPLOADING ============ -->
+      <section id="state-uploading" class="state active px-5 py-5" role="tabpanel" aria-labelledby="tab-up">
+
+        <!-- Progress hero -->
+        <div class="glass-soft rounded-2xl p-4" style="border-radius:16px;">
+          <div class="flex items-end justify-between gap-3">
+            <div class="flex items-baseline gap-1">
+              <span id="pctNum" class="font-display font-semibold tabular-nums" style="font-size: var(--fs-num); line-height:1; color:#EAF0FB;">0</span>
+              <span class="font-display font-semibold" style="font-size:22px; color:#7FA0D4;">%</span>
+            </div>
+            <button id="cancelBtn" class="btn-ghost flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+                    style="font-size:13px; font-weight:500; color:#C2D2EE;">
+              <i data-lucide="x" class="ico-sm"></i> Cancel
+            </button>
+          </div>
+
+          <div class="pbar-track mt-3 h-2.5 w-full rounded-full">
+            <div id="pbarFill" class="pbar-fill h-full rounded-full" style="width:0%;"></div>
+          </div>
+
+          <div class="mt-3 flex items-center gap-2" aria-live="polite">
+            <span id="narratorIcon" class="inline-flex"><i data-lucide="loader-2" class="ico-sm spin" style="color:#7FB6FF;"></i></span>
+            <span id="narrator" class="mono" style="font-size: var(--fs-meta); color:#AEC3E6;">Uploading 5 files…</span>
+          </div>
+        </div>
+
+        <!-- Live file manifest -->
+        <div class="mt-5">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="label">File manifest</span>
+            <span class="mono" style="font-size:11.5px; color:#8FA3C7;"><span id="upCount">0</span> of 5 uploaded</span>
+          </div>
+          <div class="glass-inset rounded-2xl" style="border-radius:14px;">
+            <ul id="manifest" class="overflow-y-auto px-1.5 py-1.5" style="max-height: 188px;">
+              <!-- rows injected -->
+            </ul>
+          </div>
+        </div>
+
+        <!-- Validation & security checklist -->
+        <div class="mt-5">
+          <span class="label">Validation &amp; security</span>
+          <div id="checklist" class="glass-inset mt-2 rounded-2xl divide-y" style="border-radius:14px; --tw-divide-opacity:1;">
+            <!-- checklist rows injected -->
+          </div>
+
+          <!-- Inline error variant (hidden by default, de-emphasized) -->
+          <div id="errBox" class="err-box mt-2 rounded-xl px-3.5 py-3" style="display:none; border-radius:12px;" role="alert">
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="shield-alert" class="ico-lg shrink-0" style="color:#FF8F73; margin-top:1px;"></i>
+              <div class="min-w-0 flex-1">
+                <p style="font-size:13.5px; font-weight:600; color:#FFC4B3;">Secret detected — publish stopped</p>
+                <p class="mono mt-1 truncate" style="font-size:12px; color:#F0A48F;">config.js:14 — AWS access key (AKIA…)</p>
+                <p class="mt-1.5" style="font-size:12px; color:#C9A99F; line-height:1.5;">
+                  We won't publish a bundle that leaks credentials. Remove the secret and re-upload.
+                </p>
+                <button class="btn-ghost mt-2.5 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+                        style="font-size:12.5px; font-weight:500; color:#FFD4C7; border-color:rgba(255,143,115,0.45);">
+                  <i data-lucide="rotate-ccw" class="ico-sm"></i> Remove secret &amp; re-upload
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- tiny toggle so a reviewer can see the bounded error variant -->
+          <button id="errToggle" class="mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5"
+                  style="font-size:11px; color:#6E83A8;" aria-pressed="false">
+            <i data-lucide="bug" class="ico-sm"></i> demo: secret-detected error
+          </button>
+        </div>
+      </section>
+
+      <!-- ============ STATE 2 · PREVIEW / DONE ============ -->
+      <section id="state-preview" class="state px-5 py-5" role="tabpanel" aria-labelledby="tab-pv">
+
+        <!-- Published confirmation -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="pulse flex h-2.5 w-2.5 shrink-0 rounded-full" style="background:#4BCE97;"></span>
+            <h3 class="font-display font-semibold" style="font-size: var(--fs-h); color:#EAF0FB;">Published</h3>
+            <span style="font-size:13px; color:#8FA3C7;">· Live on this page</span>
+          </div>
+          <!-- instance reference -->
+          <div class="glass-soft flex items-center gap-2 rounded-lg px-2.5 py-1.5">
+            <i data-lucide="link-2" class="ico-sm" style="color:#7FB6FF;"></i>
+            <code class="mono" id="instanceRef" style="font-size:12px; color:#CFE0FF;">mini-site:rel-dashboard-7f3a</code>
+            <button id="copyRefBtn" class="ml-0.5 flex h-6 w-6 items-center justify-center rounded-md btn-ghost" aria-label="Copy instance reference">
+              <i data-lucide="copy" class="ico-sm" style="color:#A9BAD9;"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- THE WOW: live preview pane -->
+        <div id="revealWrap" class="reveal-wrap mt-4">
+          <div id="revealGlow" class="reveal-glow reveal overflow-hidden rounded-2xl"
+               style="border-radius:16px; border:1px solid rgba(255,255,255,0.14); background: rgba(8,14,32,0.5);">
+
+            <!-- browser chrome -->
+            <div class="flex items-center gap-2 px-3 py-2.5 border-b hair" style="background: rgba(255,255,255,0.04);">
+              <span class="flex gap-1.5">
+                <span class="h-3 w-3 rounded-full" style="background:#FF5F57;"></span>
+                <span class="h-3 w-3 rounded-full" style="background:#FEBC2E;"></span>
+                <span class="h-3 w-3 rounded-full" style="background:#28C840;"></span>
+              </span>
+              <div class="mono ml-2 flex flex-1 items-center gap-1.5 truncate rounded-md px-2.5 py-1"
+                   style="background: rgba(8,14,32,0.55); border:1px solid rgba(255,255,255,0.07); font-size:11.5px; color:#9FB4D8;">
+                <i data-lucide="lock" class="ico-sm" style="width:12px;height:12px; color:#4BCE97;"></i>
+                <span class="truncate">mini-site:rel-dashboard-7f3a · Live preview</span>
+              </div>
+              <button class="flex h-6 w-6 items-center justify-center rounded-md btn-ghost" aria-label="Reload preview" id="reloadBtn">
+                <i data-lucide="rotate-cw" class="ico-sm" style="color:#9FB4D8;"></i>
+              </button>
+            </div>
+
+            <!-- rendered mini-site (filterable dashboard) -->
+            <div class="p-4" style="background: linear-gradient(165deg, rgba(20,30,56,0.6), rgba(12,20,42,0.6));">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p class="font-display font-semibold" style="font-size:15px; color:#EAF0FB;">Release readiness</p>
+                  <p class="mono" style="font-size:11px; color:#7E93BA;">source · data/items.json</p>
+                </div>
+                <span class="flex items-center gap-1.5 rounded-full px-2.5 py-1 chip-good" style="font-size:11px;">
+                  <span class="h-1.5 w-1.5 rounded-full pulse" style="background:#4BCE97;"></span> live
+                </span>
+              </div>
+
+              <!-- filter chips -->
+              <div class="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Filter range">
+                <button class="filt rounded-full px-3 py-1 chip-active" data-range="7" style="font-size:11.5px; font-weight:500;">Last 7 days</button>
+                <button class="filt rounded-full px-3 py-1 chip" data-range="30" style="font-size:11.5px; color:#9FB4D8;">30 days</button>
+                <button class="filt rounded-full px-3 py-1 chip" data-range="90" style="font-size:11.5px; color:#9FB4D8;">Quarter</button>
+              </div>
+
+              <!-- metric tiles + chart -->
+              <div class="mt-3 grid gap-2.5" style="grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));">
+                <div class="glass-soft rounded-xl px-3 py-2.5" style="border-radius:12px;">
+                  <p style="font-size:10.5px; color:#7E93BA; letter-spacing:0.04em;">SHIPPED</p>
+                  <p id="m1" class="font-display font-semibold tabular-nums" style="font-size:22px; color:#EAF0FB;">38</p>
+                </div>
+                <div class="glass-soft rounded-xl px-3 py-2.5" style="border-radius:12px;">
+                  <p style="font-size:10.5px; color:#7E93BA; letter-spacing:0.04em;">BLOCKED</p>
+                  <p id="m2" class="font-display font-semibold tabular-nums" style="font-size:22px; color:#FFC9A8;">4</p>
+                </div>
+                <div class="glass-soft rounded-xl px-3 py-2.5" style="border-radius:12px;">
+                  <p style="font-size:10.5px; color:#7E93BA; letter-spacing:0.04em;">ON TRACK</p>
+                  <p id="m3" class="font-display font-semibold tabular-nums" style="font-size:22px; color:#8AE7C2;">90%</p>
+                </div>
+              </div>
+
+              <!-- bar chart implying assets/chart.svg -->
+              <div class="glass-inset mt-2.5 rounded-xl p-3" style="border-radius:12px;">
+                <div class="flex items-center justify-between">
+                  <p style="font-size:11px; color:#9FB4D8;">Throughput by squad</p>
+                  <span class="mono" style="font-size:10px; color:#6E83A8;">assets/chart.svg</span>
+                </div>
+                <div id="chart" class="mt-3 flex items-end gap-2.5" style="height: 96px;">
+                  <!-- bars injected -->
+                </div>
+                <div id="chartLabels" class="mt-1.5 flex gap-2.5" style="font-size:9.5px; color:#6E83A8;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bundle summary chips (receipt) -->
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <span class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 chip" style="font-size:12px; color:#C2D2EE;">
+            <i data-lucide="files" class="ico-sm" style="color:#8FA3C7;"></i> 5 files
+          </span>
+          <span class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 chip" style="font-size:12px; color:#C2D2EE;">
+            <i data-lucide="hard-drive" class="ico-sm" style="color:#8FA3C7;"></i> 412 KB
+          </span>
+          <span class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 chip-good" style="font-size:12px;">
+            <i data-lucide="shield-check" class="ico-sm"></i> No secrets found
+          </span>
+          <span class="flex items-center gap-1.5 rounded-lg px-2.5 py-1 chip" style="font-size:12px; color:#9FB4D8;">
+            <i data-lucide="box" class="ico-sm" style="color:#8FA3C7;"></i> Sandboxed
+          </span>
+        </div>
+
+        <!-- Result actions -->
+        <div class="mt-4 space-y-2.5">
+          <button class="btn-primary flex w-full items-center justify-center gap-2 rounded-xl py-3"
+                  style="font-size:14.5px; font-weight:600; color:#fff;">
+            <i data-lucide="check" class="ico-lg"></i> Insert mini-site
+          </button>
+          <div class="grid gap-2.5" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+            <button class="btn-ghost flex items-center justify-center gap-2 rounded-xl py-2.5" style="font-size:13px; font-weight:500; color:#C2D2EE;">
+              <i data-lucide="maximize-2" class="ico-sm"></i> Open fullscreen
+            </button>
+            <button class="btn-ghost flex items-center justify-center gap-2 rounded-xl py-2.5" style="font-size:13px; font-weight:500; color:#C2D2EE;">
+              <i data-lucide="repeat" class="ico-sm"></i> Replace bundle
+            </button>
+            <button id="copyLinkBtn" class="btn-ghost flex items-center justify-center gap-2 rounded-xl py-2.5" style="font-size:13px; font-weight:500; color:#C2D2EE;">
+              <i data-lucide="link" class="ico-sm"></i> <span id="copyLinkLabel">Copy link</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Permission-gated trust line -->
+        <p class="mt-4 flex items-center justify-center gap-1.5 text-center" style="font-size:11.5px; color:#7E93BA;">
+          <i data-lucide="lock" class="ico-sm" style="width:13px;height:13px;"></i>
+          Only people who can view this page can open this mini-site.
+        </p>
+      </section>
+
+    </main>
+
+    <p class="mx-auto mt-6 max-w-md text-center" style="color:#6E83A8; font-size:12px;">
+      Toggle <span style="color:#A9BAD9;">Uploading</span> ↔ <span style="color:#A9BAD9;">Preview</span> above to see both states.
+    </p>
+  </div>
+
+<script>
+  /* ---------- icons ---------- */
+  const renderIcons = () => window.lucide && lucide.createIcons();
+  renderIcons();
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ================= STATE SWITCHER ================= */
+  const tabUp = document.getElementById('tab-up');
+  const tabPv = document.getElementById('tab-pv');
+  const thumb = document.getElementById('segThumb');
+  const stUp  = document.getElementById('state-uploading');
+  const stPv  = document.getElementById('state-preview');
+
+  function select(state) {
+    const up = state === 'up';
+    tabUp.setAttribute('aria-selected', up);
+    tabPv.setAttribute('aria-selected', !up);
+    thumb.style.transform = up ? 'translateX(0)' : 'translateX(100%)';
+    stUp.classList.toggle('active', up);
+    stPv.classList.toggle('active', !up);
+    if (up) { resetUploading(); runUploading(); }
+    else    { revealPreview(); }
+  }
+  tabUp.addEventListener('click', () => select('up'));
+  tabPv.addEventListener('click', () => select('pv'));
+
+  /* ================= STATE 1 LOGIC ================= */
+  const files = [
+    { p: 'index.html',       s: '18 KB',  i: 'file-code' },
+    { p: 'app.js',           s: '64 KB',  i: 'braces' },
+    { p: 'styles.css',       s: '21 KB',  i: 'palette' },
+    { p: 'assets/chart.svg', s: '47 KB',  i: 'image' },
+    { p: 'data/items.json',  s: '262 KB', i: 'database' },
+  ];
+
+  const checks = [
+    { id:'c1', icon:'file-check',   label:'index.html found at root' },
+    { id:'c2', icon:'link',         label:'All paths relative (no absolute URLs)' },
+    { id:'c3', icon:'gauge',        label:'Within size & file-count limits', meta:'5 files · 412 KB / 5 MB' },
+    { id:'c4', icon:'shield',       label:'Scanning for leaked secrets', secure:true },
+  ];
+
+  const narratorSteps = [
+    'Uploading 5 files…',
+    'Validating bundle structure…',
+    'Checking paths are relative…',
+    'Scanning for secrets…',
+    'Provisioning embed…',
+  ];
+
+  const manifestEl  = document.getElementById('manifest');
+  const checklistEl = document.getElementById('checklist');
+  const pctNum   = document.getElementById('pctNum');
+  const pbarFill = document.getElementById('pbarFill');
+  const narrator = document.getElementById('narrator');
+  const upCount  = document.getElementById('upCount');
+
+  let timers = [];
+  const clearTimers = () => { timers.forEach(t => clearTimeout(t) || clearInterval(t)); timers = []; };
+  const after = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+
+  function buildManifest() {
+    manifestEl.innerHTML = files.map((f, idx) => `
+      <li id="row-${idx}" class="flex items-center gap-2.5 rounded-lg px-2.5 py-2">
+        <i data-lucide="${f.i}" class="ico-sm shrink-0" style="color:#7E93BA;"></i>
+        <code class="mono flex-1 truncate" style="font-size:12px; color:#C5D5F0;">${f.p}</code>
+        <span class="mono shrink-0" style="font-size:11px; color:#7E93BA;">${f.s}</span>
+        <span class="status-cell flex h-5 w-5 shrink-0 items-center justify-center" id="rowstat-${idx}">
+          <i data-lucide="loader-2" class="ico-sm spin" style="color:#5C7099;"></i>
+        </span>
+      </li>`).join('');
+    renderIcons();
+  }
+
+  function buildChecklist() {
+    checklistEl.innerHTML = checks.map(c => `
+      <div id="${c.id}" class="flex items-center gap-2.5 px-3.5 py-2.5" style="border-color:rgba(255,255,255,0.07);">
+        <span class="check-icon flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+              style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.09);">
+          <i data-lucide="loader-2" class="ico-sm spin" style="color:#5C7099;"></i>
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="check-label truncate" style="font-size:13px; color:#9FB4D8;">${c.label}</p>
+          ${c.meta ? `<p class="check-meta mono" style="font-size:11px; color:#6E83A8;">${c.meta}</p>` : ''}
+        </div>
+        ${c.secure ? `<i data-lucide="shield" class="ico-sm shrink-0" style="color:#5C7099;"></i>` : ''}
+      </div>`).join('');
+    renderIcons();
+  }
+
+  function setRowUploaded(idx) {
+    const cell = document.getElementById(`rowstat-${idx}`);
+    const row  = document.getElementById(`row-${idx}`);
+    if (!cell) return;
+    cell.innerHTML = `<i data-lucide="check" class="ico-sm pop" style="color:#4BCE97;"></i>`;
+    if (!reduceMotion && row) { row.classList.add('row-uploaded'); after(()=>row.classList.remove('row-uploaded'), 700); }
+    renderIcons();
+  }
+
+  function passCheck(id, opts={}) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const iconWrap = el.querySelector('.check-icon');
+    const lbl = el.querySelector('.check-label');
+    iconWrap.style.background = 'rgba(34,160,107,0.18)';
+    iconWrap.style.border = '1px solid rgba(75,206,151,0.45)';
+    iconWrap.innerHTML = `<i data-lucide="check" class="ico-sm pop" style="color:#4BCE97;"></i>`;
+    lbl.style.color = '#D5E3F7';
+    if (opts.relabel) lbl.textContent = opts.relabel;
+    const trailing = el.querySelector('[data-lucide="shield"]');
+    if (trailing) { trailing.setAttribute('data-lucide','shield-check'); trailing.style.color = '#4BCE97'; }
+    renderIcons();
+  }
+
+  function startCheckSpin(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const lbl = el.querySelector('.check-label');
+    if (lbl) lbl.style.color = '#C5D5F0';
+  }
+
+  function resetUploading() {
+    clearTimers();
+    document.getElementById('errBox').style.display = 'none';
+    document.getElementById('errToggle').setAttribute('aria-pressed','false');
+    pctNum.textContent = '0';
+    pbarFill.style.width = '0%';
+    upCount.textContent = '0';
+    narrator.textContent = narratorSteps[0];
+    narrator.style.color = '#AEC3E6';
+    setNarratorIcon('loader-2', '#7FB6FF', true);
+    buildManifest();
+    buildChecklist();
+  }
+
+  function setNarratorIcon(name, color, spinning) {
+    const wrap = document.getElementById('narratorIcon');
+    if (!wrap) return;
+    wrap.innerHTML = `<i data-lucide="${name}" class="ico-sm${spinning ? ' spin' : ''}" style="color:${color};"></i>`;
+    renderIcons();
+  }
+
+  function runUploading() {
+    /* progress count up. In the error path the scan fails, so progress halts at ~88%. */
+    let pct = 0;
+    const target = errActive ? 88 : 100;
+    const tick = () => {
+      const step = pct < 70 ? 2.4 : (pct < 92 ? 1.1 : 0.5);
+      pct = Math.min(target, pct + step + Math.random()*1.6);
+      pctNum.textContent = Math.round(pct);
+      pbarFill.style.width = pct + '%';
+      if (pct < target) { const t = setTimeout(tick, 90); timers.push(t); }
+    };
+    after(tick, 250);
+
+    /* narrator swaps (skip the final 'Provisioning' step in the error path) */
+    const steps = errActive ? narratorSteps.slice(0, 4) : narratorSteps;
+    steps.forEach((s, i) => after(()=>{ narrator.textContent = s; }, 250 + i*1300));
+
+    /* files all upload successfully — the secret scan happens AFTER bytes are received */
+    let done = 0;
+    files.forEach((_, idx) => {
+      after(() => { setRowUploaded(idx); done++; upCount.textContent = done; }, 600 + idx*620);
+    });
+
+    /* checklist resolves in pipeline order — these pass in BOTH paths */
+    after(()=> passCheck('c1'), 1600);
+    after(()=> passCheck('c2'), 2500);
+    after(()=> passCheck('c3'), 3400);
+    after(()=> startCheckSpin('c4'), 3600);
+
+    /* security row resolves last — calm green, OR the bounded hard-stop if the error is active */
+    after(()=>{
+      if (errActive) { failSecurityRow(); return; }
+      passCheck('c4', { relabel: 'No secrets found' });
+      narrator.textContent = 'All checks passed · ready to publish';
+      narrator.style.color = '#8AE7C2';
+    }, 4700);
+
+    /* swap narrator spinner glyph at the end */
+    after(()=>{
+      if (errActive) setNarratorIcon('alert-triangle', '#FF8F73', false);
+      else           setNarratorIcon('circle-check',   '#4BCE97', false);
+    }, 4760);
+  }
+
+  /* ----- bounded secret error variant: fails ONLY the security row ----- */
+  let errActive = false;
+  function failSecurityRow() {
+    const el = document.getElementById('c4');
+    if (el) {
+      const iconWrap = el.querySelector('.check-icon');
+      const lbl = el.querySelector('.check-label');
+      iconWrap.style.background = 'rgba(202,53,33,0.18)';
+      iconWrap.style.border = '1px solid rgba(255,143,115,0.5)';
+      iconWrap.innerHTML = `<i data-lucide="shield-x" class="ico-sm pop" style="color:#FF8F73;"></i>`;
+      lbl.textContent = 'Secret detected — publish stopped';
+      lbl.style.color = '#FFC4B3';
+      const trailing = el.querySelector('[data-lucide="shield"]');
+      if (trailing) { trailing.setAttribute('data-lucide','shield-x'); trailing.style.color = '#FF8F73'; }
+    }
+    document.getElementById('errBox').style.display = 'block';
+    narrator.textContent = 'Publish stopped — secret found in config.js';
+    narrator.style.color = '#FF8F73';
+    setNarratorIcon('alert-triangle', '#FF8F73', false);
+  }
+
+  document.getElementById('errToggle').addEventListener('click', (e) => {
+    errActive = !errActive;
+    e.currentTarget.setAttribute('aria-pressed', String(errActive));
+    e.currentTarget.style.color = errActive ? '#FF8F73' : '#6E83A8';
+    resetUploading();
+    runUploading();
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', () => {
+    clearTimers();
+    narrator.textContent = 'Upload cancelled.';
+  });
+
+  /* ================= STATE 2 LOGIC ================= */
+  const revealWrap = document.getElementById('revealWrap');
+  const revealGlow = document.getElementById('revealGlow');
+  let previewBuilt = false;
+
+  /* dataset per filter range, implying data/items.json */
+  const datasets = {
+    '7':  { bars:[60,82,45,70,90], m:['38','4','90%'] },
+    '30': { bars:[72,55,88,63,77], m:['164','11','88%'] },
+    '90': { bars:[80,68,74,90,84], m:['512','29','91%'] },
+  };
+  const squads = ['Atlas','Nova','Orbit','Pulse','Vega'];
+
+  function buildChart(range='7') {
+    const chart = document.getElementById('chart');
+    const labels = document.getElementById('chartLabels');
+    const d = datasets[range];
+    /* pixel heights, not %, so they resolve reliably across the display:none->block tab toggle */
+    const H = 96;        /* matches #chart container height */
+    const px = (v) => Math.round(38 + (v/100) * (H - 44));   /* 38px floor .. ~90px ceiling */
+    chart.innerHTML = squads.map((_, i) => `
+      <div class="gbar" style="height:${px(d.bars[i])}px; flex:1 1 0; min-width:0; align-self:flex-end;
+        border-radius:6px 6px 2px 2px;
+        background: linear-gradient(180deg, #6FB0FF, #0C66E4);
+        box-shadow: 0 0 16px -3px rgba(76,154,255,0.65), inset 0 1px 0 rgba(255,255,255,0.3);"></div>`).join('');
+    labels.innerHTML = squads.map(s => `<span class="flex-1 text-center mono">${s}</span>`).join('');
+    /* bars render at full height immediately. The grow-in is triggered separately by
+       animateChart() AFTER the panel is visible, so a display:none->block toggle can't
+       strand a fill-mode keyframe at scaleY(0). */
+    document.getElementById('m1').textContent = d.m[0];
+    document.getElementById('m2').textContent = d.m[1];
+    document.getElementById('m3').textContent = d.m[2];
+  }
+
+  function animateChart() {
+    if (reduceMotion) return;
+    const bars = [...document.querySelectorAll('#chart > div')];
+    bars.forEach(b => { b.classList.remove('grow-anim'); b.style.animation = 'none'; });
+    void document.getElementById('chart').offsetHeight;   /* reflow: element is now visible & laid out */
+    bars.forEach((b, i) => {
+      b.style.animation = '';
+      b.style.animationDelay = (60 + i * 70) + 'ms';   /* non-zero so no bar can pause stranded at frame 0 */
+      b.classList.add('grow-anim');
+    });
+  }
+
+  function revealPreview() {
+    buildChart('7');
+    if (reduceMotion) { revealWrap.classList.add('show'); revealGlow.classList.add('show'); previewBuilt = true; return; }
+    /* re-trigger entrance each time the tab is shown */
+    revealWrap.classList.remove('show'); revealGlow.classList.remove('show');
+    void revealWrap.offsetWidth;
+    revealWrap.classList.add('show');
+    revealGlow.classList.add('show');
+    /* defer the bar grow until after the panel paints as block */
+    setTimeout(animateChart, 80);
+    previewBuilt = true;
+  }
+
+  /* filter chips */
+  document.querySelectorAll('.filt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filt').forEach(b => {
+        b.classList.remove('chip-active'); b.classList.add('chip'); b.style.color = '#9FB4D8';
+      });
+      btn.classList.remove('chip'); btn.classList.add('chip-active'); btn.style.color = '#DCEAFF';
+      buildChart(btn.dataset.range);
+      animateChart();
+    });
+  });
+
+  document.getElementById('reloadBtn').addEventListener('click', () => {
+    const active = document.querySelector('.filt.chip-active');
+    buildChart(active ? active.dataset.range : '7');
+    animateChart();
+  });
+
+  /* copy controls */
+  function copyText(text, btn, restore) {
+    const done = () => {
+      btn.classList.add('copied');
+      const ic = btn.querySelector('[data-lucide], svg');
+      setTimeout(() => { btn.classList.remove('copied'); restore && restore(); }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(done);
+    } else { done(); }
+  }
+
+  document.getElementById('copyRefBtn').addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    copyText('mini-site:rel-dashboard-7f3a', btn, () => {
+      btn.innerHTML = '<i data-lucide="copy" class="ico-sm" style="color:#A9BAD9;"></i>'; renderIcons();
+    });
+    btn.innerHTML = '<i data-lucide="check" class="ico-sm" style="color:#4BCE97;"></i>'; renderIcons();
+  });
+
+  document.getElementById('copyLinkBtn').addEventListener('click', (e) => {
+    const label = document.getElementById('copyLinkLabel');
+    const orig = label.textContent;
+    copyText('https://your.atlassian.net/wiki/mini-site/rel-dashboard-7f3a', e.currentTarget, () => {
+      label.textContent = orig;
+    });
+    label.textContent = 'Copied!';
+  });
+
+  /* ================= INIT ================= */
+  resetUploading();
+  runUploading();
+  renderIcons();
+</script>
+</body>
+</html>

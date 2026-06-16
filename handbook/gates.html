@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gates &amp; Positioning — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html" class="active"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Gates &amp; Positioning</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">Delivery</span>Gates &amp; Positioning</h1>
+      <p class="lead">No production code ships until all four blocking gates pass. This page states the gates verbatim, the honest positioning behind them (first-mover execution wedge, no durable moat, demand still n=1), the open questions that remain unresolved, and the kill rule if the gates fail.</p>
+
+      <div class="callout danger">
+        <span class="c-ico">⛔</span>
+        <div><b>Status: DO NOT BUILD YET.</b> The design (this handbook) is gate-#3 work — it turns the lifecycle/security constraints into testable invariants and threat models. It is <b>not</b> a green light. The auth gateway is self-built ACL code of the <b>CVE-2021-26073 / CVSS-9.1 class</b>; a single logic error is a cross-tenant content-disclosure breach, not a degraded feature.</div>
+      </div>
+
+      <h2>The four blocking gates</h2>
+      <p>Every gate must pass before a single production line is written. They are ordered so a failure on an earlier gate can disqualify the whole architecture before later gates are even worth evaluating.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TD
+  G1{"G1 — Residency vs access<br/>external processor allowed?"}
+  G2{"G2 — Demand-to-pay<br/>≥3 prospects beyond anchor?"}
+  G3{"G3 — Acceptance criteria<br/>ADR + threat model + invariants signed?"}
+  G4{"G4 — EV vs next ZenUML feature<br/>passes + kill criterion?"}
+  BUILD["BUILD Conf Mini-Sites"]
+  FORGE["Cloudflare disqualified<br/>pivot to Forge spike"]
+  ZEN["Ship the next ZenUML feature instead"]
+  G1 -->|"yes, external OK"| G2
+  G1 -->|"no external processor"| FORGE
+  G2 -->|pass| G3
+  G2 -->|fail| ZEN
+  G3 -->|signed| G4
+  G3 -->|unsigned| ZEN
+  G4 -->|"EV wins + kill criterion set"| BUILD
+  G4 -->|"EV loses"| ZEN
+        </div>
+        <figcaption>The gate sequence. Any failure routes to "ship the next ZenUML feature instead"; a G1 residency rejection routes to the gated Forge pivot, not to build.</figcaption>
+      </figure>
+
+      <h3>G1 &nbsp;<span class="badge gated">● GATE</span> &nbsp;<span class="badge risk">DISQUALIFY RISK</span></h3>
+      <h4>Residency vs access — written admin + security sign-off from the anchor team</h4>
+      <p>Written admin + security confirmation from the anchor team covering: the GitLab Pages config (access-controlled / requires a GitLab account), whether the non-technical consumers actually lack GitLab accounts, and — the load-bearing clause — <b>residency vs access</b>.</p>
+      <div class="callout danger">
+        <span class="c-ico">⚑</span>
+        <div><b>If they require <i>no external processor</i>, Cloudflare is disqualified.</b> Files live on Cloudflare, not inside Atlassian — this is <b>NOT "Runs on Atlassian", NOT no-egress, NOT in-boundary</b>. A residency rejection forces the <a href="roadmap.html">§6 Forge pivot</a> (and only after a Forge feasibility spike first passes). Until written confirmation lands, the entire architecture is conditional.</div>
+      </div>
+
+      <h3>G2 &nbsp;<span class="badge gated">● GATE</span> &nbsp;<span class="badge accent">DEMAND</span></h3>
+      <h4>Demand-to-pay — ≥3 prospects beyond the anchor team</h4>
+      <p>At least <b>3 prospects beyond the anchor team</b>, each with all of:</p>
+      <ul>
+        <li>a real existing mini-site,</li>
+        <li>a failed alternative,</li>
+        <li>recurring publish frequency,</li>
+        <li>a named approver <b>who approved the actual external-processor architecture</b> (residency + DPA + auth-gateway threat model),</li>
+        <li>a concrete commitment — paid pilot, LOI, or install approval.</li>
+      </ul>
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>Demand from a prospect <b>whose security would veto the external host does not count.</b> The approval must be of the architecture as designed, not of a hypothetical in-boundary version. This gate is what turns "interesting" into "validated beyond n=1."</div>
+      </div>
+
+      <h3>G3 &nbsp;<span class="badge gated">● GATE</span> &nbsp;<span class="badge ok">THIS DOC</span></h3>
+      <h4>Pre-implementation lifecycle / security acceptance criteria signed off</h4>
+      <p>The ADR + threat model + the testable invariants must be signed off before code. <b>This handbook is the artifact that satisfies G3's <i>production</i></b> — §2 (auth gateway + STRIDE + attack tree) and §5 (the falsifiable <code>INV-*</code> invariants) are the document the security gate signs against. What remains is the <b>sign-off</b>, not the authoring.</p>
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div>Authored, not approved. Sign-off is a Cloud Fortified review obligation, not a self-certification — the gateway is greenfield security-critical code with zero precedent in conf-app (conf-app's request auth is Forge-only RS256/JWKS; there is no classic-Connect HS256/qsh/sharedSecret path to inherit).</div>
+      </div>
+
+      <h3>G4 &nbsp;<span class="badge gated">● GATE</span> &nbsp;<span class="badge cost">EV + KILL</span></h3>
+      <h4>EV vs shipping the next ZenUML feature + a kill criterion</h4>
+      <p>An expected-value comparison against shipping the next ZenUML feature, plus a <b>kill criterion stronger than "cheap to build."</b> The honest re-costing (below) is the input: the project is cheap to <i>host</i> but <b>expensive to make safe and compliant</b>, so "cheap" cannot be the justification.</p>
+      <div class="callout gated">
+        <span class="c-ico">⚖</span>
+        <div>The kill criterion must survive the §1.5 re-cost: a realistic loaded run-rate at 10k active instances is order <b>~$500–700/mo</b> (audit retention + secret-scan dominate), and the <i>engineering</i> cost dwarfs the infra (greenfield CVSS-9.1 gateway, recurring external pen-test, orphan GC, provable DSAR erasure). EV must clear that bar, not the $25/mo headline.</div>
+      </div>
+
+      <h2>Positioning</h2>
+      <div class="callout info">
+        <span class="c-ico">◎</span>
+        <div><b>The only Confluence-native way to upload + host a multi-file bundle</b> — a <b>first-mover execution wedge with no durable moat</b>. Forge Custom UI and the 4.5k–8.7k-install incumbents could copy it; <b>governance is table stakes</b>, not a differentiator. Demand is <b>n=1 (the anchor team), unvalidated beyond</b> — hence the gates.</div>
+      </div>
+      <p>Three honest framings sit under that one-liner, and none of them is softened:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Framing</th><th>What it means</th><th>Consequence</th></tr></thead>
+          <tbody>
+            <tr><td><b>Execution wedge, not a moat</b></td><td>The capability is reproducible by incumbents with Forge Custom UI and a few weeks of work.</td><td>Value is in being first and executing the governance well — there is no defensible lock-in to rely on.</td></tr>
+            <tr><td><b>Governance is table stakes</b></td><td>Orphan GC, tenant isolation, DSAR erasure, audit, CSP/sandbox are required just to ship — they don't <i>win</i> the market.</td><td>The expensive invariants are the cost of entry, not the prize. They belong behind the paid tier (open question #12).</td></tr>
+            <tr><td><b>Demand is n=1</b></td><td>One anchor team wants it; nothing beyond it is validated.</td><td>G2 exists precisely to retire this risk before building. n=1 is the reason there are gates at all.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Open questions (nothing below is assumed resolved)</h2>
+      <p>Twelve items remain open. The first four <b>are</b> the blocking gates; the rest are design / vendor / legal unknowns that must be answered before or during the relevant build slice.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Question</th><th>Tag</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><b>Residency vs access</b> — if the anchor team's security requires no external processor, Cloudflare is disqualified → Forge pivot. Until written confirmation, the whole architecture is conditional.</td><td><span class="badge gated">GATE #1</span> <span class="badge risk">DISQUALIFY</span></td></tr>
+            <tr><td>2</td><td><b>Demand-to-pay</b> — ≥3 prospects beyond the n=1 anchor team, each approving the actual external-processor architecture. Demand from a prospect whose security would veto the external host does not count.</td><td><span class="badge gated">GATE #2</span></td></tr>
+            <tr><td>3</td><td><b>Acceptance criteria signed off</b> — §2 and §5 of the design are that artifact; they need sign-off.</td><td><span class="badge gated">GATE #3</span></td></tr>
+            <tr><td>4</td><td><b>EV vs next ZenUML feature + kill criterion</b> — stronger than "cheap to build"; the re-cost shows it is <i>not</i> cheap to make safe/compliant.</td><td><span class="badge gated">GATE #4</span> <span class="badge cost">COST</span></td></tr>
+            <tr><td>5</td><td><code>contentId</code> <b>signed-claim</b> — name the exact HMAC/<code>qsh</code>-covered claim that yields <code>contentId</code> for the §2.5 bind; if none exists for this iframe type, re-derive from the macro <code>localId</code> in <code>qsh</code>.</td><td><span class="badge risk">SECURITY</span></td></tr>
+            <tr><td>6</td><td><b>OAuth client registration + scopes</b> for the Flow A device grant (headless CLI / MCP publish). Until confirmed, Flow A ships token-only.</td><td><span class="badge gated">GATED</span></td></tr>
+            <tr><td>7</td><td><b>AVI event reliability</b> for copy/export eager-fork (I2) and permission-change cache invalidation (I3).</td><td><span class="badge gated">GATED</span></td></tr>
+            <tr><td>8</td><td><b>CSP baseline</b> final directive set (I6) — pinned provisionally; security review may tighten, not loosen.</td><td><span class="badge gated">GATED</span></td></tr>
+            <tr><td>9</td><td><b>DSAR vs audit retention</b> — legal basis for the <code>actorAccountId</code> of an erased subject in I9 (pseudonymize vs legitimate-interest).</td><td><span class="badge risk">LEGAL</span></td></tr>
+            <tr><td>10</td><td><b>Backup-retention bound</b> with Cloudflare for provable I5 erasure → DPA language.</td><td><span class="badge gated">GATED</span> <span class="badge cost">COST</span></td></tr>
+            <tr><td>11</td><td><b>Forge feasibility spike</b> (gate-adjacent) — reassembly + relative-path rewrite + 100MB chunking + CSP-on-blob on real bundles, <b>before</b> any <code>ForgeProvider</code> line.</td><td><span class="badge gated">GATED</span></td></tr>
+            <tr><td>12</td><td><b>Tiering / billing mechanism</b> — Marketplace <b>app editions</b> (PvA; clean on Forge via <code>capabilitySet</code>, but on Cloudflare requires a gateway license-check per <code>cloudId</code>) vs <b>own billing</b> outside Atlassian. conf-app today tiers via two separate listings (Lite/Full, <code>UNIQUE(clientKey,key)</code>), not editions.</td><td><span class="badge cost">DECISION</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Tiering / billing decision (#12) in detail</h3>
+      <p>Two-tier pricing (Standard + Advanced) is supported on the Marketplace via <b>app editions</b> — but only for <b>Paid-via-Atlassian (PvA)</b> apps. The mechanism depends on the hosting path:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Path</th><th>Tiering mechanism</th><th>Cleanliness</th></tr></thead>
+          <tbody>
+            <tr><td><b>Forge</b></td><td>Set <code>licensing.editionsEnabled: true</code>; gate features off <code>getAppContext().license.capabilitySet</code> (<code>"capabilityadvanced"</code> vs Standard/<code>null</code>).</td><td><span class="badge ok">CLEAN</span> — runtime gives it to you.</td></tr>
+            <tr><td><b>Cloudflare</b></td><td>The dispatch Worker runs <i>outside</i> the Forge runtime → no <code>capabilitySet</code>. Either (a) the auth gateway fetches + caches the Marketplace/Connect license per <code>cloudId</code> as one more server-side check, or (b) bill outside Atlassian (own metering keyed by <code>cloudId</code>).</td><td><span class="badge cost">EXTRA WORK</span> — one more gateway check or a billing system.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout info">
+        <span class="c-ico">◎</span>
+        <div>The natural tier split maps onto the §1.5 cost-drivers: put <b>audit-log access (I9), larger bundle/instance limits, configurable secret-scan policy (I7), CLI/MCP publish (Flow A), and SLA support in Advanced</b> — so the expensive invariants sit behind the paid tier.</div>
+      </div>
+
+      <h2>The honest cost reality</h2>
+      <p>The premise was "~$25/mo, solo-buildable." That prices <b>only the hosting</b>. The acceptance criteria add a per-view + per-publish variable layer the premise ignored — every line below was $0 in the original framing.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Line item</th><th>Driver</th><th>Direction / magnitude</th></tr></thead>
+          <tbody>
+            <tr><td>D1 reads/writes</td><td>Every protected view: instance lookup + <code>lastSeenAt</code>; audit + GC scans</td><td>Grows with <b>views</b>. Tens → low-hundreds $/mo.</td></tr>
+            <tr><td><code>permission/check</code> egress + cache</td><td>Read-check per protected request (cached, §2.5)</td><td>KV cache + Worker CPU per view; grows with <b>views</b>.</td></tr>
+            <tr><td>Audit storage <span class="badge cost">COST</span></td><td>Durable audit of every serve / deny / publish / delete (R2 + D1)</td><td>R2 storage + Class-A writes; unbounded if retention loose.</td></tr>
+            <tr><td>Secret-scan compute <span class="badge cost">COST</span></td><td>Scan every uploaded bundle (§4, §5.4/I7)</td><td>CPU-heavy, spiky; grows with <b>publish volume</b>.</td></tr>
+            <tr><td>Sandbox / CSP serving</td><td>Per-bundle isolated origin + header enforcement (§5.3/I6)</td><td>Compute per serve; possibly a second domain.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout gated">
+        <span class="c-ico">💰</span>
+        <div><b>Cheap to host, expensive to make safe / compliant.</b> The premise does not survive intact. A realistic loaded run-rate at 10k active instances under real traffic is order <b>~$500–700/mo</b> (audit retention + secret-scan dominate), and the engineering cost dwarfs the infra: the greenfield auth gateway (CVSS-9.1 class), a recurring <b>Cloud Fortified review + external pen-test</b> (a four-figure recurring item, not a rounding error), orphan GC, and provable DSAR erasure are each multi-week security-critical workstreams. <b>This belongs in gate #4.</b></div>
+      </div>
+
+      <h2>The kill rule</h2>
+      <div class="callout danger">
+        <span class="c-ico">⛔</span>
+        <div><b>If the gates do not pass → ship the next ZenUML feature instead.</b> That is the default, not a fallback. The gates exist to make "don't build this" the easy, pre-committed outcome when the evidence isn't there — n=1 demand, an un-signed threat model, a residency veto, or an EV that loses to the next ZenUML feature each independently route to this rule.</div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="roadmap.html"><span class="dir">← Previous</span> Implementation Roadmap</a>
+        <a class="next" href="index.html"><span class="dir">Next →</span> Overview</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

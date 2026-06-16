@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conf Mini-Sites — Design Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ============ SIDEBAR (identical on every page; see _TEMPLATE.html) ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html" class="active"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Overview</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <section class="hero">
+        <h1><span class="eyebrow">Confluence × Cloudflare Workers for Platforms</span>
+          Host a <span class="display">multi-file</span> static bundle, live in Confluence.</h1>
+        <p class="lead">Conf Mini-Sites lets a user upload an AI-generated interactive mini-site — a clickable
+          prototype, a filterable dashboard, a troubleshooting tool — and embed it as a live object on a
+          Confluence page. This handbook is the design of record: architecture, threat model, domain model,
+          flows, and the path to build.</p>
+        <div class="statline">
+          <span class="badge gated">● Build gated — design only</span>
+          <span class="badge accent">Cloudflare WfP</span>
+          <span class="badge accent">Atlassian Connect</span>
+          <span class="badge risk">Auth gateway = CVSS-9.1 class</span>
+          <span class="badge cost">$25/mo to host · ~$500–700 to run safely</span>
+        </div>
+      </section>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Status: do not build yet.</b> Blocked on four gates — security/residency sign-off,
+          demand-to-pay (≥3 beyond the anchor team), signed acceptance criteria, and EV-vs-next-feature.
+          See <a href="gates.html">Gates &amp; Positioning</a>. Everything here is design and is fine to produce now.</div>
+      </div>
+
+      <h2>Architecture at a glance</h2>
+      <p>One dispatch namespace; one non-routable user Worker per macro instance serving its bundle via Workers
+        Static Assets. The <b>dispatch Worker is the auth gateway</b> — the single network entry point and the
+        only thing standing between a viewer and the bundle bytes.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TB
+    V["👤 Viewer · Confluence page<br/>(sandboxed macro iframe)"]
+    subgraph CF["Cloudflare Workers for Platforms"]
+      direction TB
+      GW{{"Dispatch Worker = AUTH GATEWAY<br/>verify JWT · bind instance→content→tenant<br/>permission/check(read) · mint signed grant · set CSP"}}
+      subgraph NS["dispatch namespace · mini-sites-prod"]
+        UW1["user Worker · ms-abc<br/>Static Assets"]
+        UW2["user Worker · ms-def<br/>Static Assets"]
+        UW3["user Worker · ms-…"]
+      end
+      D[("D1 · MiniSiteInstance,<br/>ClientInstallation, AuditLog")]
+      KV[["KV · permission cache"]]
+      R2[["R2 · bundle staging,<br/>audit archive"]]
+    end
+    CONF["Confluence REST<br/>permission/check · content"]
+
+    V -->|"GET /v/&lt;id&gt;?jwt=…"| GW
+    GW -->|read tenant + secret| D
+    GW <-->|cache| KV
+    GW -->|authorize| CONF
+    GW -.->|"dispatch.get(name).fetch()<br/>(in-namespace, NOT routable)"| UW1
+    GW --> R2
+
+    classDef gw fill:#e9f2ff,stroke:#0c66e4,stroke-width:2px,color:#0747a6;
+    class GW gw;
+        </div>
+        <figcaption>Component topology. User Workers have no public route — every byte passes the gateway.
+          Full version on <a href="architecture.html">Architecture &amp; Components</a>.</figcaption>
+      </figure>
+
+      <h2>What's inside</h2>
+      <div class="card-grid">
+        <a class="card" href="architecture.html">
+          <div class="k">Design</div><div class="t">Architecture &amp; Components ▥</div>
+          <div class="d">WfP topology, the HostingProvider seam, Forge-pivot insulation, honest re-costing.</div></a>
+        <a class="card" href="auth-gateway.html">
+          <div class="k">Design</div><div class="t">Auth Gateway &amp; Threat Model ⛨</div>
+          <div class="d">The CVSS-9.1 component: JWT verification, IDOR/authz, signed-path grants, STRIDE, attack tree.</div></a>
+        <a class="card" href="data-model.html">
+          <div class="k">Design</div><div class="t">Domain &amp; Data Model ▦</div>
+          <div class="d">D1 schema (entity-relationship), KV &amp; R2 layout, migrations.</div></a>
+        <a class="card" href="sequence-flows.html">
+          <div class="k">Design</div><div class="t">Sequence Flows ⇄</div>
+          <div class="d">Serve, publish, install/uninstall, reconcile/GC, DSAR erasure — step by step.</div></a>
+        <a class="card" href="invariants.html">
+          <div class="k">Delivery</div><div class="t">Lifecycle &amp; Invariants ✓</div>
+          <div class="d">The 10 acceptance criteria as testable invariants + threat models.</div></a>
+        <a class="card" href="api-surface.html">
+          <div class="k">Delivery</div><div class="t">API Surface ⇥</div>
+          <div class="d">Every endpoint: serving, publish, lifecycle, reconcile, OAuth — contracts &amp; error codes.</div></a>
+        <a class="card" href="roadmap.html">
+          <div class="k">Delivery</div><div class="t">Implementation Roadmap ▤</div>
+          <div class="d">Stage 0 gates → seam → WfP provider → auth gateway → pipeline → lifecycle → Forge.</div></a>
+        <a class="card" href="upload-ui.html">
+          <div class="k">Prototype</div><div class="t">Upload UI ▲</div>
+          <div class="d">The in-product uploading + preview experience — explored, judged, refined to one page.</div></a>
+      </div>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ︎</span>
+        <div>Source of record: <code>CONTEXT.md</code> (product &amp; gates), <code>DESIGN.md</code>
+          (architecture, threat model, invariants), <code>BACKEND_DESIGN.md</code> (the concrete blueprint),
+          <code>IMPLEMENTATION_PLAN.md</code> (staged plan). This handbook renders them with diagrams.</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

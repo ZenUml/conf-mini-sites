@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini-Sites Publisher — Upload &amp; Live Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand:   '#0C66E4',
+          'brand-strong': '#0055CC',
+          ok:      '#22A06B',
+          'ok-strong': '#216E4E',
+          warn:    '#E2B203',
+          stop:    '#CA3521',
+          ink:     '#172B4D',
+          subtle:  '#44546F',
+          faint:   '#626F86',
+          line:    '#DFE1E6',
+          'line-soft': '#EBECF0',
+          surface: '#F7F8F9',
+          'surface-2': '#EBECF0',
+          paper:   '#FFFFFF',
+        },
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          display: ['"Inter Tight"', 'Inter', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        },
+        fontSize: {
+          'micro': ['11px', { lineHeight: '14px', letterSpacing: '0.06em' }],
+          'meta':  ['12px', { lineHeight: '16px' }],
+          'mono':  ['12.5px', { lineHeight: '18px' }],
+          'body':  ['14px', { lineHeight: '20px' }],
+          'lead':  ['15px', { lineHeight: '22px' }],
+          'h':     ['16px', { lineHeight: '22px' }],
+          'h2':    ['18px', { lineHeight: '24px' }],
+        },
+        borderRadius: { 'xs': '4px', 'sm': '6px', 'md': '8px' },
+        boxShadow: {
+          'panel': '0 1px 1px rgba(9,30,66,0.10), 0 0 1px rgba(9,30,66,0.12)',
+          'pop':   '0 8px 24px -6px rgba(9,30,66,0.18), 0 2px 6px rgba(9,30,66,0.10)',
+          'glow':  '0 0 0 1px rgba(12,102,228,0.18), 0 18px 40px -12px rgba(12,102,228,0.30)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  :root {
+    --baseline: 8px;
+    --pace: cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #172B4D;
+    font-feature-settings: 'cv05' 1, 'ss01' 1;
+    /* Swiss substrate: faint grid as a whisper of structure */
+    background-color: #EEF0F2;
+    background-image:
+      linear-gradient(rgba(23,43,77,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(23,43,77,0.025) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .track-tight { letter-spacing: -0.01em; }
+  .track-mega  { letter-spacing: -0.04em; }
+  .micro-label { text-transform: uppercase; font-weight: 600; letter-spacing: 0.07em; color: #44546F; }
+
+  /* ---- progress shimmer (live streaming cue) ---- */
+  .shimmer::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 0%, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%, transparent 100%);
+    background-size: 220% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+
+  /* hairline diagonal hatch overlay on the fill — Swiss texture, conveys motion */
+  .stripe {
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.16) 0 6px, transparent 6px 12px);
+    animation: stripe-move 0.9s linear infinite;
+  }
+  @keyframes stripe-move { from { background-position: 0 0; } to { background-position: 24px 0; } }
+
+  /* calm spinner for in-progress checklist / file rows */
+  .spin { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* live pulse dot */
+  .pulse { position: relative; }
+  .pulse::before {
+    content: ''; position: absolute; inset: -4px; border-radius: 9999px;
+    background: currentColor; opacity: 0.35; animation: pulse 1.8s var(--pace) infinite;
+  }
+  @keyframes pulse { 0% { transform: scale(0.6); opacity: 0.45; } 70% { transform: scale(1.8); opacity: 0; } 100% { opacity: 0; } }
+
+  /* scroll reveal */
+  .reveal { opacity: 0; transform: translateY(10px); transition: opacity 0.6s var(--pace), transform 0.6s var(--pace); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* preview pane entrance — the signature reveal */
+  .preview-pane { opacity: 0; transform: translateY(14px) scale(0.985); transition: opacity 0.7s var(--pace), transform 0.7s var(--pace), box-shadow 0.9s var(--pace); }
+  .preview-pane.in { opacity: 1; transform: none; }
+  .preview-pane.glow { box-shadow: 0 0 0 1px rgba(12,102,228,0.18), 0 18px 40px -12px rgba(12,102,228,0.30); }
+
+  /* check pop */
+  @keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+  .pop { animation: pop 0.4s var(--pace) both; }
+
+  /* bar grow for the dashboard chart */
+  .bar { transition: height 0.55s var(--pace), background-color 0.3s var(--pace); }
+
+  /* segmented control thumb */
+  .seg-thumb { transition: transform 0.32s var(--pace); }
+
+  /* custom thin scrollbar for manifest */
+  .scroll-thin::-webkit-scrollbar { width: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #C1C7D0; border-radius: 9999px; border: 2px solid #fff; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+  .focus-ring:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0C66E4; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer::after, .stripe, .spin, .pulse::before { animation: none !important; }
+    .reveal, .preview-pane { transition: none !important; opacity: 1 !important; transform: none !important; }
+    .pop { animation: none !important; }
+    .bar { transition: none !important; }
+    .seg-thumb { transition: none !important; }
+  }
+</style>
+</head>
+
+<body class="min-h-screen w-full flex items-start justify-center px-3 py-6 sm:py-10">
+
+  <!-- ============ EMBEDDED PANEL (capped ~720px) ============ -->
+  <main class="w-full max-w-[720px]" role="main" aria-label="Mini-Sites Publisher panel">
+
+    <!-- corner registration marks — Swiss print device -->
+    <div class="relative">
+      <div aria-hidden="true" class="pointer-events-none absolute -top-3 -left-3 w-3 h-3 border-t border-l border-subtle/40"></div>
+      <div aria-hidden="true" class="pointer-events-none absolute -top-3 -right-3 w-3 h-3 border-t border-r border-subtle/40"></div>
+      <div aria-hidden="true" class="pointer-events-none absolute -bottom-3 -left-3 w-3 h-3 border-b border-l border-subtle/40"></div>
+      <div aria-hidden="true" class="pointer-events-none absolute -bottom-3 -right-3 w-3 h-3 border-b border-r border-subtle/40"></div>
+
+      <div class="bg-paper rounded-md shadow-panel border border-line overflow-hidden">
+
+        <!-- ---------- PANEL HEADER ---------- -->
+        <header class="flex items-center gap-3 px-4 sm:px-6 py-3.5 border-b border-line-soft">
+          <!-- Mini-Sites mark -->
+          <div class="shrink-0 w-7 h-7 rounded-sm bg-ink flex items-center justify-center" aria-hidden="true">
+            <span class="font-display font-700 text-[13px] text-white track-tight">M</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-baseline gap-2">
+              <h1 class="text-h font-600 text-ink track-tight">Add mini-site</h1>
+              <span class="hidden sm:inline text-micro micro-label">Publisher</span>
+            </div>
+            <p class="text-meta text-faint truncate flex items-center gap-1.5">
+              <i data-lucide="file-archive" class="w-3.5 h-3.5 text-faint shrink-0"></i>
+              <span class="font-mono text-mono text-subtle truncate">rel-dashboard.zip</span>
+              <span class="text-line">·</span>
+              <span>publishing to this page</span>
+            </p>
+          </div>
+          <button class="focus-ring shrink-0 w-8 h-8 rounded-sm grid place-items-center text-faint hover:text-ink hover:bg-surface transition-colors" aria-label="Close publisher">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </header>
+
+        <!-- ---------- STATE SWITCHER (quiet, secondary) ---------- -->
+        <div class="px-4 sm:px-6 pt-3 pb-1">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-micro micro-label hidden sm:block">Reviewing state</span>
+            <div role="tablist" aria-label="Panel state" class="relative grid grid-cols-2 w-full sm:w-[228px] bg-surface-2 rounded-sm p-0.5 select-none">
+              <span id="segThumb" aria-hidden="true" class="seg-thumb absolute top-0.5 left-0.5 h-[calc(100%-4px)] w-[calc(50%-2px)] rounded-[5px] bg-paper shadow-panel"></span>
+              <button id="tabUploading" role="tab" aria-selected="true" aria-controls="stateUploading"
+                class="focus-ring relative z-10 py-1.5 text-meta font-600 text-ink rounded-[5px] transition-colors">Uploading</button>
+              <button id="tabPreview" role="tab" aria-selected="false" aria-controls="statePreview"
+                class="focus-ring relative z-10 py-1.5 text-meta font-600 text-faint rounded-[5px] transition-colors">Preview</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- STATE 1 · UPLOADING                                           -->
+        <!-- ============================================================ -->
+        <section id="stateUploading" role="tabpanel" aria-labelledby="tabUploading" class="px-4 sm:px-6 pt-4 pb-6">
+
+          <!-- error toggle strip (dev/reviewer affordance, de-emphasized) -->
+          <div class="flex items-center justify-end mb-3">
+            <label class="flex items-center gap-2 cursor-pointer group">
+              <span class="text-micro micro-label text-faint group-hover:text-subtle transition-colors">Secret-detected variant</span>
+              <span class="relative inline-flex">
+                <input id="errToggle" type="checkbox" class="peer sr-only focus-ring" />
+                <span class="w-8 h-[18px] rounded-full bg-line-soft peer-checked:bg-stop transition-colors"></span>
+                <span class="absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-[14px]"></span>
+              </span>
+            </label>
+          </div>
+
+          <!-- ---- PROGRESS HERO ---- -->
+          <div class="reveal">
+            <div class="flex items-end justify-between gap-4 mb-2.5">
+              <div class="flex items-baseline gap-2.5">
+                <span id="pctNum" class="font-display font-700 text-[clamp(46px,13vw,68px)] leading-[0.85] track-mega tnum text-ink">68</span>
+                <div class="pb-1.5">
+                  <span class="font-display font-600 text-h2 text-subtle track-tight">%</span>
+                  <p class="text-micro micro-label mt-0.5">Overall</p>
+                </div>
+              </div>
+              <button id="cancelBtn" class="focus-ring self-end mb-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-meta font-500 text-subtle hover:text-ink hover:bg-surface transition-colors">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i> Cancel
+              </button>
+            </div>
+
+            <!-- determinate bar with shimmer + stripe -->
+            <div class="relative h-2 w-full rounded-full bg-surface-2 overflow-hidden">
+              <div id="pctBar" class="shimmer stripe absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-700 ease-out" style="width:68%"></div>
+            </div>
+
+            <!-- step narrator -->
+            <div class="mt-3 flex items-center gap-2 h-5">
+              <span class="relative shrink-0 text-brand">
+                <span class="pulse inline-block w-1.5 h-1.5 rounded-full bg-brand"></span>
+              </span>
+              <p id="narrator" class="text-meta text-subtle track-tight transition-opacity duration-300">Uploading 5 files…</p>
+              <span class="ml-auto text-meta font-mono text-mono text-faint tnum"><span id="kCount">3</span> of 5</span>
+            </div>
+          </div>
+
+          <!-- divider -->
+          <div class="my-5 border-t border-line-soft"></div>
+
+          <!-- ---- LIVE FILE MANIFEST ---- -->
+          <div class="reveal">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-micro micro-label">File manifest</h2>
+              <span class="text-meta font-mono text-mono text-faint tnum"><span id="kCount2">3</span>/5 uploaded</span>
+            </div>
+            <ul id="manifest" class="scroll-thin max-h-[176px] overflow-y-auto divide-y divide-line-soft border border-line-soft rounded-sm" aria-live="polite">
+              <!-- rows injected by JS -->
+            </ul>
+          </div>
+
+          <!-- divider -->
+          <div class="my-5 border-t border-line-soft"></div>
+
+          <!-- ---- VALIDATION & SECURITY CHECKLIST ---- -->
+          <div class="reveal">
+            <h2 class="text-micro micro-label mb-2.5">Validation &amp; security</h2>
+            <ul class="space-y-px">
+              <li id="chk-index"  class="chk flex items-center gap-3 py-2 px-2.5 rounded-sm" data-state="pass">
+                <span class="chk-icon shrink-0"></span>
+                <span class="text-body text-ink flex-1 track-tight">index.html found at root</span>
+                <span class="text-meta font-mono text-mono text-faint">/index.html</span>
+              </li>
+              <li id="chk-paths"  class="chk flex items-center gap-3 py-2 px-2.5 rounded-sm" data-state="pass">
+                <span class="chk-icon shrink-0"></span>
+                <span class="text-body text-ink flex-1 track-tight">All paths relative — no absolute URLs</span>
+                <span class="text-meta font-mono text-mono text-faint">0 external</span>
+              </li>
+              <li id="chk-caps"   class="chk flex items-center gap-3 py-2 px-2.5 rounded-sm" data-state="pass">
+                <span class="chk-icon shrink-0"></span>
+                <span class="text-body text-ink flex-1 track-tight">Within size &amp; file-count limits</span>
+                <span class="text-meta font-mono text-mono text-faint tnum">5 files · 412 KB / 5 MB</span>
+              </li>
+              <!-- SECURITY row — calm, shield, neutral→green (or red if error) -->
+              <li id="chk-secret" class="chk flex items-center gap-3 py-2 px-2.5 rounded-sm bg-surface" data-state="run">
+                <span class="chk-icon shrink-0"></span>
+                <span class="flex-1">
+                  <span id="secretLabel" class="text-body text-ink track-tight">Scanning for leaked secrets</span>
+                </span>
+                <span id="secretMeta" class="text-meta font-mono text-mono text-faint inline-flex items-center gap-1">
+                  <i data-lucide="shield" class="w-3.5 h-3.5"></i> secret scan
+                </span>
+              </li>
+            </ul>
+
+            <!-- ---- INLINE SECRET-DETECTED ERROR (contained, bounded, de-emphasized) ---- -->
+            <div id="secretError" class="hidden mt-2.5 rounded-sm border border-stop/30 bg-[#FFF4F2] overflow-hidden">
+              <div class="flex items-start gap-2.5 px-3 py-2.5">
+                <i data-lucide="shield-alert" class="w-4 h-4 text-stop shrink-0 mt-0.5"></i>
+                <div class="min-w-0 flex-1">
+                  <p class="text-body font-600 text-[#AE2A19] track-tight">Secret detected — publish stopped</p>
+                  <p class="text-meta text-[#AE2A19]/80 mt-0.5">
+                    <span class="font-mono text-mono">config.js:14</span> — AWS access key (<span class="font-mono text-mono">AKIA…7H2Q</span>)
+                  </p>
+                </div>
+                <button class="focus-ring shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm bg-white border border-stop/40 text-meta font-600 text-[#AE2A19] hover:bg-[#FFECE8] transition-colors">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Remove &amp; re-upload
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- STATE 2 · PREVIEW / DONE                                      -->
+        <!-- ============================================================ -->
+        <section id="statePreview" role="tabpanel" aria-labelledby="tabPreview" class="hidden px-4 sm:px-6 pt-4 pb-6">
+
+          <!-- ---- PUBLISHED CONFIRMATION + INSTANCE REF ---- -->
+          <div class="reveal flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="relative inline-flex text-ok">
+                <span class="pulse inline-block w-2 h-2 rounded-full bg-ok"></span>
+              </span>
+              <div>
+                <h2 class="text-h font-600 text-ink track-tight leading-tight">Published <span class="text-faint font-400">·</span> Live on this page</h2>
+                <p class="text-meta text-faint mt-0.5">Embedded and ready to insert.</p>
+              </div>
+            </div>
+            <!-- copyable instance reference -->
+            <div class="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-sm bg-surface border border-line-soft">
+              <i data-lucide="hash" class="w-3.5 h-3.5 text-faint"></i>
+              <code id="instanceRef" class="font-mono text-mono text-subtle select-all">mini-site:rel-dashboard-7f3a</code>
+              <button id="copyRef" class="focus-ring shrink-0 w-6 h-6 grid place-items-center rounded-xs text-faint hover:text-brand hover:bg-paper transition-colors" aria-label="Copy instance reference">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ---- THE WOW MOMENT · LIVE PREVIEW PANE ---- -->
+          <div id="previewPane" class="preview-pane rounded-md border border-line overflow-hidden bg-paper">
+            <!-- browser chrome -->
+            <div class="flex items-center gap-2.5 px-3 py-2 bg-surface border-b border-line-soft">
+              <div class="flex items-center gap-1.5" aria-hidden="true">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F57]"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[#28C840]"></span>
+              </div>
+              <div class="flex-1 flex items-center gap-1.5 min-w-0 px-2.5 py-1 rounded-full bg-paper border border-line-soft">
+                <i data-lucide="lock" class="w-3 h-3 text-ok shrink-0"></i>
+                <span class="font-mono text-[11px] text-faint truncate">mini-site:rel-dashboard-7f3a · Live preview</span>
+                <span class="ml-auto inline-flex items-center gap-1 text-[10px] text-ok shrink-0">
+                  <span class="relative inline-flex"><span class="pulse w-1.5 h-1.5 rounded-full bg-ok inline-block"></span></span> live
+                </span>
+              </div>
+              <button class="focus-ring shrink-0 w-6 h-6 grid place-items-center rounded-xs text-faint hover:text-ink transition-colors" aria-label="Reload preview">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- rendered mini-site: filterable dashboard -->
+            <div class="px-4 sm:px-5 py-4 bg-white">
+              <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                <div>
+                  <p class="text-micro micro-label text-faint">assets/chart.svg · data/items.json</p>
+                  <h3 class="font-display font-600 text-h text-ink track-tight mt-0.5">Release adoption</h3>
+                </div>
+                <!-- filter chips (one active, fully interactive) -->
+                <div role="group" aria-label="Filter range" class="flex items-center gap-1.5">
+                  <button data-range="7"  class="chip focus-ring px-2.5 py-1 rounded-full text-meta font-500 border transition-colors">7d</button>
+                  <button data-range="30" class="chip focus-ring px-2.5 py-1 rounded-full text-meta font-500 border transition-colors" aria-pressed="true">30d</button>
+                  <button data-range="90" class="chip focus-ring px-2.5 py-1 rounded-full text-meta font-500 border transition-colors">90d</button>
+                </div>
+              </div>
+
+              <!-- metric tiles -->
+              <div class="grid grid-cols-3 gap-2 mb-4">
+                <div class="rounded-sm bg-surface px-3 py-2.5">
+                  <p class="text-micro micro-label text-faint">Active</p>
+                  <p id="mActive" class="font-display font-600 text-h2 text-ink tnum mt-0.5">1,284</p>
+                </div>
+                <div class="rounded-sm bg-surface px-3 py-2.5">
+                  <p class="text-micro micro-label text-faint">Adopted</p>
+                  <p id="mAdopt" class="font-display font-600 text-h2 text-ok-strong tnum mt-0.5">72<span class="text-h text-faint font-500">%</span></p>
+                </div>
+                <div class="rounded-sm bg-surface px-3 py-2.5">
+                  <p class="text-micro micro-label text-faint">Δ vs prev</p>
+                  <p id="mDelta" class="font-display font-600 text-h2 text-brand tnum mt-0.5">+8.4<span class="text-h text-faint font-500">%</span></p>
+                </div>
+              </div>
+
+              <!-- bar chart (redraws on filter — proves it's live) -->
+              <div class="relative">
+                <div id="chart" class="flex items-end justify-between gap-2 sm:gap-2.5 h-[112px] border-b border-line pb-0">
+                  <!-- bars injected by JS -->
+                </div>
+                <div id="chartLabels" class="flex items-center justify-between gap-2 sm:gap-2.5 mt-1.5">
+                  <!-- labels injected by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---- BUNDLE SUMMARY CHIPS (receipt of State 1) ---- -->
+          <div class="reveal flex flex-wrap items-center gap-2 mt-4">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface border border-line-soft text-meta text-subtle">
+              <i data-lucide="files" class="w-3.5 h-3.5 text-faint"></i> 5 files
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface border border-line-soft text-meta font-mono text-mono text-subtle tnum">
+              412 KB
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E5F7EF] border border-ok/25 text-meta font-500 text-ok-strong">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> No secrets found
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface border border-line-soft text-meta text-faint">
+              <i data-lucide="box" class="w-3.5 h-3.5"></i> Sandboxed
+            </span>
+          </div>
+
+          <!-- ---- RESULT ACTIONS ---- -->
+          <div class="reveal mt-5">
+            <!-- primary -->
+            <button class="focus-ring w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm bg-brand hover:bg-brand-strong active:scale-[0.99] text-white text-body font-600 transition-all shadow-sm">
+              <i data-lucide="plus" class="w-4 h-4"></i> Insert mini-site
+            </button>
+            <!-- secondaries -->
+            <div class="grid grid-cols-3 gap-2 mt-2">
+              <button class="focus-ring inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-sm border border-line text-meta font-500 text-subtle hover:bg-surface hover:border-line transition-colors">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> <span class="truncate">Fullscreen</span>
+              </button>
+              <button class="focus-ring inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-sm border border-line text-meta font-500 text-subtle hover:bg-surface hover:border-line transition-colors">
+                <i data-lucide="refresh-ccw" class="w-3.5 h-3.5"></i> <span class="truncate">Replace</span>
+              </button>
+              <button id="copyLink" class="focus-ring inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-sm border border-line text-meta font-500 text-subtle hover:bg-surface hover:border-line transition-colors">
+                <i data-lucide="link" class="w-3.5 h-3.5"></i> <span class="truncate">Copy link</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ---- PERMISSION-GATED TRUST LINE ---- -->
+          <p class="reveal mt-4 flex items-center gap-2 text-meta text-faint">
+            <i data-lucide="users" class="w-3.5 h-3.5 shrink-0"></i>
+            Only people who can view this page can open this mini-site.
+          </p>
+
+        </section>
+
+        <!-- ---------- PANEL FOOTER (steady identity rule) ---------- -->
+        <footer class="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 border-t border-line-soft bg-surface/60">
+          <span class="text-micro micro-label text-faint">Mini-Sites Publisher</span>
+          <span class="text-meta text-faint flex items-center gap-1.5">
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i> Validated &amp; secret-scanned
+          </span>
+        </footer>
+
+      </div>
+    </div>
+
+    <!-- toast for copy confirmation -->
+    <div id="toast" class="pointer-events-none fixed left-1/2 -translate-x-1/2 bottom-6 opacity-0 translate-y-2 transition-all duration-300 z-50">
+      <div class="flex items-center gap-2 px-3.5 py-2 rounded-sm bg-ink text-white text-meta font-500 shadow-pop">
+        <i data-lucide="check" class="w-4 h-4 text-[#7EE2B8]"></i> <span id="toastMsg">Copied</span>
+      </div>
+    </div>
+
+  </main>
+
+<script>
+(function () {
+  'use strict';
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- icons ---------- */
+  function icons() { if (window.lucide) window.lucide.createIcons(); }
+  icons();
+
+  /* ---------- scroll reveal ---------- */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+  /* =========================================================
+     CHECKLIST ICON RENDERER  (states: pass | run | stop)
+     ========================================================= */
+  function paintCheck(li) {
+    const slot = li.querySelector('.chk-icon');
+    if (!slot) return;
+    const state = li.getAttribute('data-state');
+    const isSecret = li.id === 'chk-secret';
+    if (state === 'pass') {
+      slot.innerHTML = '<span class="' + (RM ? '' : 'pop ') + 'grid place-items-center w-[18px] h-[18px] rounded-full bg-[#E5F7EF]"><i data-lucide="check" class="w-3 h-3 text-ok-strong"></i></span>';
+    } else if (state === 'run') {
+      slot.innerHTML = '<span class="grid place-items-center w-[18px] h-[18px]"><svg class="' + (RM ? '' : 'spin ') + 'w-[16px] h-[16px]" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#DFE1E6" stroke-width="2"/><path d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5" stroke="#0C66E4" stroke-width="2" stroke-linecap="round"/></svg></span>';
+    } else if (state === 'stop') {
+      slot.innerHTML = '<span class="grid place-items-center w-[18px] h-[18px] rounded-full bg-[#FFECE8]"><i data-lucide="x" class="w-3 h-3 text-stop"></i></span>';
+    }
+    icons();
+  }
+  document.querySelectorAll('.chk').forEach(paintCheck);
+
+  /* =========================================================
+     LIVE FILE MANIFEST
+     ========================================================= */
+  const FILES = [
+    { path: 'index.html',       size: '11 KB',  type: 'html',  st: 'done' },
+    { path: 'app.js',           size: '184 KB', type: 'js',    st: 'done' },
+    { path: 'styles.css',       size: '22 KB',  type: 'css',   st: 'done' },
+    { path: 'assets/chart.svg', size: '8 KB',   type: 'svg',   st: 'run'  },
+    { path: 'data/items.json',  size: '187 KB', type: 'json',  st: 'pending' },
+  ];
+  const GLYPH = {
+    html: { i: 'code-2',      c: 'text-[#D85A30]' },
+    js:   { i: 'file-code',   c: 'text-[#BA7517]' },
+    css:  { i: 'palette',     c: 'text-[#378ADD]' },
+    svg:  { i: 'image',       c: 'text-[#7F77DD]' },
+    json: { i: 'braces',      c: 'text-[#1D9E75]' },
+  };
+  /* middle-ellipsis for tight widths */
+  function midEllipsis(s, max) {
+    if (s.length <= max) return s;
+    const keep = max - 1, head = Math.ceil(keep * 0.6), tail = keep - head;
+    return s.slice(0, head) + '…' + s.slice(s.length - tail);
+  }
+  function rowStatus(st) {
+    if (st === 'done') return '<span class="' + (RM ? '' : 'pop ') + 'grid place-items-center w-[16px] h-[16px] rounded-full bg-[#E5F7EF]"><i data-lucide="check" class="w-[10px] h-[10px] text-ok-strong"></i></span>';
+    if (st === 'run')  return '<span class="grid place-items-center w-[16px] h-[16px]"><svg class="' + (RM ? '' : 'spin ') + 'w-[13px] h-[13px]" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#DFE1E6" stroke-width="2"/><path d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5" stroke="#0C66E4" stroke-width="2" stroke-linecap="round"/></svg></span>';
+    return '<span class="w-[16px] h-[16px] grid place-items-center"><span class="w-1.5 h-1.5 rounded-full bg-[#C1C7D0]"></span></span>';
+  }
+  function renderManifest() {
+    const ul = document.getElementById('manifest');
+    const narrow = window.innerWidth < 420;
+    ul.innerHTML = FILES.map((f) => {
+      const g = GLYPH[f.type];
+      const shown = narrow ? midEllipsis(f.path, 20) : f.path;
+      const muted = f.st === 'pending' ? 'opacity-60' : '';
+      return (
+        '<li class="flex items-center gap-2.5 px-2.5 py-2 ' + muted + ' transition-opacity">' +
+          '<i data-lucide="' + g.i + '" class="w-4 h-4 ' + g.c + ' shrink-0"></i>' +
+          '<span class="font-mono text-mono text-ink truncate flex-1" title="' + f.path + '">' + shown + '</span>' +
+          '<span class="font-mono text-mono text-faint tnum tabular-nums shrink-0">' + f.size + '</span>' +
+          '<span class="shrink-0">' + rowStatus(f.st) + '</span>' +
+        '</li>'
+      );
+    }).join('');
+    icons();
+  }
+  renderManifest();
+  window.addEventListener('resize', () => { clearTimeout(window.__rt); window.__rt = setTimeout(renderManifest, 150); });
+
+  /* =========================================================
+     PROGRESS + NARRATOR ANIMATION (loops calmly while on State 1)
+     ========================================================= */
+  const STEPS = [
+    { p: 68, t: 'Uploading 5 files…' },
+    { p: 81, t: 'Validating bundle structure…' },
+    { p: 92, t: 'Scanning for secrets…' },
+    { p: 98, t: 'Provisioning embed…' },
+  ];
+  let stepIdx = 0, progressTimer = null;
+  const pctNum = document.getElementById('pctNum');
+  const pctBar = document.getElementById('pctBar');
+  const narrator = document.getElementById('narrator');
+
+  function setProgress(p, label) {
+    pctBar.style.width = p + '%';
+    pctNum.textContent = p;
+    if (label) {
+      narrator.style.opacity = '0';
+      setTimeout(() => { narrator.textContent = label; narrator.style.opacity = '1'; }, RM ? 0 : 200);
+    }
+  }
+  function tickProgress() {
+    if (errorMode) return;            // freeze narrative when secret hard-stop is shown
+    stepIdx = (stepIdx + 1) % STEPS.length;
+    const s = STEPS[stepIdx];
+    setProgress(s.p, s.t);
+  }
+  function startProgress() {
+    if (RM || progressTimer) return;
+    progressTimer = setInterval(tickProgress, 2600);
+  }
+  function stopProgress() { clearInterval(progressTimer); progressTimer = null; }
+
+  /* =========================================================
+     SECRET-DETECTED ERROR VARIANT (de-emphasized, contained)
+     ========================================================= */
+  let errorMode = false;
+  const errToggle = document.getElementById('errToggle');
+  const secretRow = document.getElementById('chk-secret');
+  const secretLabel = document.getElementById('secretLabel');
+  const secretMeta = document.getElementById('secretMeta');
+  const secretError = document.getElementById('secretError');
+
+  function applySecretState() {
+    if (errorMode) {
+      secretRow.setAttribute('data-state', 'stop');
+      secretRow.classList.remove('bg-surface');
+      secretRow.classList.add('bg-[#FFF4F2]');
+      secretLabel.textContent = 'Secret scan halted';
+      secretLabel.className = 'text-body text-[#AE2A19] track-tight font-500';
+      secretMeta.innerHTML = '<i data-lucide="shield-x" class="w-3.5 h-3.5"></i> 1 finding';
+      secretMeta.className = 'text-meta font-mono text-mono text-[#AE2A19] inline-flex items-center gap-1';
+      secretError.classList.remove('hidden');
+      paintCheck(secretRow);
+      icons();
+    } else {
+      secretRow.setAttribute('data-state', 'run');
+      secretRow.classList.add('bg-surface');
+      secretRow.classList.remove('bg-[#FFF4F2]');
+      secretLabel.textContent = 'Scanning for leaked secrets';
+      secretLabel.className = 'text-body text-ink track-tight';
+      secretMeta.innerHTML = '<i data-lucide="shield" class="w-3.5 h-3.5"></i> secret scan';
+      secretMeta.className = 'text-meta font-mono text-mono text-faint inline-flex items-center gap-1';
+      secretError.classList.add('hidden');
+      paintCheck(secretRow);
+      icons();
+    }
+  }
+  errToggle.addEventListener('change', () => {
+    errorMode = errToggle.checked;
+    applySecretState();
+    if (errorMode) stopProgress(); else if (currentTab === 'uploading') startProgress();
+  });
+
+  /* =========================================================
+     SEGMENTED STATE SWITCHER
+     ========================================================= */
+  const segThumb = document.getElementById('segThumb');
+  const tabUp = document.getElementById('tabUploading');
+  const tabPv = document.getElementById('tabPreview');
+  const paneUp = document.getElementById('stateUploading');
+  const panePv = document.getElementById('statePreview');
+  let currentTab = 'uploading';
+  let previewArmed = false;
+
+  function selectTab(name) {
+    currentTab = name;
+    const up = name === 'uploading';
+    segThumb.style.transform = up ? 'translateX(0)' : 'translateX(100%)';
+    tabUp.setAttribute('aria-selected', String(up));
+    tabPv.setAttribute('aria-selected', String(!up));
+    tabUp.classList.toggle('text-ink', up);
+    tabUp.classList.toggle('text-faint', !up);
+    tabPv.classList.toggle('text-ink', !up);
+    tabPv.classList.toggle('text-faint', up);
+    paneUp.classList.toggle('hidden', !up);
+    panePv.classList.toggle('hidden', up);
+
+    if (up) {
+      startProgress();
+    } else {
+      stopProgress();
+      armPreview();
+    }
+  }
+  tabUp.addEventListener('click', () => selectTab('uploading'));
+  tabPv.addEventListener('click', () => selectTab('preview'));
+
+  /* =========================================================
+     PREVIEW: reveal entrance + interactive dashboard
+     ========================================================= */
+  const DATA = {
+    7:  { bars: [42, 55, 38, 61, 49, 72, 64],                 labels: ['M','T','W','T','F','S','S'],          active: '486',  adopt: 68, delta: '+3.1' },
+    30: { bars: [30, 45, 52, 40, 58, 66, 61, 74],             labels: ['W1','','W2','','W3','','W4',''],       active: '1,284', adopt: 72, delta: '+8.4' },
+    90: { bars: [22, 34, 41, 48, 55, 52, 63, 70, 68, 79],     labels: ['Jan','','','Feb','','','Mar','','',''], active: '3,910', adopt: 76, delta: '+12.7' },
+  };
+  let range = 30;
+  const chart = document.getElementById('chart');
+  const chartLabels = document.getElementById('chartLabels');
+
+  function renderChart(animate) {
+    const d = DATA[range];
+    const max = Math.max.apply(null, d.bars);
+    const n = d.bars.length;
+    const peak = d.bars.indexOf(max);
+    chart.innerHTML = d.bars.map((v, i) => {
+      const h = Math.round((v / max) * 100);
+      const isPeak = i === peak;
+      const col = isPeak ? '#0C66E4' : '#B5D4F4';
+      const start = animate && !RM ? '0%' : h + '%';
+      return '<div class="flex-1 flex items-end h-full"><div class="bar w-full rounded-t-[3px]" style="height:' + start + '; background:' + col + '" data-h="' + h + '"></div></div>';
+    }).join('');
+    chartLabels.innerHTML = d.labels.map((l) =>
+      '<span class="flex-1 text-center font-mono text-[10px] text-faint tnum truncate">' + l + '</span>'
+    ).join('');
+    document.getElementById('mActive').textContent = d.active;
+    document.getElementById('mAdopt').innerHTML = d.adopt + '<span class="text-h text-faint font-500">%</span>';
+    document.getElementById('mDelta').innerHTML = d.delta + '<span class="text-h text-faint font-500">%</span>';
+    if (animate && !RM) {
+      requestAnimationFrame(() => {
+        chart.querySelectorAll('.bar').forEach((b, i) => {
+          setTimeout(() => { b.style.height = b.getAttribute('data-h') + '%'; }, 40 * i);
+        });
+      });
+    }
+    if (n) void n;
+  }
+
+  /* filter chips */
+  function paintChips() {
+    document.querySelectorAll('.chip').forEach((c) => {
+      const on = Number(c.getAttribute('data-range')) === range;
+      c.setAttribute('aria-pressed', String(on));
+      c.classList.toggle('bg-brand', on);
+      c.classList.toggle('text-white', on);
+      c.classList.toggle('border-brand', on);
+      c.classList.toggle('bg-surface', !on);
+      c.classList.toggle('text-subtle', !on);
+      c.classList.toggle('border-line-soft', !on);
+    });
+  }
+  document.querySelectorAll('.chip').forEach((c) => {
+    c.addEventListener('click', () => {
+      range = Number(c.getAttribute('data-range'));
+      paintChips();
+      renderChart(true);
+    });
+  });
+  paintChips();
+
+  let previewRevealed = false;
+  function armPreview() {
+    const pane = document.getElementById('previewPane');
+    if (!previewRevealed) {
+      previewRevealed = true;
+      renderChart(true);
+      if (RM) { pane.classList.add('in'); return; }
+      requestAnimationFrame(() => {
+        pane.classList.add('in', 'glow');
+        setTimeout(() => pane.classList.remove('glow'), 1400);
+      });
+    }
+  }
+
+  /* =========================================================
+     COPY interactions + toast
+     ========================================================= */
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  let toastTimer = null;
+  function showToast(msg) {
+    toastMsg.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translate(-50%, 0)';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translate(-50%, 8px)';
+    }, 1800);
+  }
+  function copy(text, msg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showToast(msg)).catch(() => showToast(msg));
+    } else { showToast(msg); }
+  }
+  document.getElementById('copyRef').addEventListener('click', () =>
+    copy(document.getElementById('instanceRef').textContent.trim(), 'Instance reference copied'));
+  document.getElementById('copyLink').addEventListener('click', () =>
+    copy('https://confluence.example.com/pages/rel-dashboard#mini-site:rel-dashboard-7f3a', 'Share link copied'));
+
+  /* cancel: gentle acknowledgement, stays reachable */
+  document.getElementById('cancelBtn').addEventListener('click', () => showToast('Upload canceled'));
+
+  /* =========================================================
+     INIT
+     ========================================================= */
+  applySecretState();
+  startProgress();
+  icons();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.log
+.DS_Store
+
+# Nested workspace-repo worktrees (a different git repo) live under .claude/worktrees — not part of this repo.
+.claude/worktrees/

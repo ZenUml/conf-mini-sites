@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sequence Flows — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html" class="active"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Sequence Flows</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">Design</span>Sequence Flows</h1>
+      <p class="lead">The five core runtime flows, drawn end to end: how a viewer's request is authorized and served, how a bundle is published, how installs come and go, how orphaned bundles are reaped, and how a DSAR erasure is proven. Each flow is fail-closed by construction.</p>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Status: build is GATED.</b> These diagrams are design documentation, not shipped behavior. The SERVE path crosses the auth gateway — a single logic error there is a <b>cross-tenant content-disclosure breach (CVSS-9.1 class, CVE-2021-26073 territory)</b>, not a degraded feature. Treat every step as a checked invariant, not an aspiration.</div>
+      </div>
+
+      <p>One vocabulary across all diagrams: <strong>Viewer</strong> (the browser iframe), <strong>DispatchGateway</strong> (the auth gateway / dispatch Worker — the single network entry point), <strong>UserWorker</strong> (the non-routable per-instance Worker that returns raw bytes), <strong>D1</strong> (instance registry + audit), <strong>KV</strong> (encrypted install secrets + permission cache), <strong>R2</strong> (bundle object store + immutable audit archive), <strong>ConfluenceAPI</strong> (permission/check + reachability), <strong>CronReaper</strong> (the scheduled orphan reaper), and <strong>Provider</strong> (the <code>HostingProvider</code> seam, today <code>CloudflareWfPProvider</code>).</p>
+
+      <h2>1 · SERVE — viewer to bytes, every byte authorized</h2>
+      <p>The entrypoint iframe loads <code>GET /v/&lt;instanceId&gt;?jwt=&lt;connect-jwt&gt;</code> — <strong>the single network entry point.</strong> The gateway authenticates, binds the resource to a server-verified context, calls <code>permission/check(read)</code>, and only then mints a short-lived <strong>signed-path grant</strong> and serves <code>index.html</code> with an injected <code>&lt;base href="/v/&lt;instanceId&gt;/g/&lt;grant&gt;/"&gt;</code> plus the CSP/sandbox headers. Every relative sub-resource then re-enters the gateway, which <strong>re-validates the grant and re-checks the permission cache before dispatching</strong> to the user Worker. On the Cloudflare path the user Worker is never reached on a deny, so revoked content cannot leak even for a half-second.</p>
+
+      <div class="callout danger">
+        <span class="c-ico">⛨</span>
+        <div><b>This per-request check is the only thing standing between an authenticated user and any bundle's bytes.</b> Unlike conf-app — where Confluence itself authorizes content fetched with the user's own OAuth token — here <b>one skipped check = disclosure</b>. It must be provably non-bypassable on 100% of asset paths, sub-resources included (INV-GW-07).</div>
+      </div>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Viewer
+  participant DispatchGateway
+  participant KV
+  participant D1
+  participant ConfluenceAPI
+  participant UserWorker
+  Note over Viewer,UserWorker: Entrypoint GET /v/instanceId with jwt
+  Viewer->>DispatchGateway: GET /v/instanceId with jwt
+  DispatchGateway->>DispatchGateway: authenticate JWT — alg-pin HS256, qsh, exp
+  DispatchGateway->>KV: resolve secret by clientKey and key
+  KV-->>DispatchGateway: encrypted sharedSecret
+  DispatchGateway->>D1: bind via clientKey, cloudId, instanceId
+  D1-->>DispatchGateway: row gives contentId, workerName
+  DispatchGateway->>KV: permission cache lookup for sub, contentId, read
+  alt cache miss or expired
+    DispatchGateway->>ConfluenceAPI: permission check read for verified sub
+    ConfluenceAPI-->>DispatchGateway: allow or deny
+    DispatchGateway->>KV: cache positive allow only, TTL 60s
+  end
+  alt deny or outage or timeout
+    DispatchGateway-->>Viewer: 401 or 403 — fail-closed, UserWorker never reached
+  else allow
+    DispatchGateway->>DispatchGateway: mint grant G = HMAC of payload with K_grant
+    DispatchGateway->>UserWorker: dispatch fetch index.html
+    UserWorker-->>DispatchGateway: raw index.html bytes
+    DispatchGateway-->>Viewer: index.html plus base /g/G/ plus CSP
+  end
+  Note over Viewer,UserWorker: Browser resolves every sub-resource under /g/G/
+  Viewer->>DispatchGateway: GET /v/instanceId/g/G/app.js
+  DispatchGateway->>DispatchGateway: validate G HMAC and exp, path instanceId matches G.i
+  DispatchGateway->>KV: re-check permission cache for G.a, G.c, read
+  alt grant bad or expired or revoked
+    DispatchGateway-->>Viewer: 401 — loader re-requests entrypoint, fresh JWT
+  else still authorized
+    DispatchGateway->>UserWorker: dispatch fetch app.js
+    UserWorker-->>DispatchGateway: raw asset bytes
+    DispatchGateway-->>Viewer: asset plus CSP
+    DispatchGateway->>D1: update lastSeenAt out of band
+  end
+        </div>
+        <figcaption>SERVE — authenticate, bind, authorize, mint grant, serve; then re-validate the grant and re-check the cache on every sub-resource (§1.4, §2.5–§2.7). The grant lives in the URL path so it survives the opaque-origin sandbox where cookies cannot.</figcaption>
+      </figure>
+
+      <p>The grant token solves the sub-resource bypass: sub-resource loads carry no <code>Authorization</code> header and no <code>?jwt=</code>, and the required <code>sandbox</code> without <code>allow-same-origin</code> gives the iframe an opaque origin that suppresses cookies. The HMAC-signed grant in the path is sent on same-document loads regardless of origin opacity, is unforgeable, and is replay-bounded by a short TTL <em>and</em> a per-request permission re-check.</p>
+
+      <div class="callout info">
+        <span class="c-ico">⏱</span>
+        <div><b>Revocation window composes.</b> Worst-case window = <code>exp-skew + positive-cache-TTL</code>. With ≤60s + ≤60s that is <b>~120s, not 60s</b> — either sign off ~120s explicitly or set the <code>exp</code> skew to 0 so the signed-off figure is true (INV-GW-05). The circuit-breaker's default/error state is <b>DENY</b>: a breaker that trips <em>open</em> would be a disclosure (INV-GW-11).</div>
+      </div>
+
+      <h2>2 · PUBLISH — one pipeline, no second door, async provisioning</h2>
+      <p>Both entry points — Flow A (CLI / MCP <code>mini_sites.publish</code>, auth: OAuth 3LO token mapped to a real account) and Flow B (drag-and-drop in the macro editor, auth: the in-iframe Connect JWT of the uploading viewer) — funnel into <strong>one shared upload pipeline</strong> (<code>pipeline/uploadPipeline.ts</code>). The ordering is load-bearing: <strong>authn → authz → validate → secret-scan → posture → atomic commit.</strong> A bundle that fails any step <strong>never reaches <code>status=live</code></strong>. The pipeline ends at the <code>HostingProvider</code> seam, so a Cloudflare→Forge pivot is a provider swap, not a publish-path rewrite.</p>
+
+      <p><strong>Publish no longer blocks on provisioning (§3.4).</strong> Spinning up a user Worker — WfP script upload, Static-Assets upload of many or large files, then a reachability smoke-check — <strong>can take minutes</strong> and would exceed a single Worker request's wall-clock budget. So the publish request only validates + stages, then <strong>enqueues a provisioning job and returns <code>202 {jobId, statusUrl}</code></strong>. The actual provisioning runs asynchronously in a durable <strong>ProvisionInstance</strong> workflow (Cloudflare Workflows), tracked by a decoupled <code>ProvisioningJob</code> row (state <code>queued → provisioning → active | failed</code>), and the CLI / macro-editor widget <strong>polls <code>GET /api/jobs/{jobId}</code></strong> until the state is <code>active</code> or <code>failed</code>. The job manager lives <strong>above the <code>HostingProvider</code> seam</strong>, so the same async model survives the Forge pivot (Forge provisioning is also long-running).</p>
+
+      <p class="statline">
+        <span class="badge accent">Flow A: CLI / MCP</span>
+        <span class="badge accent">Flow B: macro editor</span>
+        <span class="badge accent">Async: 202 + poll</span>
+        <span class="badge cost">[COST] secret-scan compute</span>
+        <span class="badge gated">[GATED] OAuth client registration</span>
+        <span class="badge gated">[GATED] secret-scan ruleset</span>
+        <span class="badge gated">[GATED] Cloudflare Workflows availability</span>
+      </p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Publisher as CLI MCP Widget
+  participant Pipeline
+  participant ConfluenceAPI
+  participant R2
+  participant JobMgr as Job Manager
+  participant Workflow as ProvisionInstance Workflow
+  participant Provider
+  participant D1
+  Note over Publisher,D1: Flow A token to user or Flow B in-iframe Connect JWT
+  Publisher->>Pipeline: publish ./dist as zip or manifest, Idempotency-Key
+  Pipeline->>Pipeline: 1 Authn, cloudId and apiBaseUrl from verified token never body
+  Pipeline->>ConfluenceAPI: 2 Authz confused-deputy, can uploader WRITE target
+  ConfluenceAPI-->>Pipeline: write permitted or denied
+  alt not permitted
+    Pipeline-->>Publisher: 403 never write where owner cannot
+  else permitted
+    Pipeline->>Pipeline: 3 Validate multi-file, root index.html, relative paths, zip-bomb guard
+    Pipeline->>Pipeline: 4 Caps size, file-count, MIME, server-authoritative
+    Pipeline->>Pipeline: 5 Secret-leak scan I7
+    alt secret detected
+      Pipeline-->>Publisher: SECRET_DETECTED hard fail, NO bytes persisted
+    else clean
+      Pipeline->>Pipeline: 6 Posture record CSP, sandbox, origin contract I6
+      Pipeline->>R2: 7 Stage bytes, status staging, content-addressed bundleHash
+      R2-->>Pipeline: staged
+      Pipeline->>JobMgr: enqueue provisioning job, Idempotency-Key plus bundleHash
+      JobMgr->>D1: INSERT ProvisioningJob state queued
+      JobMgr->>Workflow: start ProvisionInstance, idempotent resume on retry
+      Pipeline-->>Publisher: 202 jobId plus statusUrl, publish does not block
+    end
+  end
+  Note over JobMgr,Provider: Async durable provisioning, per-step retries plus backoff, runs for minutes
+  Workflow->>D1: mark job state provisioning
+  Workflow->>Provider: step a upload Worker script, retry on failure
+  Provider-->>Workflow: script uploaded, idempotent on script name
+  Workflow->>Provider: step b upload static assets, retry on failure
+  Provider-->>Workflow: assets uploaded
+  Workflow->>Provider: step c smoke-verify reachable via dispatch
+  Provider-->>Workflow: reachable
+  alt all steps succeed
+    Workflow->>D1: step d atomic flip, MiniSiteInstance staging to active, job state active
+  else step exhausts retries
+    Workflow->>D1: job state failed, instance stays staging un-servable, reaper reaps stuck jobs
+  end
+  loop client polls until active or failed
+    Publisher->>JobMgr: GET /api/jobs/jobId
+    JobMgr->>D1: read ProvisioningJob row
+    D1-->>JobMgr: state, step, progress, error
+    JobMgr-->>Publisher: state queued or provisioning or active or failed
+  end
+  Note over Publisher,D1: On active, return instance handle mini-site colon instanceId macro snippet
+        </div>
+        <figcaption>PUBLISH — the shared pipeline validates and stages, then returns 202 with a jobId; the durable ProvisionInstance workflow runs upload script, upload static assets, smoke-verify, then the atomic flip to active, each step retried with backoff. The client polls GET /api/jobs/jobId until active or failed. The instance stays staging and un-servable until the final atomic flip, so a half-state never serves (I10), and the job is idempotent on Idempotency-Key plus bundleHash. Flow A and Flow B differ only in step 1's credential; the job manager sits above the HostingProvider seam (§3.3–§3.4).</figcaption>
+      </figure>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>[GATED] OAuth client registration.</b> Whether a public OAuth client with the device grant and the exact scopes (<code>write:confluence-content</code>, <code>read:confluence-content.permission</code>, custom-content write) can be registered is a vendor capability to confirm <b>before</b> building Flow A. Until confirmed, Flow A ships token-only (scoped PAT bound to <code>(cloudId, spaceKey)</code>).</div>
+      </div>
+
+      <div class="callout info">
+        <span class="c-ico">⏱</span>
+        <div><b>Why async — and how it stays safe.</b> The chosen substrate is <b>Cloudflare Workflows</b> (durable execution: per-step state, automatic retries + backoff, survival across minutes and restarts). The fallback if Workflows is unavailable in an env is a <b>Queue + consumer Worker</b> that hand-rolls the same step-state/retry/status. The instance row stays <code>staging</code> and <b>un-servable</b> until the workflow's final atomic step flips it to <code>active</code> — the gateway never serves <code>staging</code>/<code>provisioning</code> (I10). The job is <b>idempotent</b> (<code>Idempotency-Key</code> + <code>bundleHash</code> → a retried publish resumes the same job, never a duplicate Worker), a <b>failed</b> job leaves no servable bytes, and the <b>orphan reaper</b> reaps instances/jobs stuck in <code>provisioning</code>/<code>staging</code> past a TTL (ties I1 ↔ I10). Per-step backoff/circuit-break avoids amplifying a WfP outage.</div>
+      </div>
+
+      <h2>3 · INSTALL / UNINSTALL — the secret's origin and end</h2>
+      <p>The Connect <code>installed</code> webhook delivers <code>{clientKey, key, sharedSecret, baseUrl, …}</code>. The handler <strong>must verify the install callback itself</strong> — an asymmetric JWT signed by Atlassian's published Connect install keys (<code>iss = connect-install-keys.atlassian.com</code>, RS256 against Atlassian's CDN JWKS) — <strong>and pin <code>aud</code> to this app's own baseUrl/identity</strong>, else a valid Atlassian-signed install JWT minted for a <em>different</em> app could seed or overwrite an install record. First install is gated <strong>solely on the verified asymmetric signature — never "no record yet ⇒ trust."</strong> The secret is stored <strong>application-layer encrypted</strong> (Cloudflare's default at-rest encryption is not enough; conf-app stored it as plaintext <code>TEXT</code>). On <code>uninstalled</code>, the secret is deleted and the tenant's resources torn down.</p>
+
+      <div class="callout danger">
+        <span class="c-ico">⛨</span>
+        <div><b>An unverified <code>installed</code> that writes a <code>sharedSecret</code> is an account-takeover primitive (INV-GW-10).</b> conf-app's <code>uninstalled.ts</code> tolerates a missing auth header as a "Connect migration bridge" — the mini-sites gateway <b>must NOT</b> copy that tolerance to the <code>installed</code> path. Reinstall overwrites the secret atomically; tokens under the old secret fail closed during rotation.</div>
+      </div>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Atlassian as "Atlassian Connect"
+  participant DispatchGateway as DispatchGateway
+  participant JWKS as "Connect install JWKS"
+  participant KV
+  participant Provider
+  rect rgb(220,255,241)
+    Note over Atlassian,KV: installed lifecycle — seed the secret
+    Atlassian->>DispatchGateway: "POST installed {clientKey,key,sharedSecret,baseUrl}"
+    DispatchGateway->>JWKS: "fetch Atlassian Connect install keys"
+    JWKS-->>DispatchGateway: "RS256 public keys"
+    DispatchGateway->>DispatchGateway: "Verify asymmetric signature + pin aud to own baseUrl"
+    alt signature invalid or aud mismatch
+      DispatchGateway-->>Atlassian: "401 — never 'no record ⇒ trust'"
+    else verified
+      DispatchGateway->>KV: "Store envelope-encrypted sharedSecret by (clientKey,key)"
+      KV-->>DispatchGateway: "ok (atomic overwrite on reinstall)"
+      DispatchGateway-->>Atlassian: "204"
+    end
+  end
+  rect rgb(255,236,235)
+    Note over Atlassian,Provider: uninstalled lifecycle — destroy the secret + teardown
+    Atlassian->>DispatchGateway: "POST uninstalled (verified)"
+    DispatchGateway->>KV: "Delete sharedSecret + grant key material"
+    DispatchGateway->>Provider: "Teardown tenant Workers / instances"
+    Provider-->>DispatchGateway: "torn down"
+    DispatchGateway-->>Atlassian: "204"
+  end
+        </div>
+        <figcaption>INSTALL / UNINSTALL — the secret is born only from a verified, aud-pinned asymmetric install JWT and dies on uninstall (§2.4). Secret selection later keys on <code>(clientKey, key)</code> because one clientKey has multiple rows (Lite/Full variants) with different secrets.</figcaption>
+      </figure>
+
+      <h2>4 · RECONCILE / GC — the orphan reaper, fail-safe-retain</h2>
+      <p>Connect emits <strong>no reliable per-macro delete event</strong> (Design Constraint #1), so deletion is two-tier: the <code>uninstalled</code> hook tears down a whole tenant (flow 3), and a <strong>scheduled cron Worker — the orphan reaper</strong> — reconciles per-instance. The reaper enumerates instances, probes Confluence reachability for each owning <code>contentId</code>, and drives a state machine on <code>missingPasses</code>: <em>present → retained</em>; <em>absent for &lt; GRACE → retained, counter++</em>; <em>absent for ≥ GRACE → deleted once</em>; <em>API error → counter unchanged, retained</em> (fail-safe-retain). A bundle whose owner <strong>cannot be confirmed present or absent is never deleted.</strong></p>
+
+      <div class="callout danger">
+        <span class="c-ico">⚑</span>
+        <div><b>Blast-radius cap (I1d).</b> The reconcile endpoint is triggered by a shared secret (<code>x-cron-secret</code> pattern); a leaked secret = attacker-driven mass deletion. The reaper <b>cannot delete &gt; N bundles per pass without a second control</b>. The probe also survives page move/rename/space-relocation, and a restore-from-trash returning a NEW <code>contentId</code> must <b>re-bind, not orphan</b> (I1a). A bundle with any inbound un-forked copy-pointer is retained (I1c).</div>
+      </div>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant CronReaper
+  participant DispatchGateway as "Reconcile endpoint"
+  participant D1
+  participant ConfluenceAPI
+  participant Provider
+  participant R2
+  CronReaper->>DispatchGateway: "scheduled() trigger + x-cron-secret"
+  DispatchGateway->>DispatchGateway: "Validate secret + enforce blast-radius cap (≤ N/pass, I1d)"
+  DispatchGateway->>D1: "Enumerate instances (status, lastSeenAt index)"
+  D1-->>DispatchGateway: "candidate rows"
+  loop per instance (bounded by cap)
+    DispatchGateway->>ConfluenceAPI: "Reachability probe: does contentId still reference bundle?"
+    alt present
+      ConfluenceAPI-->>DispatchGateway: "exists"
+      DispatchGateway->>D1: "reset missingPasses = 0 (retained)"
+    else API error / outage
+      ConfluenceAPI-->>DispatchGateway: "error / timeout"
+      DispatchGateway->>D1: "counter unchanged → retained (fail-safe)"
+    else absent
+      ConfluenceAPI-->>DispatchGateway: "not found"
+      DispatchGateway->>D1: "missingPasses++"
+      alt missingPasses ≥ GRACE and no inbound copy-pointer
+        DispatchGateway->>Provider: "deleteInstance(workerName)"
+        DispatchGateway->>R2: "delete bundle bytes"
+        DispatchGateway->>D1: "mark status=deleted"
+        DispatchGateway->>R2: "append audit: GC deletion (I9)"
+      end
+    end
+  end
+        </div>
+        <figcaption>RECONCILE / GC — a state machine over <code>missingPasses</code>. Delete only on <code>absent ≥ GRACE</code> consecutive passes with no inbound copy-pointer; any ambiguity (outage) retains. The blast-radius cap and the second control turn a leaked cron secret from a mass-deletion primitive into a bounded one (§5.1 / I1).</figcaption>
+      </figure>
+
+      <h2>5 · DSAR ERASURE — provable deletion across every store</h2>
+      <p>A DSAR/erasure request must, within SLA, result in <strong>provable deletion</strong> of all copies of the affected bundle bytes and metadata across <strong>every</strong> store — primary object store, derived edge caches, backups — such that a post-deletion fetch of any prior <code>bundleId</code> returns 404 and an <strong>auditable deletion certificate</strong> exists. No soft delete satisfies it for the bytes. Critically, erasure must <strong>transitively erase every fork descended from the target</strong> (I2 fork lineage), because <code>listStoresHolding</code> is per-<code>bundleId</code> and would otherwise miss forks.</p>
+
+      <p class="statline">
+        <span class="badge cost">[COST] backup-rotation delay</span>
+        <span class="badge gated">[GATED] Cloudflare backup-retention basis</span>
+        <span class="badge risk">OPEN — legal: audit-log subject retention</span>
+      </p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Requester as "DSAR requester"
+  participant DispatchGateway as DispatchGateway
+  participant D1
+  participant R2
+  participant Cache as "Edge cache"
+  participant Backups
+  Requester->>DispatchGateway: "Erasure request for subject / bundleId"
+  DispatchGateway->>D1: "Enumerate stores holding + fork lineage (transitive)"
+  D1-->>DispatchGateway: "bundleId + all descendant forks + store list"
+  loop per bundleId in lineage
+    DispatchGateway->>R2: "Hard-delete object-store bytes"
+    R2-->>DispatchGateway: "deleted (post-fetch → 404)"
+    DispatchGateway->>Cache: "Purge edge cache (async: 'issued' ≠ 'globally complete')"
+    DispatchGateway->>Backups: "Schedule deletion within bounded backup-rotation window"
+  end
+  DispatchGateway->>D1: "Verify: every store covered, none skipped"
+  DispatchGateway->>R2: "Write deletion certificate + append-only audit (I9)"
+  R2-->>DispatchGateway: "certificate stored (tamper-evident, hash-chained)"
+  DispatchGateway-->>Requester: "Deletion certificate — auditable record"
+  Note over DispatchGateway,Backups: Residual: true 'bytes nowhere' only after backup-retention expiry
+        </div>
+        <figcaption>DSAR ERASURE — enumerate stores plus the full fork lineage, delete across object store / cache / backups, verify none skipped, then emit a deletion certificate into the append-only audit (§5.4 / I5, I9). Backups and async edge-purge are the documented, bounded residuals — not hidden.</figcaption>
+      </figure>
+
+      <div class="callout danger">
+        <span class="c-ico">⚑</span>
+        <div><b>Honest residuals, stated not hidden.</b> "Bytes exist nowhere" may be achievable only after backup-retention expiry — GDPR permits documented, bounded backup-rotation delays, but this must be verified with Cloudflare and stated in the DPA <b>[COST] + [GATED]</b>. Edge purge is async ("purge issued" ≠ "globally complete" — set a served-bytes-after-erasure bound). The audit log itself contains the DSAR subject's <code>actorAccountId</code>: the retention basis (pseudonymize vs legitimate-interest) is <b>OPEN — legal</b>, to be resolved, not deferred.</div>
+      </div>
+
+      <div class="callout info">
+        <span class="c-ico">▦</span>
+        <div>Every one of these flows writes to the <b>append-only, tamper-evident audit log</b> (I9): auth decisions, permission re-checks, uploads/scans, fork-on-copy, GC deletions, DSAR erasures, and cross-tenant denials. Secrets and full tokens are <b>never</b> logged — a structurally enforced invariant (lint rule + test), because the reused conf-app code violates it. The full constraint set lives in <a href="invariants.html">Lifecycle &amp; Invariants</a>.</div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="data-model.html"><span class="dir">← Previous</span> Domain &amp; Data Model</a>
+        <a class="next" href="invariants.html"><span class="dir">Next →</span> Lifecycle &amp; Invariants</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

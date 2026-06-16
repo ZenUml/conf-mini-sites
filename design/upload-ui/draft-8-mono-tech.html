@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Add mini-site · rel-dashboard.zip</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ads: {
+            blue:    '#0C66E4',
+            blueDk:  '#0055CC',
+            green:   '#22A06B',
+            greenBg: '#DCFFF1',
+            greenTx: '#216E4E',
+            amber:   '#E2B203',
+            red:     '#CA3521',
+            redBg:   '#FFECEB',
+            redTx:   '#AE2A19',
+            bg:      '#F7F8F9',
+            surface: '#FFFFFF',
+            sunken:  '#EBECF0',
+            line:    '#DFE1E6',
+            lineSub: '#EBECF0',
+            ink:     '#172B4D',
+            sub:     '#44546F',
+            mute:    '#626F86',
+            faint:   '#8590A2',
+          },
+        },
+        fontFamily: {
+          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'SFMono-Regular', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        },
+        borderRadius: { ads: '6px', adsLg: '8px' },
+        boxShadow: {
+          card:   '0 1px 1px rgba(9,30,66,0.10), 0 0 1px rgba(9,30,66,0.16)',
+          raise:  '0 4px 8px -2px rgba(9,30,66,0.16), 0 0 1px rgba(9,30,66,0.20)',
+          glow:   '0 0 0 1px rgba(12,102,228,0.18), 0 18px 40px -12px rgba(12,102,228,0.32), 0 8px 16px -8px rgba(9,30,66,0.20)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  :root{
+    --ads-blue:#0C66E4; --ads-green:#22A06B; --ads-ink:#172B4D; --ads-sub:#44546F;
+    --grid:rgba(9,30,66,0.045);
+  }
+  html,body{background:#ECEDF0;}
+  *{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  .stage{
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      #ECEDF0;
+    background-size: 22px 22px, 22px 22px, auto;
+  }
+  /* uppercase section eyebrow */
+  .eyebrow{ font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#44546F; }
+  .mono{ font-family:'JetBrains Mono', ui-monospace, monospace; font-feature-settings:"tnum" 1,"zero" 1; }
+  .ruler{ background-image:repeating-linear-gradient(90deg,#C1C7D0 0 1px,transparent 1px 7px); }
+
+  /* ---------- progress shimmer ---------- */
+  .pbar{ position:relative; overflow:hidden; }
+  .pbar::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.55) 55%, transparent 100%);
+    transform:translateX(-100%);
+    animation:shimmer 1.45s cubic-bezier(.4,0,.2,1) infinite;
+  }
+  @keyframes shimmer{ 0%{transform:translateX(-100%);} 100%{transform:translateX(220%);} }
+
+  /* diagonal stripe motion inside fill */
+  .stripe{
+    background-image:linear-gradient(135deg, rgba(255,255,255,0.22) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.22) 75%, transparent 75%, transparent);
+    background-size:14px 14px; animation:stripe 0.7s linear infinite;
+  }
+  @keyframes stripe{ 0%{background-position:0 0;} 100%{background-position:14px 0;} }
+
+  /* spinner */
+  .spin{ animation:spin 0.85s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* live pulse dot */
+  .pulse{ position:relative; }
+  .pulse::before{
+    content:""; position:absolute; inset:-4px; border-radius:9999px;
+    background:currentColor; opacity:0.35; animation:pulse 1.6s ease-out infinite;
+  }
+  @keyframes pulse{ 0%{transform:scale(0.6);opacity:0.5;} 80%,100%{transform:scale(2.4);opacity:0;} }
+
+  /* terminal caret */
+  .caret{ display:inline-block; width:7px; height:14px; background:var(--ads-blue); margin-left:2px; vertical-align:-2px; animation:blink 1s steps(1) infinite; }
+  @keyframes blink{ 50%{opacity:0;} }
+
+  /* check pop */
+  @keyframes pop{ 0%{transform:scale(0.4);opacity:0;} 60%{transform:scale(1.15);} 100%{transform:scale(1);opacity:1;} }
+  .pop{ animation:pop 0.32s cubic-bezier(.2,.8,.2,1) both; }
+
+  /* scroll-reveal */
+  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .55s cubic-bezier(.2,.7,.2,1), transform .55s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in{ opacity:1; transform:none; }
+
+  /* preview reveal */
+  .previewReveal{ opacity:0; transform:scale(.965) translateY(14px); }
+  .previewReveal.in{ opacity:1; transform:none; transition:opacity .7s cubic-bezier(.16,.84,.3,1), transform .7s cubic-bezier(.16,.84,.3,1); }
+
+  /* growing bars in dashboard */
+  .gbar{ transform:scaleY(0); transform-origin:bottom; transition:transform .9s cubic-bezier(.2,.8,.2,1); }
+  .gbar.in{ transform:scaleY(1); }
+
+  /* manifest list scrollbar */
+  .scroll::-webkit-scrollbar{ width:8px; }
+  .scroll::-webkit-scrollbar-thumb{ background:#C1C7D0; border-radius:8px; border:2px solid #fff; }
+  .scroll::-webkit-scrollbar-track{ background:transparent; }
+
+  /* segmented control */
+  .seg-ind{ transition:transform .32s cubic-bezier(.2,.8,.2,1); }
+
+  .mid-trunc{ display:inline-block; max-width:100%; white-space:nowrap; overflow:hidden; }
+
+  :focus-visible{ outline:2px solid #0C66E4; outline-offset:2px; border-radius:4px; }
+
+  @media (prefers-reduced-motion: reduce){
+    .pbar::after,.stripe,.spin,.pulse::before,.caret{ animation:none !important; }
+    .reveal,.previewReveal,.gbar{ transition:none !important; opacity:1 !important; transform:none !important; }
+    .pop{ animation:none !important; }
+  }
+</style>
+</head>
+<body class="stage min-h-screen font-sans text-ads-ink antialiased">
+
+  <main class="mx-auto w-full max-w-[720px] px-3 py-6 sm:px-6 sm:py-9">
+
+    <!-- ================= PANEL ================= -->
+    <section aria-label="Add mini-site panel" class="overflow-hidden rounded-adsLg border border-ads-line bg-ads-surface shadow-raise">
+
+      <!-- ---------- PANEL HEADER ---------- -->
+      <header class="flex items-center gap-3 border-b border-ads-lineSub bg-white px-4 py-3 sm:px-5">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-ads bg-ads-blue text-white shadow-sm" aria-hidden="true">
+          <i data-lucide="layout-grid" class="h-[18px] w-[18px]"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <h1 class="truncate text-[15px] font-semibold leading-tight text-ads-ink">Add mini-site</h1>
+            <span class="hidden shrink-0 rounded-ads border border-ads-line bg-ads-bg px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ads-mute sm:inline-block">Macro</span>
+          </div>
+          <p class="mt-0.5 flex items-center gap-1.5 text-[12px] leading-tight text-ads-mute">
+            <i data-lucide="package" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>
+            <span class="mono truncate text-ads-sub">rel-dashboard.zip</span>
+          </p>
+        </div>
+        <button type="button" aria-label="Close panel" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-ads text-ads-mute transition hover:bg-ads-sunken hover:text-ads-ink">
+          <i data-lucide="x" class="h-[18px] w-[18px]"></i>
+        </button>
+      </header>
+
+      <!-- ---------- STATE SWITCHER (quiet, secondary) ---------- -->
+      <div class="border-b border-ads-lineSub bg-ads-bg px-4 py-2.5 sm:px-5">
+        <div class="flex items-center justify-between gap-3">
+          <span class="eyebrow hidden sm:inline">Preview state</span>
+          <div role="tablist" aria-label="Toggle panel state" class="relative grid w-full grid-cols-2 rounded-ads border border-ads-line bg-ads-sunken p-0.5 sm:w-auto sm:min-w-[260px]">
+            <span id="segInd" class="seg-ind absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[4px] bg-white shadow-card" aria-hidden="true"></span>
+            <button id="tabUploading" role="tab" aria-selected="true" aria-controls="panel-uploading" class="relative z-10 flex items-center justify-center gap-1.5 rounded-[4px] px-3 py-1.5 text-[12px] font-medium text-ads-ink transition-colors">
+              <i data-lucide="arrow-up-from-line" class="h-3.5 w-3.5" aria-hidden="true"></i> Uploading
+            </button>
+            <button id="tabPreview" role="tab" aria-selected="false" aria-controls="panel-preview" class="relative z-10 flex items-center justify-center gap-1.5 rounded-[4px] px-3 py-1.5 text-[12px] font-medium text-ads-mute transition-colors">
+              <i data-lucide="monitor-play" class="h-3.5 w-3.5" aria-hidden="true"></i> Preview
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- STATE 1 · UPLOADING                                            -->
+      <!-- ============================================================= -->
+      <div id="panel-uploading" role="tabpanel" aria-labelledby="tabUploading" class="px-4 py-5 sm:px-6 sm:py-6">
+
+        <!-- PROGRESS HERO -->
+        <div class="reveal">
+          <div class="flex items-end justify-between gap-3">
+            <div class="min-w-0">
+              <p class="eyebrow flex items-center gap-1.5">
+                <span class="pulse inline-block h-2 w-2 rounded-full text-ads-blue" style="background:#0C66E4"></span>
+                Publishing bundle
+              </p>
+              <div class="mt-1 flex items-baseline gap-2">
+                <span id="pctNum" class="mono text-[44px] font-bold leading-none tracking-tight text-ads-ink tabular-nums">68</span>
+                <span class="mono text-[22px] font-semibold leading-none text-ads-faint">%</span>
+              </div>
+            </div>
+            <button id="cancelBtn" type="button" class="mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-ads px-2.5 py-1.5 text-[13px] font-medium text-ads-sub transition hover:bg-ads-sunken hover:text-ads-ink">
+              <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i> Cancel
+            </button>
+          </div>
+
+          <!-- progress bar -->
+          <div class="mt-3" role="progressbar" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100" aria-label="Overall upload progress">
+            <div class="pbar h-2.5 w-full overflow-hidden rounded-full bg-ads-sunken">
+              <div id="pctFill" class="stripe h-full rounded-full bg-ads-blue transition-[width] duration-500 ease-out" style="width:68%"></div>
+            </div>
+          </div>
+
+          <!-- step narrator (terminal line) -->
+          <div class="mt-3 flex items-center gap-2 rounded-ads border border-ads-line bg-ads-bg px-3 py-2">
+            <i data-lucide="terminal" class="h-4 w-4 shrink-0 text-ads-faint" aria-hidden="true"></i>
+            <p class="mono min-w-0 flex-1 truncate text-[12.5px] text-ads-sub">
+              <span class="text-ads-faint">›</span>
+              <span id="narrator">Scanning for secrets…</span><span class="caret motion-safe:inline-block" aria-hidden="true"></span>
+            </p>
+          </div>
+        </div>
+
+        <!-- LIVE FILE MANIFEST -->
+        <div class="reveal mt-6">
+          <div class="mb-2 flex items-center justify-between">
+            <h2 class="eyebrow flex items-center gap-1.5"><i data-lucide="list" class="h-3.5 w-3.5" aria-hidden="true"></i> File manifest</h2>
+            <span class="mono text-[12px] font-medium text-ads-mute"><span id="upCount" class="text-ads-green">4</span> of 5 uploaded</span>
+          </div>
+
+          <div class="scroll max-h-[196px] overflow-y-auto rounded-adsLg border border-ads-line bg-white" id="manifest">
+            <!-- row: uploaded -->
+            <div class="flex items-center gap-3 border-b border-ads-lineSub px-3 py-2.5 last:border-0">
+              <i data-lucide="file-code-2" class="h-[18px] w-[18px] shrink-0 text-ads-blue" aria-hidden="true"></i>
+              <span class="mono mid-trunc flex-1 text-[12.5px] text-ads-ink" title="index.html">index.html</span>
+              <span class="mono shrink-0 text-[11.5px] tabular-nums text-ads-faint">38 KB</span>
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green pop" aria-label="Uploaded">
+                <i data-lucide="check" class="h-3.5 w-3.5" aria-hidden="true"></i>
+              </span>
+            </div>
+            <!-- row: uploaded -->
+            <div class="flex items-center gap-3 border-b border-ads-lineSub px-3 py-2.5 last:border-0">
+              <i data-lucide="file-code" class="h-[18px] w-[18px] shrink-0 text-ads-amber" aria-hidden="true"></i>
+              <span class="mono mid-trunc flex-1 text-[12.5px] text-ads-ink" title="app.js">app.js</span>
+              <span class="mono shrink-0 text-[11.5px] tabular-nums text-ads-faint">96 KB</span>
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green pop" aria-label="Uploaded">
+                <i data-lucide="check" class="h-3.5 w-3.5" aria-hidden="true"></i>
+              </span>
+            </div>
+            <!-- row: uploaded -->
+            <div class="flex items-center gap-3 border-b border-ads-lineSub px-3 py-2.5 last:border-0">
+              <i data-lucide="file-type" class="h-[18px] w-[18px] shrink-0 text-ads-blue" aria-hidden="true"></i>
+              <span class="mono mid-trunc flex-1 text-[12.5px] text-ads-ink" title="styles.css">styles.css</span>
+              <span class="mono shrink-0 text-[11.5px] tabular-nums text-ads-faint">21 KB</span>
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green pop" aria-label="Uploaded">
+                <i data-lucide="check" class="h-3.5 w-3.5" aria-hidden="true"></i>
+              </span>
+            </div>
+            <!-- row: uploaded -->
+            <div class="flex items-center gap-3 border-b border-ads-lineSub px-3 py-2.5 last:border-0">
+              <i data-lucide="image" class="h-[18px] w-[18px] shrink-0 text-ads-green" aria-hidden="true"></i>
+              <span class="mono mid-trunc flex-1 text-[12.5px] text-ads-ink" title="assets/chart.svg">assets/chart.svg</span>
+              <span class="mono shrink-0 text-[11.5px] tabular-nums text-ads-faint">12 KB</span>
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green pop" aria-label="Uploaded">
+                <i data-lucide="check" class="h-3.5 w-3.5" aria-hidden="true"></i>
+              </span>
+            </div>
+            <!-- row: pending (mid-transition) -->
+            <div class="flex items-center gap-3 bg-[#F7F9FE] px-3 py-2.5">
+              <i data-lucide="braces" class="h-[18px] w-[18px] shrink-0 text-ads-mute" aria-hidden="true"></i>
+              <span class="mono mid-trunc flex-1 text-[12.5px] text-ads-sub" title="data/items.json">data/items.json</span>
+              <span class="mono shrink-0 text-[11.5px] tabular-nums text-ads-faint">245 KB</span>
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center text-ads-blue" aria-label="Uploading">
+                <i data-lucide="loader-2" class="spin h-4 w-4" aria-hidden="true"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- VALIDATION & SECURITY CHECKLIST -->
+        <div class="reveal mt-6">
+          <h2 class="eyebrow mb-2 flex items-center gap-1.5"><i data-lucide="list-checks" class="h-3.5 w-3.5" aria-hidden="true"></i> Validation &amp; security</h2>
+          <ul class="divide-y divide-ads-lineSub rounded-adsLg border border-ads-line bg-white">
+            <!-- passed -->
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green" aria-hidden="true"><i data-lucide="check" class="h-3.5 w-3.5"></i></span>
+              <span class="flex-1 text-[13px] text-ads-ink"><code class="mono text-ads-blue">index.html</code> found at root</span>
+              <span class="mono text-[11px] font-medium uppercase tracking-wide text-ads-green">Passed</span>
+            </li>
+            <!-- passed -->
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green" aria-hidden="true"><i data-lucide="check" class="h-3.5 w-3.5"></i></span>
+              <span class="flex-1 text-[13px] text-ads-ink">All paths relative <span class="text-ads-mute">— no absolute URLs</span></span>
+              <span class="mono text-[11px] font-medium uppercase tracking-wide text-ads-green">Passed</span>
+            </li>
+            <!-- passed (with real numbers) -->
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ads-greenBg text-ads-green" aria-hidden="true"><i data-lucide="check" class="h-3.5 w-3.5"></i></span>
+              <span class="flex-1 text-[13px] text-ads-ink">Within size &amp; file-count limits
+                <span class="mono ml-1 hidden text-[11.5px] text-ads-mute sm:inline">5 files · 412 KB / 5 MB</span>
+              </span>
+              <span class="mono text-[11px] font-medium uppercase tracking-wide text-ads-green">Passed</span>
+            </li>
+            <li class="mono px-3 pb-2 text-[11px] text-ads-mute sm:hidden">5 files · 412 KB / 5 MB</li>
+            <!-- security: in progress -->
+            <li class="flex items-center gap-3 bg-[#F7F9FE] px-3 py-2.5">
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-ads-blue ring-1 ring-inset ring-ads-blue/30" aria-hidden="true">
+                <i data-lucide="shield" class="h-3.5 w-3.5"></i>
+              </span>
+              <span class="flex-1 text-[13px] text-ads-ink">Scanning for leaked secrets<span class="motion-safe:inline animate-pulse text-ads-mute"> …</span></span>
+              <span class="flex items-center gap-1.5 text-ads-blue">
+                <i data-lucide="loader-2" class="spin h-3.5 w-3.5" aria-hidden="true"></i>
+                <span class="mono text-[11px] font-medium uppercase tracking-wide">Scanning</span>
+              </span>
+            </li>
+          </ul>
+
+          <!-- ===== INLINE SECRET-DETECTED ERROR (de-emphasized, contained) ===== -->
+          <div class="mt-3 overflow-hidden rounded-ads border border-ads-red/40 bg-ads-redBg" role="alert" aria-label="Secret detected, publish stopped">
+            <div class="flex items-start gap-2.5 px-3 py-2.5">
+              <i data-lucide="shield-alert" class="mt-px h-[18px] w-[18px] shrink-0 text-ads-red" aria-hidden="true"></i>
+              <div class="min-w-0 flex-1">
+                <p class="text-[13px] font-semibold leading-snug text-ads-redTx">Secret detected — publish stopped</p>
+                <p class="mono mt-1 text-[12px] leading-relaxed text-ads-redTx/90">
+                  <span class="rounded bg-white/70 px-1 py-0.5">config.js:14</span>
+                  <span class="text-ads-redTx/70">— AWS access key</span>
+                </p>
+              </div>
+              <button type="button" class="shrink-0 self-center whitespace-nowrap rounded-ads border border-ads-red/40 bg-white px-2.5 py-1.5 text-[12px] font-medium text-ads-redTx transition hover:bg-ads-redBg">
+                Remove secret &amp; re-upload
+              </button>
+            </div>
+          </div>
+          <p class="mt-1.5 text-[11px] text-ads-faint">Shown only when a secret is found — publishing halts before anything goes live.</p>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- STATE 2 · PREVIEW / DONE                                       -->
+      <!-- ============================================================= -->
+      <div id="panel-preview" role="tabpanel" aria-labelledby="tabPreview" class="hidden px-4 py-5 sm:px-6 sm:py-6">
+
+        <!-- PUBLISHED CONFIRMATION + INSTANCE REF -->
+        <div class="reveal flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="pulse flex h-2.5 w-2.5 items-center justify-center rounded-full text-ads-green" style="background:#22A06B" aria-hidden="true"></span>
+            <div>
+              <h2 class="text-[15px] font-semibold leading-tight text-ads-ink">Published <span class="text-ads-faint">·</span> <span class="text-ads-green">Live on this page</span></h2>
+              <p class="text-[12px] leading-tight text-ads-mute">Embedded preview is rendering below</p>
+            </div>
+          </div>
+          <!-- copyable instance reference -->
+          <div class="flex items-center gap-1.5 self-start rounded-ads border border-ads-line bg-ads-bg px-1.5 py-1 sm:self-auto">
+            <span class="hidden pl-1 text-[10px] font-semibold uppercase tracking-wide text-ads-faint sm:inline">Ref</span>
+            <code id="instRef" class="mono mid-trunc max-w-[180px] px-1 text-[12px] font-medium text-ads-ink sm:max-w-none" title="mini-site:rel-dashboard-7f3a">mini-site:rel-dashboard-7f3a</code>
+            <button id="copyRef" type="button" aria-label="Copy instance reference" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] bg-white text-ads-sub ring-1 ring-inset ring-ads-line transition hover:bg-ads-sunken hover:text-ads-ink">
+              <i data-lucide="copy" class="h-3.5 w-3.5" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- =========== LIVE PREVIEW PANE (THE WOW MOMENT) =========== -->
+        <div id="previewPane" class="previewReveal mt-4 overflow-hidden rounded-adsLg border border-ads-line bg-white shadow-glow">
+          <!-- browser chrome -->
+          <div class="flex items-center gap-2 border-b border-ads-lineSub bg-ads-bg px-3 py-2">
+            <div class="flex items-center gap-1.5" aria-hidden="true">
+              <span class="h-3 w-3 rounded-full bg-[#FF5F57]"></span>
+              <span class="h-3 w-3 rounded-full bg-[#FEBC2E]"></span>
+              <span class="h-3 w-3 rounded-full bg-[#28C840]"></span>
+            </div>
+            <div class="mx-1 flex min-w-0 flex-1 items-center gap-2 rounded-ads border border-ads-line bg-white px-2.5 py-1">
+              <i data-lucide="lock" class="h-3 w-3 shrink-0 text-ads-green" aria-hidden="true"></i>
+              <span class="mono mid-trunc flex-1 text-[11.5px] text-ads-mute" title="mini-site:rel-dashboard-7f3a">mini-site:rel-dashboard-7f3a</span>
+              <span class="hidden shrink-0 items-center gap-1 rounded-full bg-ads-greenBg px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-ads-greenTx sm:flex">
+                <span class="h-1.5 w-1.5 rounded-full bg-ads-green"></span> Live
+              </span>
+            </div>
+            <button type="button" aria-label="Reload preview" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] text-ads-mute transition hover:bg-ads-sunken hover:text-ads-ink">
+              <i data-lucide="rotate-cw" class="h-3.5 w-3.5" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <!-- rendered mini-site: filterable dashboard -->
+          <div class="bg-white p-4 sm:p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-[10px] font-semibold uppercase tracking-[0.1em] text-ads-faint">Q3 release</p>
+                <h3 class="text-[16px] font-semibold leading-tight text-ads-ink">Adoption dashboard</h3>
+              </div>
+              <span class="mono inline-flex items-center gap-1 rounded-full bg-ads-greenBg px-2 py-0.5 text-[10px] font-semibold text-ads-greenTx">
+                <i data-lucide="trending-up" class="h-3 w-3" aria-hidden="true"></i> +18.4%
+              </span>
+            </div>
+
+            <!-- filter chips: one active -->
+            <div class="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter range">
+              <button id="chip-30" type="button" class="mono rounded-full bg-ads-blue px-2.5 py-1 text-[11px] font-medium text-white shadow-sm" aria-pressed="true">30 days</button>
+              <button id="chip-90" type="button" class="mono rounded-full border border-ads-line bg-white px-2.5 py-1 text-[11px] font-medium text-ads-sub transition hover:border-ads-blue/40 hover:text-ads-blue" aria-pressed="false">90 days</button>
+              <button id="chip-12" type="button" class="mono rounded-full border border-ads-line bg-white px-2.5 py-1 text-[11px] font-medium text-ads-sub transition hover:border-ads-blue/40 hover:text-ads-blue" aria-pressed="false">12 mo</button>
+              <span class="mono ml-auto hidden items-center gap-1 text-[10px] text-ads-faint sm:flex">
+                <i data-lucide="database" class="h-3 w-3" aria-hidden="true"></i> data/items.json
+              </span>
+            </div>
+
+            <!-- metric tiles -->
+            <div class="mt-3 grid grid-cols-3 gap-2">
+              <div class="rounded-ads bg-ads-bg px-2.5 py-2">
+                <p class="text-[10px] font-medium uppercase tracking-wide text-ads-faint">Active</p>
+                <p class="mono mt-0.5 text-[18px] font-bold leading-none text-ads-ink tabular-nums">2,841</p>
+              </div>
+              <div class="rounded-ads bg-ads-bg px-2.5 py-2">
+                <p class="text-[10px] font-medium uppercase tracking-wide text-ads-faint">Sessions</p>
+                <p class="mono mt-0.5 text-[18px] font-bold leading-none text-ads-ink tabular-nums">11.2k</p>
+              </div>
+              <div class="rounded-ads bg-ads-bg px-2.5 py-2">
+                <p class="text-[10px] font-medium uppercase tracking-wide text-ads-faint">Retain</p>
+                <p class="mono mt-0.5 text-[18px] font-bold leading-none text-ads-green tabular-nums">73%</p>
+              </div>
+            </div>
+
+            <!-- bar chart implying assets/chart.svg -->
+            <div class="mt-3 rounded-ads border border-ads-lineSub bg-white p-3">
+              <div class="mb-2 flex items-center justify-between">
+                <p class="mono text-[10px] font-medium uppercase tracking-wide text-ads-mute">Weekly active · assets/chart.svg</p>
+                <span class="mono text-[10px] text-ads-faint">Wk 27–34</span>
+              </div>
+              <div class="flex h-[92px] items-end gap-1.5 sm:gap-2" id="chartBars" aria-hidden="true">
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue/30" style="height:42%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue/30" style="height:55%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue/30" style="height:48%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue/40" style="height:66%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue/40" style="height:74%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue/60" style="height:82%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue" style="height:100%"></div>
+                <div class="gbar w-full rounded-t-[3px] bg-ads-blue" style="height:91%"></div>
+              </div>
+              <div class="ruler mt-1.5 h-px w-full opacity-60"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BUNDLE SUMMARY CHIPS (receipt) -->
+        <div class="reveal mt-4 flex flex-wrap items-center gap-2">
+          <span class="mono inline-flex items-center gap-1.5 rounded-ads border border-ads-line bg-ads-bg px-2.5 py-1.5 text-[12px] text-ads-sub">
+            <i data-lucide="files" class="h-3.5 w-3.5 text-ads-mute" aria-hidden="true"></i> 5 files
+          </span>
+          <span class="mono inline-flex items-center gap-1.5 rounded-ads border border-ads-line bg-ads-bg px-2.5 py-1.5 text-[12px] text-ads-sub">
+            <i data-lucide="hard-drive" class="h-3.5 w-3.5 text-ads-mute" aria-hidden="true"></i> 412 KB
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-ads border border-ads-green/30 bg-ads-greenBg px-2.5 py-1.5 text-[12px] font-medium text-ads-greenTx">
+            <i data-lucide="shield-check" class="h-3.5 w-3.5" aria-hidden="true"></i> No secrets found
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-ads border border-ads-line bg-white px-2.5 py-1.5 text-[12px] text-ads-mute">
+            <i data-lucide="box" class="h-3.5 w-3.5" aria-hidden="true"></i> Sandboxed
+          </span>
+        </div>
+
+        <!-- RESULT ACTIONS -->
+        <div class="reveal mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button type="button" class="inline-flex w-full items-center justify-center gap-2 rounded-ads bg-ads-blue px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm transition hover:bg-ads-blueDk active:scale-[0.99] sm:w-auto sm:flex-1">
+            <i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i> Insert / Done
+          </button>
+          <div class="grid grid-cols-3 gap-2 sm:flex sm:items-center">
+            <button type="button" class="inline-flex items-center justify-center gap-1.5 rounded-ads border border-ads-line bg-white px-3 py-2.5 text-[13px] font-medium text-ads-sub transition hover:bg-ads-bg hover:text-ads-ink">
+              <i data-lucide="maximize-2" class="h-4 w-4" aria-hidden="true"></i> <span class="hidden sm:inline">Fullscreen</span>
+            </button>
+            <button type="button" class="inline-flex items-center justify-center gap-1.5 rounded-ads border border-ads-line bg-white px-3 py-2.5 text-[13px] font-medium text-ads-sub transition hover:bg-ads-bg hover:text-ads-ink">
+              <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i> <span class="hidden sm:inline">Replace</span>
+            </button>
+            <button id="copyLink" type="button" class="inline-flex items-center justify-center gap-1.5 rounded-ads border border-ads-line bg-white px-3 py-2.5 text-[13px] font-medium text-ads-sub transition hover:bg-ads-bg hover:text-ads-ink">
+              <i data-lucide="link" class="h-4 w-4" aria-hidden="true"></i> <span class="hidden sm:inline">Copy link</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PERMISSION-GATED TRUST LINE -->
+        <p class="reveal mt-4 flex items-center gap-1.5 border-t border-ads-lineSub pt-3 text-[12px] text-ads-mute">
+          <i data-lucide="users" class="h-3.5 w-3.5 shrink-0 text-ads-faint" aria-hidden="true"></i>
+          Only people who can view this page can open this mini-site.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- footer hint -->
+    <footer class="mt-3">
+      <p class="mono text-center text-[11px] text-ads-faint">Conf Mini-Sites Publisher · embedded macro editor</p>
+    </footer>
+  </main>
+
+  <!-- copy toast -->
+  <div id="toast" class="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2 translate-y-[-120%] rounded-ads bg-ads-ink px-3 py-2 text-[12px] font-medium text-white opacity-0 shadow-raise transition-all duration-300" role="status" aria-live="polite"></div>
+
+<script>
+  lucide.createIcons();
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- state switcher ---------- */
+  const tabU = document.getElementById('tabUploading');
+  const tabP = document.getElementById('tabPreview');
+  const panU = document.getElementById('panel-uploading');
+  const panP = document.getElementById('panel-preview');
+  const ind  = document.getElementById('segInd');
+
+  function activate(which){
+    const up = which === 'uploading';
+    tabU.setAttribute('aria-selected', up);
+    tabP.setAttribute('aria-selected', !up);
+    tabU.classList.toggle('text-ads-ink', up);
+    tabU.classList.toggle('text-ads-mute', !up);
+    tabP.classList.toggle('text-ads-ink', !up);
+    tabP.classList.toggle('text-ads-mute', up);
+    ind.style.transform = up ? 'translateX(0)' : 'translateX(calc(100% + 2px))';
+    panU.classList.toggle('hidden', !up);
+    panP.classList.toggle('hidden', up);
+    if(!up){ runPreviewReveal(); } else { runUploadAnim(); }
+    revealAll(up ? panU : panP);
+  }
+  tabU.addEventListener('click', ()=>activate('uploading'));
+  tabP.addEventListener('click', ()=>activate('preview'));
+
+  /* ---------- scroll reveal ---------- */
+  const io = new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+  },{threshold:0.12});
+  function revealAll(scope){
+    scope.querySelectorAll('.reveal').forEach((el,i)=>{
+      if(reduce){ el.classList.add('in'); return; }
+      el.style.transitionDelay = (i*55)+'ms';
+      io.observe(el);
+    });
+  }
+  revealAll(panU);
+
+  /* ---------- preview reveal + chart grow ---------- */
+  let previewDone = false;
+  function runPreviewReveal(){
+    const pane = document.getElementById('previewPane');
+    const bars = document.querySelectorAll('#chartBars .gbar');
+    if(reduce){ pane.classList.add('in'); bars.forEach(b=>b.classList.add('in')); return; }
+    pane.classList.remove('in'); bars.forEach(b=>b.classList.remove('in'));
+    requestAnimationFrame(()=>{
+      setTimeout(()=>pane.classList.add('in'), 40);
+      bars.forEach((b,i)=> setTimeout(()=>b.classList.add('in'), 260 + i*55));
+    });
+  }
+
+  /* ---------- preview filter chips ---------- */
+  const chips = { '30':[42,55,48,66,74,82,100,91], '90':[60,48,72,58,88,70,96,100], '12':[30,52,40,68,55,84,72,100] };
+  function setChip(id){
+    ['chip-30','chip-90','chip-12'].forEach(c=>{
+      const el = document.getElementById(c);
+      const on = c === id;
+      el.setAttribute('aria-pressed', on);
+      el.className = 'mono rounded-full px-2.5 py-1 text-[11px] font-medium transition ' +
+        (on ? 'bg-ads-blue text-white shadow-sm'
+            : 'border border-ads-line bg-white text-ads-sub hover:border-ads-blue/40 hover:text-ads-blue');
+    });
+    const bars = document.querySelectorAll('#chartBars .gbar');
+    const data = chips[id.replace('chip-','')];
+    bars.forEach((b,i)=>{ b.style.height = data[i]+'%'; });
+  }
+  document.getElementById('chip-30').addEventListener('click',()=>setChip('chip-30'));
+  document.getElementById('chip-90').addEventListener('click',()=>setChip('chip-90'));
+  document.getElementById('chip-12').addEventListener('click',()=>setChip('chip-12'));
+
+  /* ---------- copy helpers ---------- */
+  const toast = document.getElementById('toast');
+  let toastT;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translate(-50%, 0)';
+    clearTimeout(toastT);
+    toastT = setTimeout(()=>{ toast.style.opacity='0'; toast.style.transform='translate(-50%,-120%)'; }, 1800);
+  }
+  function copy(text, label){
+    navigator.clipboard?.writeText(text).then(()=>showToast(label)).catch(()=>showToast('Copy failed'));
+  }
+  document.getElementById('copyRef').addEventListener('click',()=>copy('mini-site:rel-dashboard-7f3a','Instance reference copied'));
+  document.getElementById('copyLink').addEventListener('click',()=>copy('https://example.atlassian.net/wiki/mini-site/rel-dashboard-7f3a','Link copied'));
+
+  /* ---------- uploading: live narrator + counter + % ---------- */
+  const narrator = document.getElementById('narrator');
+  const pctNum = document.getElementById('pctNum');
+  const pctFill = document.getElementById('pctFill');
+  const pbar = pctFill.closest('[role=progressbar]');
+  const steps = ['Uploading 5 files…','Validating bundle structure…','Scanning for secrets…','Provisioning embed…'];
+  let stepI = 2, uploadTimer = null;
+
+  function setPct(v){
+    pctNum.textContent = v;
+    pctFill.style.width = v + '%';
+    pbar.setAttribute('aria-valuenow', v);
+  }
+  function runUploadAnim(){
+    if(reduce) return;
+    clearInterval(uploadTimer);
+    let pct = parseInt(pctNum.textContent,10) || 68;
+    uploadTimer = setInterval(()=>{
+      pct += Math.random()*3;
+      if(pct >= 92){ pct = 64; stepI = 2; }       /* loop the "alive" feel without ever resolving */
+      setPct(Math.round(pct));
+      if(Math.random() < 0.16){
+        stepI = (stepI + 1) % steps.length;
+        narrator.textContent = steps[stepI];
+      }
+    }, 700);
+  }
+  document.getElementById('cancelBtn').addEventListener('click',()=>{
+    clearInterval(uploadTimer);
+    narrator.textContent = 'Cancelled — bundle not published.';
+    showToast('Upload cancelled');
+  });
+  runUploadAnim();
+</script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auth Gateway &amp; Threat Model — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html" class="active"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Auth Gateway &amp; Threat Model</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">Design</span>Auth Gateway &amp; Threat Model</h1>
+      <p class="lead">The dispatch Worker is the auth gateway — the single, in-path control between an
+      authenticated Confluence user and any mini-site's bytes. This is the highest-risk component in the system
+      and the artifact the security gate signs off against.</p>
+
+      <div class="callout danger">
+        <span class="c-ico">⚠</span>
+        <div><b>This is the CVE-2021-26073 / CVSS-9.1 class.</b> A single logic error here is a
+        <b>cross-tenant content-disclosure breach</b>, not a degraded feature. Unlike conf-app — where
+        Confluence itself authorizes content fetched with the user's own OAuth token, so a missing check cannot
+        leak — on this gateway <b>one skipped check = disclosure</b>. The authorization step must be provably
+        non-bypassable on 100% of asset paths. This section is the artifact the Cloud Fortified review signs off
+        against.</div>
+      </div>
+
+      <h2>2.1 — The gateway's job, on every protected request</h2>
+      <p>Four ordered steps, <strong>fail-closed at each one</strong>. A miss, an outage, an unparseable token,
+      or a cache-cold lookup for revoked content all resolve to <strong>deny</strong>.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Step</th><th>What it proves</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><strong>Authenticate</strong></td><td>Verify the Atlassian Connect JWT —
+              token-extraction → <code>alg</code>-pin → key selection → signature → <code>exp</code> →
+              <code>qsh</code>.</td></tr>
+            <tr><td>2</td><td><strong>Bind</strong></td><td>Resolve the requested resource to a server-verified
+              context (<code>macroInstanceId → contentId → tenant</code>), never trusting a client-supplied
+              id.</td></tr>
+            <tr><td>3</td><td><strong>Authorize</strong></td><td><code>permission/check(read)</code> for the
+              verified user against the specific Confluence content.</td></tr>
+            <tr><td>4</td><td><strong>Route</strong></td><td>Dispatch to the non-routable per-instance user
+              Worker.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TD
+  REQ["Protected request"] --> EXT["Token extraction<br/>(single canonical extractor)"]
+  EXT -->|"malformed / scheme not JWT<br/>/ jwt != Authorization"| DENY["DENY<br/>(fail-closed)"]
+  EXT --> ALG{"alg == HS256?"}
+  ALG -->|no| DENY
+  ALG --> KEY{"secret by<br/>(clientKey, key)?"}
+  KEY -->|"unknown iss / no row"| DENY
+  KEY --> SIG{"HMAC valid?"}
+  SIG -->|no| DENY
+  SIG --> EXP{"exp + bounded skew OK?"}
+  EXP -->|no| DENY
+  EXP --> QSH{"exact qsh recompute matches?"}
+  QSH -->|no| DENY
+  QSH --> BIND["BIND<br/>DB composite (clientKey, cloudId, instanceId)<br/>contentId from signed claim<br/>cloudId cross-checked vs install"]
+  BIND -->|"tamper / mismatch"| DENY
+  BIND --> AUTHZ{"permission/check(read)<br/>for verified sub == allow?"}
+  AUTHZ -->|"false / non-200 / timeout"| DENY
+  AUTHZ -->|allow| ROUTE["ROUTE → non-routable user Worker"]
+        </div>
+        <figcaption>The verify → bind → authorize → route pipeline. Every branch that is not an explicit
+        success falls through to DENY.</figcaption>
+      </figure>
+
+      <h2>2.2 — Grounding: conf-app does NOT have this path</h2>
+      <p>conf-app's production request auth is the <strong>Forge context-token</strong> path
+      (<code>functions/utils/authenticate.ts:6-35</code>) — it verifies the invocation JWT with
+      <strong>RS256 against Atlassian's remote JWKS</strong> (<code>jose.createRemoteJWKSet</code>) and checks
+      an app-id allowlist. There is <strong>no <code>qsh</code>, no per-install <code>sharedSecret</code>, no
+      <code>atlassian-jwt</code>/<code>atlassian-connect</code> dependency anywhere in conf-app</strong>
+      (verified by red team). The classic-Connect verification path is therefore <strong>net-new, greenfield,
+      security-critical code</strong> — the single biggest reason a Cloud Fortified review is required, not
+      skipped.</p>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div>What we reuse is <b>shape, not implementation</b>: the verify-before-serve middleware
+        <i>ordering</i> from <code>functions/_middleware.ts</code> — but <b>INVERTED to deny-by-default</b>
+        (conf-app runs auth only for an <code>AUTHENTICATED_PATHS</code> allowlist and skips everything else —
+        fail-open; <span class="badge accent">INV-GW-09</span> inverts this), plus per-install secret storage
+        keyed by install identity (<code>CLIENT_INSTALLATION_KV</code>) — with the corrections below.</div>
+      </div>
+
+      <h2>2.3 — Token extraction</h2>
+      <p>conf-app's <code>getAuthorizationHeader</code> does a scheme-blind
+      <code>authHeader.split(' ')[1]</code> — it accepts <code>Bearer x</code>/<code>Foo x</code> identically.
+      <strong>Do not inherit it.</strong> Define exactly one canonical extractor:</p>
+      <ul>
+        <li><strong>Entrypoint iframe GET</strong> → token from the <code>jwt</code> query parameter only.</li>
+        <li><strong>XHR/asset requests</strong> → token from <code>Authorization: JWT &lt;token&gt;</code>;
+          the scheme <strong>must equal <code>JWT</code></strong> (reject <code>Bearer</code>/other).</li>
+        <li>If both <code>?jwt=</code> and <code>Authorization</code> are present with <strong>different</strong>
+          values → <strong>reject</strong> (parameter pollution).</li>
+        <li>A token with an empty/absent signature segment → reject as malformed <em>before</em> any verify
+          call.</li>
+      </ul>
+
+      <h2>2.4 — JWT verification (authentication)</h2>
+      <p>Exact order, <strong>fail-closed on first failure</strong>.</p>
+
+      <h3>1. Decode header without trusting it</h3>
+      <p>Raw base64url split — not a library decode that auto-selects keys. <strong>Reject any
+      <code>alg ≠ HS256</code> before key selection</strong> (closes <code>alg=none</code> / RS↔HS confusion —
+      <span class="badge accent">INV-GW-03</span>). <code>kid</code> is <strong>ignored</strong> for
+      request-token verification (only <code>iss</code> selects the key), stated so a future impl cannot
+      resurrect kid-driven key selection.</p>
+
+      <h3>2. Resolve the per-install secret by <code>(clientKey, key)</code> — not <code>clientKey</code> alone</h3>
+      <div class="callout danger">
+        <span class="c-ico">⚠</span>
+        <div><b>Critical.</b> <code>iss</code> is the tenant <code>clientKey</code>. conf-app migration
+        <code>0008</code> <b>dropped <code>UNIQUE(clientKey)</code> and replaced it with
+        <code>UNIQUE(clientKey, key)</code></b> (verified) — the <i>same</i> clientKey has multiple rows
+        (Lite/Full app variants) with <b>different <code>sharedSecret</code>s</b>. A lookup
+        <code>WHERE clientKey = ?</code> is non-deterministic. Secret selection <b>must</b> key on
+        <code>(clientKey, key)</code> where the app-variant <code>key</code>/<code>aud</code> is bound to a
+        <b>verified</b> claim; a clientKey with multiple rows must never silently pick <code>row[0]</code>.
+        Unknown <code>iss</code>/no matching row ⇒ reject (<span class="badge accent">INV-GW-04</span>).</div>
+      </div>
+
+      <h3>3. Verify HMAC</h3>
+      <p>With that install's <code>sharedSecret</code> — selected by <code>(iss, key)</code>, never a global
+      secret and never one the token names (<span class="badge accent">INV-GW-01</span>).</p>
+
+      <h3>4. Verify <code>exp</code> (and <code>nbf</code>/<code>iat</code> if present) with bounded skew</h3>
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Skew composes with the permission-cache TTL.</b> Worst-case revocation window =
+        <code>exp-skew + positive-cache-TTL</code>. With ≤60s + ≤60s that is <b>~120s, not 60s</b> — either
+        sign off on ~120s explicitly, or set the <code>exp</code> skew to <b>0/one-sided</b> so the signed-off
+        figure is true (<span class="badge accent">INV-GW-05</span>).</div>
+      </div>
+
+      <h3>5. Verify <code>qsh</code> with the exact Atlassian canonical-request algorithm</h3>
+      <p>Not a loose <code>SHA-256(method+&amp;+path+&amp;+query)</code>. Required:</p>
+      <ul>
+        <li><strong>Exclude the <code>jwt</code> query parameter</strong>.</li>
+        <li><strong>Lowercase the HTTP method</strong>.</li>
+        <li><strong>Strip the <code>baseUrl</code>/<code>contextPath</code> prefix</strong>.</li>
+        <li>Apply Atlassian's percent-encoding + duplicate-key sort order, then <strong>constant-time
+          compare</strong>.</li>
+      </ul>
+      <p>The literal value <code>context-qsh</code> is accepted <strong>only for the macro-entrypoint iframe
+      GET</strong> (a server-determined classification, not inferred from the token); every XHR/asset request
+      must present a computed <code>qsh</code> bound to its method+path. A missing <code>qsh</code> on a
+      protected path is a rejection (<span class="badge accent">INV-GW-02</span>).</p>
+      <div class="callout danger">
+        <span class="c-ico">⚠</span>
+        <div>This canonicalization is <b>exactly where Connect <code>qsh</code> CVEs historically live</b> — it
+        requires <b>differential test vectors against Atlassian's reference</b>, not a code review.</div>
+      </div>
+
+      <h3>The <code>installed</code>/<code>uninstalled</code> lifecycle — the secret's origin</h3>
+      <p>The Connect <code>installed</code> webhook receives
+      <code>{clientKey, key, sharedSecret, baseUrl, …}</code>. The handler <strong>must verify the install
+      callback itself</strong> — asymmetric JWT signed by Atlassian's published Connect install keys
+      (<code>iss = connect-install-keys.atlassian.com</code>, RS256 against Atlassian's CDN JWKS) — <strong>and
+      pin <code>aud</code> to this app's own baseUrl/identity</strong> (else a valid Atlassian-signed install
+      JWT minted for a <em>different</em> app could seed/overwrite an install record).</p>
+      <div class="callout danger">
+        <span class="c-ico">⚠</span>
+        <div><b>First install is gated solely on the verified asymmetric signature — never "no record yet ⇒
+        trust".</b> conf-app's <code>uninstalled.ts:24-26</code> tolerates a missing auth header as a "Connect
+        migration bridge" (verified) — the mini-sites gateway <b>must NOT copy that tolerance to the
+        <code>installed</code> path</b>; an unverified <code>installed</code> that writes a
+        <code>sharedSecret</code> is an <b>account-takeover primitive</b>
+        (<span class="badge accent">INV-GW-10</span>). Reinstall overwrites the secret atomically; tokens under
+        the old secret fail closed during rotation (acceptable, stated).</div>
+      </div>
+
+      <h2>2.5 — Authorization (the IDOR class)</h2>
+      <p>Authentication proves <em>who is calling and from which tenant</em>. It does not prove the caller may
+      read <em>this</em> bundle. Each link in the binding chain is resolved server-side:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>From</th><th>To</th><th>Source of truth</th></tr></thead>
+          <tbody>
+            <tr><td>verified JWT</td><td><code>clientKey</code> (<code>iss</code>)</td><td>from signature /
+              install record</td></tr>
+            <tr><td>verified JWT</td><td><code>cloudId</code></td><td>cross-checked against the install
+              record</td></tr>
+            <tr><td>verified JWT</td><td><code>contentId</code></td><td>from a <strong>SIGNED claim</strong>,
+              never query/body/iframe URL</td></tr>
+            <tr><td><code>(clientKey, cloudId, instanceId)</code></td><td><code>contentId</code></td><td>DB-level
+              composite key in <code>MiniSiteInstance</code></td></tr>
+            <tr><td><code>contentId + accountId</code></td><td>permission</td><td>Confluence
+              <code>permission/check(read)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ul>
+        <li><strong><code>cloudId</code> must be cross-checked against the install record.</strong> The HMAC
+          signature proves <code>clientKey</code> only; <code>cloudId</code> is otherwise an unauthenticated
+          claim. The verified token's <code>cloudId</code> must equal the <code>cloudId</code> stored on the
+          install record for that <code>clientKey</code>, or a tenant with a valid install could present context
+          claims for a <code>cloudId</code> it does not own (<span class="badge accent">INV-GW-04b</span>).</li>
+        <li><strong><code>contentId</code> must come from a SIGNED claim.</strong> Classic Connect context JWTs
+          do not universally sign <code>contentId</code>; the design must name the exact signed claim (and
+          require it be HMAC/<code>qsh</code>-covered). If no such claim exists, re-derive the bind from a value
+          that <em>is</em> signed (e.g. the macro <code>localId</code> carried in <code>qsh</code>).
+          <strong>Never</strong> source <code>contentId</code> from the iframe URL, <code>AP.context</code>,
+          query, or body (<span class="badge accent">INV-GW-06b</span>).</li>
+        <li><strong><code>macroInstanceId</code> is never authoritative on its own.</strong> The
+          <code>MiniSiteInstance</code> lookup is a <strong>DB-level composite constraint
+          <code>(clientKey, cloudId, instanceId)</code></strong>, not an application-layer <code>WHERE</code> —
+          so instance X of tenant A cannot be queried under tenant B's valid token, and the defense cannot
+          regress silently (<span class="badge accent">INV-GW-06</span>).</li>
+        <li><strong>Per-request permission check (closes the core CVE class):</strong>
+          <code>GET /wiki/rest/api/content/{contentId}/permission/check</code> with operation <code>read</code>
+          for the <strong>verified <code>accountId</code></strong> (the JWT <code>sub</code>, <strong>after</strong>
+          full authentication completes — authorization is strictly ordered after authentication).
+          <code>true</code> ⇒ proceed; <code>false</code>/non-200/timeout ⇒ <strong>deny</strong>
+          (<span class="badge accent">INV-GW-07</span>).</li>
+        <li>The check runs for <strong>every protected byte, including sub-resources</strong> — see §2.7 for the
+          mechanism that makes this implementable.</li>
+      </ul>
+
+      <h2>2.6 — Caching, fail-closed posture, non-routability, audit</h2>
+      <ul>
+        <li><strong>Cache key = <code>hash(clientKey:cloudId:accountId:contentId:read)</code></strong> with
+          <code>accountId</code> = the <strong>verified <code>sub</code></strong>; the lookup happens
+          <strong>after</strong> full verification, never on a header-supplied id
+          (<span class="badge accent">INV-GW-08</span>).</li>
+        <li><strong>Only positive <code>allow</code> decisions cached, TTL ≤ 60s</strong> (configurable to 0).
+          Cache miss ⇒ live check, never default-allow.</li>
+        <li><strong>Fail-closed on outage:</strong> unreachable/5xx/timeout ⇒ <strong>deny even if a cached
+          <code>allow</code> exists</strong> — an outage does not extend the trust window
+          (<span class="badge accent">INV-GW-11</span>). <strong>The circuit-breaker's default/error state is
+          DENY</strong> — a breaker bug that trips <em>open</em> would be a disclosure, so it gets its own
+          test.</li>
+        <li><strong>Revocation window</strong> = <code>exp-skew + cache-TTL</code>. Documented and signed off,
+          or skew set to 0. Stronger posture (event-driven invalidation → window → 0) is
+          <span class="badge gated">GATED</span> on AVI permission-change-event reliability.</li>
+        <li><strong>Non-routability ENFORCED (<span class="badge accent">INV-GW-14</span>):</strong> dispatched
+          user Workers have no route/subdomain/custom domain and are not reachable by cross-tenant
+          Worker-to-Worker fetch — a config policy + a pen-test probe, not a platform assumption.</li>
+        <li><strong>Rate limiting (<span class="badge accent">INV-GW-15</span>):</strong> per-tenant + per-IP
+          token buckets on <code>permission/check</code> and on serving requests. Note the
+          <strong>401-refresh-loop interaction</strong>: a 401 (auth failure) occurs <em>before</em> the
+          permission check, so a buggy/malicious embed looping <code>401→refresh→401</code> is bounded only by
+          the serving-request limit — make that interaction an explicit invariant.</li>
+        <li><strong>Audit (<span class="badge accent">INV-GW-13</span>):</strong> structured per-decision log
+          <code>{ts, clientKey, cloudId, accountId, instanceId, contentId, decision, reason, ruleId, jwtExp,
+          latencyMs}</code>.</li>
+      </ul>
+
+      <div class="callout danger">
+        <span class="c-ico">⚠</span>
+        <div><b>Secrets and full tokens are NEVER logged</b> (lint+test-enforced). conf-app's
+        <code>authenticate.ts:28</code> logs the decoded token and <code>forge-installed.ts:34</code> logs the
+        full lifecycle body (verified); for classic Connect that body <i>contains the
+        <code>sharedSecret</code></i>. "Never log secrets" must be a structurally enforced invariant.
+        Additionally, <b>secret at rest must be app-layer encrypted</b>: conf-app's
+        <code>ClientInstallation.sharedSecret</code> is plaintext <code>TEXT</code> (migration 0005), and
+        Cloudflare's default at-rest encryption is not enough — a D1 read or a logged row discloses it.
+        <span class="badge accent">INV-GW-10</span> requires application-layer envelope/KMS-wrapped encryption of
+        <code>sharedSecret</code> and the grant-signing key (§2.7).</div>
+      </div>
+
+      <h2>2.7 — Signed-path grant tokens (sub-resource authorization)</h2>
+      <p>The red team named this the <strong>single most important unresolved gateway mechanic</strong>: a
+      mini-site is multi-file. The entrypoint <code>index.html</code> carries a Connect JWT, but the browser
+      then auto-loads relative sub-resources (<code>app.js</code>, <code>style.css</code>,
+      <code>assets/*</code>) as <strong>sub-resource requests that carry no <code>Authorization</code> header
+      and no <code>jwt</code> param</strong>. Serve those unchecked and the entire ACL is bypassed — authorize
+      the entry doc, leak everything else.</p>
+      <p>Worse: the bundle must be served from an <strong>isolated origin in a sandbox without
+      <code>allow-same-origin</code></strong> (§5.3/I6) → the iframe has an <strong>opaque origin</strong> →
+      cookies scoped to the bundle origin are <strong>not sent</strong>, so a signed-cookie scheme is
+      incompatible with the required isolation. Neither "JWT on every sub-request" nor "auth cookie" works
+      natively.</p>
+
+      <h3>Chosen mechanism — signed-path grant + <code>&lt;base&gt;</code> rewrite</h3>
+      <ol>
+        <li>The viewer's iframe loads the entrypoint:
+          <code>GET /v/&lt;instanceId&gt;?jwt=&lt;connect-jwt&gt;</code>.</li>
+        <li>The gateway runs §2.4 + §2.5 (verify + bind + <code>permission/check</code>). <strong>On allow</strong>,
+          it mints a grant token <code>G = base64url(payload).HMAC(payload, K_grant)</code> where
+          <code>payload = {i: instanceId, c: contentId, a: accountId, cl: cloudId, exp: now + TTL}</code>,
+          <code>TTL</code> = the permission-cache TTL (≤60s), <code>K_grant</code> = a gateway-internal,
+          rotated, envelope-encrypted signing key.</li>
+        <li>The gateway serves <code>index.html</code> with an injected
+          <code>&lt;base href="/v/&lt;instanceId&gt;/g/&lt;G&gt;/"&gt;</code> (and the CSP/sandbox headers). The
+          browser now resolves <strong>every relative sub-resource</strong> under
+          <code>/v/&lt;instanceId&gt;/g/&lt;G&gt;/…</code> — native relative-path resolution (the WfP
+          Static-Assets selling point) is preserved.</li>
+        <li>Every sub-resource request <code>GET /v/&lt;instanceId&gt;/g/&lt;G&gt;/app.js</code> re-enters the
+          gateway, which: (a) validates <code>G</code>'s HMAC + <code>exp</code> (fail-closed on bad/expired);
+          (b) checks the path's <code>&lt;instanceId&gt;</code> equals <code>G.i</code> (unforgeable — the
+          client cannot mint a <code>G</code> for another <code>contentId</code>/<code>accountId</code>);
+          (c) <strong>re-checks the permission cache</strong> for <code>(G.a, G.c, read)</code> (fail-closed on
+          revoke/expiry/outage); then dispatches to the user Worker. This makes
+          <span class="badge accent">INV-GW-07</span> implementable, not aspirational.</li>
+        <li><strong>Grant expiry mid-view:</strong> the next sub-resource 401s; the embed's loader re-requests
+          the entrypoint with a fresh Connect JWT (<code>AP.context.getToken()</code>), gets a new grant, and
+          the new <code>&lt;base&gt;</code> carries it. This is the concrete token-expiry-mid-view re-auth
+          path (I4).</li>
+      </ol>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant V as Viewer iframe
+  participant GW as Auth Gateway
+  participant CONF as Confluence perm-check
+  participant UW as User Worker
+  V->>GW: GET /v/id with jwt — entrypoint
+  GW->>GW: verify JWT — alg, secret, exp, qsh
+  GW->>GW: bind clientKey, cloudId, instanceId to contentId
+  GW->>CONF: permission check read for verified sub
+  CONF-->>GW: allow
+  GW->>GW: mint G = HMAC of payload with K_grant, exp = now plus TTL
+  GW-->>V: index.html plus base href /v/id/g/G/ plus CSP
+  V->>GW: GET /v/id/g/G/app.js — relative sub-resource
+  GW->>GW: validate G HMAC and exp, path id matches G.i
+  GW->>GW: re-check permission cache for G.a, G.c, read
+  GW->>UW: dispatch raw asset bytes only
+  UW-->>GW: bytes
+  GW-->>V: asset plus security headers
+  Note over V,GW: Grant expiry mid-view — next sub-resource 401s, loader re-requests entrypoint with fresh JWT
+        </div>
+        <figcaption>Signed-path grant flow. The grant lives in the URL path, so it rides same-document
+        sub-resource loads regardless of origin opacity — no cookies, compatible with the
+        no-<code>allow-same-origin</code> sandbox.</figcaption>
+      </figure>
+
+      <div class="callout ok">
+        <span class="c-ico">✓</span>
+        <div><b>Properties:</b> closes the sub-resource bypass; compatible with the opaque-origin sandbox (grant
+        in the URL path, sent on same-document sub-resource loads regardless of origin opacity — no cookies);
+        unforgeable (HMAC-signed by the gateway; path <code>instanceId</code> cross-checked against
+        <code>G.i</code>); replay-bounded (short TTL <b>and</b> per-request permission re-check, optional IP/UA
+        pin).</div>
+      </div>
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div><b>Residual (documented, not hidden):</b> a grant URL leaked (referrer, proxy log) within its TTL
+        replays for content the victim could already read — the same bounded-replay residual as the JWT itself;
+        mitigated by short TTL + per-request re-check. <code>K_grant</code> compromise = forgeable grants → treat
+        exactly like <code>sharedSecret</code> (envelope-encrypted, rotated, never logged).
+        <b>Rejected alternatives:</b> (a) JWT on every sub-resource — browsers don't attach it to relative
+        loads; would require an XHR-fetch+blob shim, destroying the native-relative-path property. (b) Signed
+        cookie scoped to the bundle origin — suppressed by the opaque-origin sandbox required for I6.</div>
+      </div>
+
+      <h2>2.8 — STRIDE table</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>STRIDE</th><th>Threat</th><th>Control</th><th>Invariant</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Spoofing</td><td>Forged JWT</td><td>HS256 verified vs per-<code>(clientKey,key)</code> secret</td><td><span class="badge accent">INV-GW-01</span></td></tr>
+            <tr><td>2</td><td>Spoofing</td><td><code>alg=none</code> / RS↔HS confusion</td><td>Hard-pin <code>alg=HS256</code> before key selection; <code>kid</code> ignored</td><td><span class="badge accent">INV-GW-03</span></td></tr>
+            <tr><td>3</td><td>Tampering</td><td><code>qsh</code> strip/replay across method/path</td><td>Exact Atlassian canonical recompute; <code>context-qsh</code> entrypoint-only</td><td><span class="badge accent">INV-GW-02</span></td></tr>
+            <tr><td>4</td><td>Tampering</td><td><code>instanceId</code>/<code>contentId</code> tamper → other page's bundle</td><td>DB-level <code>(clientKey,cloudId,instanceId)</code> bind; <code>contentId</code> from signed claim</td><td><span class="badge accent">INV-GW-06/06b</span></td></tr>
+            <tr><td>5</td><td>Repudiation</td><td>Abusive access leaves no trace</td><td>Append-only audit of allow/deny; no secrets logged</td><td><span class="badge accent">INV-GW-13</span></td></tr>
+            <tr><td>6</td><td>Info-disc</td><td>Cross-tenant via clientKey/cloudId confusion</td><td><code>(clientKey,key)</code> secret; <code>cloudId</code>↔install cross-check</td><td><span class="badge accent">INV-GW-04/04b</span></td></tr>
+            <tr><td>7</td><td>Info-disc</td><td>IDOR — read content lacking <code>read</code></td><td>Per-request <code>permission/check(read)</code> for verified <code>sub</code></td><td><span class="badge accent">INV-GW-07</span></td></tr>
+            <tr><td>8</td><td>Info-disc</td><td>Sub-resource bypass (assets unchecked)</td><td>Signed-path grant + per-asset re-check (§2.7)</td><td><span class="badge accent">INV-GW-07</span></td></tr>
+            <tr><td>9</td><td>Info-disc</td><td>Direct hit on a user Worker</td><td>Non-routable, dispatch-only, <strong>enforced + pen-tested</strong></td><td><span class="badge accent">INV-GW-14</span></td></tr>
+            <tr><td>10</td><td>Info-disc</td><td>Serve revoked content from stale cache / outage</td><td>Fail-closed; positive cache ≤60s; breaker default = deny</td><td><span class="badge accent">INV-GW-08/11</span></td></tr>
+            <tr><td>11</td><td>Info-disc</td><td>Expired token keeps serving</td><td>Re-verify every request; grant TTL; refresh-and-retry</td><td><span class="badge accent">INV-GW-05/12</span></td></tr>
+            <tr><td>12</td><td>Info-disc</td><td><code>sharedSecret</code>/<code>K_grant</code> leak</td><td>Verify+<code>aud</code>-pin install; app-layer encrypt; never log; delete on uninstall</td><td><span class="badge accent">INV-GW-10</span></td></tr>
+            <tr><td>13</td><td>DoS</td><td><code>permission/check</code> flood; 401-refresh loop</td><td>Per-tenant/IP rate limit; cache positives; breaker→fail-closed</td><td><span class="badge accent">INV-GW-15</span></td></tr>
+            <tr><td>14</td><td>EoP</td><td>Unlisted/new route served unauthed</td><td>Deny-by-default routing (inverts conf-app <code>_middleware.ts</code>)</td><td><span class="badge accent">INV-GW-09</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>2.9 — Attack tree</h2>
+      <p>Root goal: <strong>serve a bundle to an unauthorized viewer</strong>. Every leaf maps to a closing
+      invariant; <strong>an uncovered leaf is a release blocker</strong>.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TD
+  ROOT["ROOT: Unauthorized viewer<br/>obtains bundle bytes"]
+  ROOT --> A["A. Defeat authentication"]
+  ROOT --> B["B. Pass auth, read another's content<br/>(the CVE class)"]
+  ROOT --> C["C. Bypass the gateway"]
+  ROOT --> D["D. Poison the decision cache"]
+
+  A --> A1["A1 Forge token"] --> A1i["HS256 + per-(clientKey,key) secret<br/>INV-GW-01"]
+  A --> A2["A2 alg=none / confusion"] --> A2i["alg pinned, kid ignored<br/>INV-GW-03"]
+  A --> A3["A3 reuse token cross-path"] --> A3i["exact qsh recompute + compare<br/>INV-GW-02"]
+  A --> A4["A4 replay expired token"] --> A4i["exp + re-verify; bounded-replay residual<br/>INV-GW-05"]
+  A --> A5["A5 steal a secret"] --> A5i["verified+aud-pinned installed,<br/>app-encrypt, no-log, delete<br/>INV-GW-10"]
+  A --> A6["A6 token-extraction abuse"] --> A6i["single canonical extractor,<br/>JWT scheme, reject jwt != Authorization<br/>(2.3)"]
+
+  B --> B1["B1 tamper instanceId/contentId"] --> B1i["DB-level bind + signed-claim contentId<br/>INV-GW-06/06b"]
+  B --> B2["B2 clientKey/cloudId confusion"] --> B2i["(clientKey,key) secret +<br/>cloudId cross-check<br/>INV-GW-04/04b"]
+  B --> B3["B3 skip permission/check"] --> B3i["mandatory per-request,<br/>ALL assets via grant<br/>INV-GW-07 (2.7)"]
+  B --> B4["B4 win the revocation race"] --> B4i["bounded: cache &lt;= 60s,<br/>deny-on-outage, breaker default deny<br/>INV-GW-08/11"]
+
+  C --> C1["C1 hit a user Worker directly"] --> C1i["non-routable, enforced + pen-tested<br/>INV-GW-14"]
+  C --> C2["C2 hit an unguarded route"] --> C2i["deny-by-default routing;<br/>new-route returns 401 test<br/>INV-GW-09"]
+  C --> C3["C3 forge/replay a grant token"] --> C3i["HMAC-signed grant, short TTL,<br/>path-instanceId cross-check<br/>(2.7)"]
+
+  D --> D1["D1 serve A's allow to B"] --> D1i["cache key binds verified<br/>sub + content + perm<br/>INV-GW-08"]
+        </div>
+        <figcaption>Attack tree. Branches A (defeat-auth), B (authz-bypass / the CVE class), C
+        (bypass-gateway), D (poison-cache); each leaf closes on a named invariant.</figcaption>
+      </figure>
+
+      <h2>§4 — Serving &amp; CSP enforcement</h2>
+      <p>There is no separate serving subsystem — <strong>the dispatch Worker is in-path for every byte</strong>,
+      so enforcement happens there, and the user Worker only returns raw asset bytes.</p>
+      <ul>
+        <li><strong>Every byte passes the gateway.</strong> Because relative sub-resources resolve under the
+          signed <code>/g/&lt;grant&gt;/</code> path (§2.7), there is no asset request that reaches the user
+          Worker without a grant + permission re-check. The user Worker has no auth logic and is non-routable
+          (<span class="badge accent">INV-GW-14</span>).</li>
+        <li><strong>The gateway sets response security headers</strong> on the way out — it does <strong>not</strong>
+          trust the user Worker to set them: per-bundle CSP (<code>frame-ancestors</code> = embed origin only;
+          <code>script-src</code> self + bundle origin; restricted <code>connect-src</code>/<code>form-action</code>),
+          <code>X-Content-Type-Options: nosniff</code>, and the correct per-asset <code>Content-Type</code>. The
+          bundle is framed <code>sandbox</code> without <code>allow-same-origin</code> relative to the control
+          plane.</li>
+        <li><strong>Per-bundle origin isolation</strong> (§5.3/I6) makes the CSP meaningful: the bundle origin
+          never holds the gateway's auth state or <code>K_grant</code>, and same-tenant bundle A cannot reach
+          bundle B.</li>
+        <li><strong>Caching:</strong> the permission decision cache is keyed by verified
+          <code>(clientKey:cloudId:accountId:contentId:read)</code>; any edge/Cache-API entry for bundle bytes
+          <strong>must include <code>cloudId</code> in its key</strong> (I8) so a cache entry can never be
+          replayed cross-tenant.</li>
+      </ul>
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>The single rule that ties §1.4 (flow), §2.5–§2.7 (authz + grants), and §5.3 (CSP/sandbox/origin)
+        together: <b>enforce at the gateway, never at the user Worker.</b></div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="architecture.html"><span class="dir">← Previous</span> Architecture &amp; Components</a>
+        <a class="next" href="data-model.html"><span class="dir">Next →</span> Domain &amp; Data Model</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

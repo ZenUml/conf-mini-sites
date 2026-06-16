@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini-Sites Publisher — Upload &amp; Live Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['Sora', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+          mono: ['JetBrains Mono', 'SFMono-Regular', 'ui-monospace', 'Menlo', 'monospace'],
+        },
+        colors: {
+          ink:    { DEFAULT: '#172B4D', soft: '#44546F', faint: '#5E6C84' },
+          brand:  { DEFAULT: '#0C66E4', deep: '#0747A6', glow: '#4C9AFF' },
+          grass:  { DEFAULT: '#22A06B', deep: '#1F845A', glow: '#57D9A3' },
+          flame:  { DEFAULT: '#CA3521', deep: '#AE2A19', soft: '#FFEDEB' },
+          amberx: { DEFAULT: '#E2B203' },
+          surf:   { 0: '#FFFFFF', 50: '#F7F8F9', 100: '#EBECF0', 200: '#DFE1E6' },
+        },
+        boxShadow: {
+          glass:  '0 8px 40px -12px rgba(76,58,172,0.28), 0 2px 8px -2px rgba(12,102,228,0.10)',
+          lift:   '0 18px 60px -18px rgba(60,52,137,0.45), 0 4px 16px -4px rgba(12,102,228,0.18)',
+          pip:    '0 0 0 4px rgba(34,160,107,0.18)',
+        },
+        borderRadius: { xl2: '14px' },
+      },
+    },
+  };
+</script>
+<style>
+  :root {
+    --step--1: clamp(0.72rem, 0.7rem + 0.1vw, 0.78rem);
+    --step-0:  0.875rem;
+    --step-1:  1rem;
+    --step-2:  1.125rem;
+    --step-3:  1.375rem;
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    font-family: 'Inter', sans-serif;
+    color: #172B4D;
+    background: #0B1020;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== Mesh gradient ambient backdrop ===== */
+  .mesh {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    background:
+      radial-gradient(38rem 38rem at 12% 8%,  rgba(124,99,255,0.55), transparent 60%),
+      radial-gradient(34rem 34rem at 92% 12%, rgba(12,102,228,0.50), transparent 58%),
+      radial-gradient(40rem 40rem at 78% 92%, rgba(34,160,107,0.42), transparent 60%),
+      radial-gradient(36rem 36rem at 18% 96%, rgba(214,84,206,0.38), transparent 62%),
+      linear-gradient(160deg, #0E1330 0%, #14143A 50%, #0B1020 100%);
+  }
+  .mesh::after {
+    content: ''; position: absolute; inset: -20%;
+    background:
+      radial-gradient(28rem 28rem at 50% 40%, rgba(124,99,255,0.22), transparent 70%);
+    animation: drift 22s var(--ease-spring) infinite alternate;
+  }
+  @keyframes drift {
+    0%   { transform: translate3d(-4%, -3%, 0) scale(1.0); }
+    100% { transform: translate3d(5%, 4%, 0) scale(1.15); }
+  }
+  .grain {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+
+  /* ===== Glass surfaces ===== */
+  .glass {
+    background: linear-gradient(150deg, rgba(255,255,255,0.97), rgba(255,255,255,0.93));
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 8px 40px -12px rgba(76,58,172,0.28), 0 2px 8px -2px rgba(12,102,228,0.10);
+  }
+  .glass-inset {
+    background: linear-gradient(150deg, rgba(247,248,249,0.9), rgba(255,255,255,0.7));
+    border: 1px solid rgba(23,43,77,0.07);
+  }
+  .ring-gradient {
+    position: relative;
+  }
+  .ring-gradient::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+    background: linear-gradient(135deg, rgba(124,99,255,0.9), rgba(12,102,228,0.5) 45%, rgba(34,160,107,0.6));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .label {
+    font-family: 'Sora', sans-serif;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    font-size: 0.6875rem; font-weight: 600; color: #44546F;
+  }
+  .disp { font-family: 'Sora', sans-serif; letter-spacing: -0.018em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ===== Progress shimmer ===== */
+  .bar-track { background: linear-gradient(90deg, #EBECF0, #DFE1E6); }
+  .bar-fill {
+    background: linear-gradient(90deg, #7C63FF 0%, #0C66E4 50%, #4C9AFF 100%);
+    position: relative; overflow: hidden;
+    transition: width 0.9s var(--ease-spring);
+  }
+  .bar-fill::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.65) 50%, transparent 80%);
+    background-size: 220% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 220% 0; } 100% { background-position: -120% 0; } }
+  .bar-fill::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.16) 0 10px, transparent 10px 20px);
+    animation: stripe 0.7s linear infinite;
+  }
+  @keyframes stripe { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
+
+  /* ===== Spinner ===== */
+  .spin { animation: rot 0.9s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  /* ===== Check pop ===== */
+  .pop-in { animation: pop 0.5s var(--ease-spring) both; }
+  @keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
+
+  /* ===== Live pip ===== */
+  .pip { position: relative; }
+  .pip::after {
+    content: ''; position: absolute; inset: -5px; border-radius: 999px;
+    border: 2px solid currentColor; opacity: 0.6;
+    animation: ping 1.8s var(--ease-spring) infinite;
+  }
+  @keyframes ping { 0% { transform: scale(0.7); opacity: 0.7; } 100% { transform: scale(2.1); opacity: 0; } }
+
+  /* ===== Reveal ===== */
+  .reveal { opacity: 0; transform: translateY(16px) scale(0.985); }
+  .reveal.in { opacity: 1; transform: none; transition: opacity 0.7s var(--ease-spring), transform 0.7s var(--ease-spring); }
+
+  /* ===== Preview pane glow on first reveal ===== */
+  .preview-glow { animation: glowpulse 2.4s var(--ease-spring) 0.2s 1; }
+  @keyframes glowpulse {
+    0%   { box-shadow: 0 18px 60px -18px rgba(60,52,137,0.45), 0 0 0 0 rgba(124,99,255,0.0); }
+    40%  { box-shadow: 0 18px 60px -18px rgba(60,52,137,0.55), 0 0 50px 6px rgba(124,99,255,0.45); }
+    100% { box-shadow: 0 18px 60px -18px rgba(60,52,137,0.45), 0 0 0 0 rgba(124,99,255,0.0); }
+  }
+
+  .chart-bar { transform-origin: bottom; transition: height 0.6s var(--ease-spring), background 0.3s ease; }
+
+  .seg-active {
+    background: linear-gradient(150deg, #FFFFFF, #F4F6FF);
+    box-shadow: 0 2px 8px -2px rgba(12,102,228,0.25), 0 0 0 1px rgba(124,99,255,0.25) inset;
+    color: #0747A6;
+  }
+
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #4C9AFF; outline-offset: 2px; border-radius: 8px;
+  }
+  .copybtn.copied { color: #22A06B; }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(23,43,77,0.18); border-radius: 999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+  }
+</style>
+</head>
+<body class="font-sans">
+  <div class="mesh" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main class="relative z-10 min-h-screen flex flex-col items-center px-4 py-8 sm:py-12">
+
+    <!-- Caption above the tool, marketing-free, sets the framing -->
+    <div class="w-full max-w-[720px] mb-5 flex items-center gap-2.5 text-white/70">
+      <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/10 border border-white/15">
+        <i data-lucide="layout-template" class="w-3.5 h-3.5"></i>
+      </span>
+      <p class="text-[0.8125rem]">In-macro panel · Confluence Cloud editor</p>
+    </div>
+
+    <!-- ============ THE PANEL ============ -->
+    <section class="w-full max-w-[720px] glass ring-gradient rounded-[18px] overflow-hidden" aria-label="Add mini-site panel">
+
+      <!-- Panel header -->
+      <header class="flex items-center gap-3 px-5 sm:px-6 pt-5 pb-4 border-b border-ink/[0.06]">
+        <span class="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl2 text-white"
+              style="background:linear-gradient(150deg,#7C63FF,#0C66E4);">
+          <i data-lucide="boxes" class="w-[18px] h-[18px]"></i>
+        </span>
+        <div class="min-w-0 flex-1">
+          <h1 class="disp text-[var(--step-1)] font-600 text-ink leading-tight">Add mini-site</h1>
+          <p class="text-[0.78rem] text-ink-soft truncate flex items-center gap-1.5">
+            <i data-lucide="file-archive" class="w-3.5 h-3.5 shrink-0"></i>
+            <span class="mono truncate">rel-dashboard.zip</span>
+          </p>
+        </div>
+        <button class="shrink-0 h-8 w-8 inline-flex items-center justify-center rounded-lg text-ink-soft hover:bg-ink/[0.06] transition-colors"
+                aria-label="Close panel">
+          <i data-lucide="x" class="w-[18px] h-[18px]"></i>
+        </button>
+      </header>
+
+      <!-- State switcher (quiet, secondary) -->
+      <div class="px-5 sm:px-6 pt-4">
+        <div class="label mb-1.5 flex items-center gap-1.5 text-ink-faint/80">
+          <i data-lucide="toggle-left" class="w-3.5 h-3.5"></i> Reviewer state preview
+        </div>
+        <div role="tablist" aria-label="Panel state" class="grid grid-cols-2 gap-1 p-1 rounded-xl2 glass-inset">
+          <button role="tab" id="tab-up" aria-selected="true" aria-controls="state-uploading" data-state="uploading"
+                  class="seg-btn seg-active rounded-lg px-3 py-2 text-[0.82rem] font-500 flex items-center justify-center gap-1.5 transition-all duration-200">
+            <i data-lucide="cloud-upload" class="w-4 h-4"></i> Uploading
+          </button>
+          <button role="tab" id="tab-pv" aria-selected="false" aria-controls="state-preview" data-state="preview"
+                  class="seg-btn rounded-lg px-3 py-2 text-[0.82rem] font-500 text-ink-soft flex items-center justify-center gap-1.5 transition-all duration-200 hover:text-ink">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Preview
+          </button>
+        </div>
+      </div>
+
+      <!-- ====================================================== -->
+      <!-- STATE 1 — UPLOADING                                    -->
+      <!-- ====================================================== -->
+      <div id="state-uploading" role="tabpanel" aria-labelledby="tab-up" class="px-5 sm:px-6 py-5">
+
+        <!-- Progress hero -->
+        <div class="flex items-end justify-between gap-3 mb-2">
+          <div>
+            <div class="label text-ink-faint mb-0.5">Overall progress</div>
+            <div class="flex items-baseline gap-1.5">
+              <span id="pct" class="disp text-[clamp(2.5rem,8vw,3.25rem)] font-700 leading-none text-ink tabular-nums"
+                    style="background:linear-gradient(135deg,#7C63FF,#0C66E4 60%,#22A06B);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">68</span>
+              <span class="disp text-[1.5rem] font-600 text-brand">%</span>
+            </div>
+          </div>
+          <button id="cancel-btn"
+                  class="shrink-0 mb-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[0.8rem] font-500 text-ink-soft border border-ink/10 hover:bg-ink/[0.05] hover:text-ink transition-colors">
+            <i data-lucide="x" class="w-4 h-4"></i> Cancel
+          </button>
+        </div>
+
+        <div class="bar-track h-2.5 rounded-full overflow-hidden mb-3" role="progressbar" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100" aria-label="Upload progress">
+          <div id="bar-fill" class="bar-fill h-full rounded-full" style="width:68%"></div>
+        </div>
+
+        <!-- Status narrator -->
+        <div class="flex items-center gap-2 text-[0.84rem] text-ink-soft mb-5 min-h-[1.25rem]">
+          <i data-lucide="loader-2" class="w-4 h-4 spin text-brand shrink-0"></i>
+          <span id="narrator" class="font-500 text-ink">Scanning for secrets…</span>
+        </div>
+
+        <!-- Live file manifest -->
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <div class="label flex items-center gap-1.5"><i data-lucide="list-tree" class="w-3.5 h-3.5"></i> File manifest</div>
+            <span class="mono text-[0.72rem] text-ink-soft glass-inset rounded-md px-2 py-0.5"
+                  id="kofn">4 of 5 uploaded</span>
+          </div>
+          <ul id="manifest" class="glass-inset rounded-xl2 divide-y divide-ink/[0.05] max-h-[176px] overflow-y-auto"></ul>
+        </div>
+
+        <!-- Validation & security checklist -->
+        <div>
+          <div class="label flex items-center gap-1.5 mb-2"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Validation &amp; security</div>
+          <ul id="checklist" class="space-y-1.5"></ul>
+        </div>
+
+        <!-- Inline secret-detected error (de-emphasized, hidden by default) -->
+        <div id="secret-error" class="hidden mt-4">
+          <div class="rounded-xl2 border border-flame/30 bg-flame-soft/80 backdrop-blur-sm px-3.5 py-3">
+            <div class="flex items-start gap-2.5">
+              <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-flame text-white">
+                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-[0.84rem] font-600 text-flame-deep">Secret detected — publish stopped</p>
+                <p class="text-[0.78rem] text-flame-deep/85 mt-0.5">
+                  <span class="mono">config.js:14</span> — AWS access key (<span class="mono">AKIA…</span>)
+                </p>
+                <button class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-flame px-2.5 py-1.5 text-[0.76rem] font-500 text-white hover:bg-flame-deep transition-colors">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Remove secret &amp; re-upload
+                </button>
+              </div>
+            </div>
+          </div>
+          <button id="toggle-secret-off" class="mt-2 text-[0.74rem] text-ink-faint hover:text-ink-soft underline underline-offset-2">Reset checklist (demo)</button>
+        </div>
+        <button id="toggle-secret-on" class="mt-3 text-[0.74rem] text-ink-faint hover:text-flame underline underline-offset-2 flex items-center gap-1">
+          <i data-lucide="eye" class="w-3 h-3"></i> Show secret-detected error variant
+        </button>
+      </div>
+
+      <!-- ====================================================== -->
+      <!-- STATE 2 — PREVIEW / DONE                               -->
+      <!-- ====================================================== -->
+      <div id="state-preview" role="tabpanel" aria-labelledby="tab-pv" class="hidden px-5 sm:px-6 py-5">
+
+        <!-- Published confirmation -->
+        <div class="reveal flex items-center gap-2.5 mb-4" data-rev="0">
+          <span class="pip inline-flex h-2.5 w-2.5 rounded-full bg-grass text-grass"></span>
+          <h2 class="disp text-[var(--step-2)] font-600 text-ink">Published · <span class="text-grass">Live on this page</span></h2>
+        </div>
+
+        <!-- SIGNATURE MOMENT: framed browser-chrome live preview -->
+        <div class="reveal mb-4" data-rev="1">
+          <div id="preview-pane" class="preview-glow rounded-xl2 overflow-hidden border border-white/60"
+               style="box-shadow:0 18px 60px -18px rgba(60,52,137,0.45),0 4px 16px -4px rgba(12,102,228,0.18);">
+            <!-- browser chrome -->
+            <div class="flex items-center gap-2 px-3 py-2.5 border-b border-ink/[0.06]"
+                 style="background:linear-gradient(150deg,rgba(247,248,249,0.95),rgba(235,236,240,0.85));">
+              <span class="flex gap-1.5">
+                <span class="h-3 w-3 rounded-full" style="background:#FF5F57"></span>
+                <span class="h-3 w-3 rounded-full" style="background:#FEBC2E"></span>
+                <span class="h-3 w-3 rounded-full" style="background:#28C840"></span>
+              </span>
+              <div class="flex-1 mx-1 flex items-center gap-1.5 rounded-lg bg-white/70 border border-ink/[0.06] px-2.5 py-1">
+                <i data-lucide="lock" class="w-3 h-3 text-grass shrink-0"></i>
+                <span class="mono text-[0.7rem] text-ink-soft truncate">mini-site:rel-dashboard-7f3a · Live preview</span>
+              </div>
+              <button class="text-ink-faint hover:text-ink transition-colors" aria-label="Reload preview">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- the rendered mini-site (filterable dashboard) -->
+            <div class="px-4 sm:px-5 py-4" style="background:linear-gradient(160deg,#FBFCFF,#F2F5FF 70%,#EEF2FF);">
+              <div class="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p class="disp text-[0.95rem] font-600 text-ink">Release adoption</p>
+                  <p class="text-[0.7rem] text-ink-soft flex items-center gap-1 mono"><i data-lucide="file-json" class="w-3 h-3"></i> data/items.json</p>
+                </div>
+                <span class="inline-flex items-center gap-1 rounded-full bg-grass/12 text-grass-deep px-2 py-1 text-[0.66rem] font-600">
+                  <span class="h-1.5 w-1.5 rounded-full bg-grass pip text-grass"></span> LIVE
+                </span>
+              </div>
+
+              <!-- filter chips, one active -->
+              <div class="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Dashboard filters (demo)">
+                <button data-filter="7d"  class="filter-chip rounded-full px-3 py-1 text-[0.72rem] font-500 transition-all">7 days</button>
+                <button data-filter="30d" class="filter-chip filter-active rounded-full px-3 py-1 text-[0.72rem] font-500 transition-all">30 days</button>
+                <button data-filter="qtr" class="filter-chip rounded-full px-3 py-1 text-[0.72rem] font-500 transition-all">Quarter</button>
+              </div>
+
+              <!-- metric tiles -->
+              <div class="grid grid-cols-3 gap-2 mb-3">
+                <div class="rounded-lg bg-white/80 border border-ink/[0.05] px-2.5 py-2">
+                  <p class="text-[0.62rem] uppercase tracking-wide text-ink-faint">Active</p>
+                  <p id="m-active" class="disp text-[1.05rem] font-700 text-ink tabular-nums">2,418</p>
+                </div>
+                <div class="rounded-lg bg-white/80 border border-ink/[0.05] px-2.5 py-2">
+                  <p class="text-[0.62rem] uppercase tracking-wide text-ink-faint">Adopt</p>
+                  <p id="m-adopt" class="disp text-[1.05rem] font-700 text-grass tabular-nums">74%</p>
+                </div>
+                <div class="rounded-lg bg-white/80 border border-ink/[0.05] px-2.5 py-2">
+                  <p class="text-[0.62rem] uppercase tracking-wide text-ink-faint">Teams</p>
+                  <p id="m-teams" class="disp text-[1.05rem] font-700 text-ink tabular-nums">36</p>
+                </div>
+              </div>
+
+              <!-- chart implying assets/chart.svg -->
+              <div class="rounded-lg bg-white/80 border border-ink/[0.05] px-3 pt-2.5 pb-2">
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-[0.66rem] font-500 text-ink-soft flex items-center gap-1 mono"><i data-lucide="image" class="w-3 h-3"></i> assets/chart.svg</p>
+                  <p class="text-[0.6rem] text-ink-faint">by week</p>
+                </div>
+                <div id="chart" class="flex items-end gap-1.5 h-[68px]"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instance reference (copyable) -->
+        <div class="reveal mb-4" data-rev="2">
+          <div class="label mb-1.5 flex items-center gap-1.5"><i data-lucide="hash" class="w-3.5 h-3.5"></i> Instance reference</div>
+          <div class="flex items-center gap-2 glass-inset rounded-xl2 px-3 py-2.5">
+            <i data-lucide="terminal" class="w-4 h-4 text-brand shrink-0"></i>
+            <code class="mono text-[0.82rem] text-ink flex-1 truncate" id="instref">mini-site:rel-dashboard-7f3a</code>
+            <button class="copybtn shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-ink/10 px-2.5 py-1.5 text-[0.74rem] font-500 text-ink-soft hover:bg-ink/[0.05] transition-colors"
+                    data-copy="mini-site:rel-dashboard-7f3a" aria-label="Copy instance reference">
+              <i data-lucide="copy" class="w-3.5 h-3.5 ic"></i><span class="lbl">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bundle summary chips (receipt) -->
+        <div class="reveal mb-5 flex flex-wrap gap-2" data-rev="3">
+          <span class="inline-flex items-center gap-1.5 rounded-lg glass-inset px-2.5 py-1.5 text-[0.76rem] font-500 text-ink-soft">
+            <i data-lucide="files" class="w-3.5 h-3.5 text-ink-faint"></i> 5 files
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-lg glass-inset px-2.5 py-1.5 text-[0.76rem] font-500 text-ink-soft mono">
+            <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-ink-faint"></i> 412 KB
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[0.76rem] font-600 text-grass-deep"
+                style="background:rgba(34,160,107,0.10);border:1px solid rgba(34,160,107,0.22);">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> No secrets found
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-lg glass-inset px-2.5 py-1.5 text-[0.76rem] font-500 text-ink-soft">
+            <i data-lucide="box" class="w-3.5 h-3.5 text-ink-faint"></i> Sandboxed
+          </span>
+        </div>
+
+        <!-- Result actions -->
+        <div class="reveal" data-rev="4">
+          <button class="w-full inline-flex items-center justify-center gap-2 rounded-xl2 px-4 py-3 text-[0.92rem] font-600 text-white transition-transform active:scale-[0.985] hover:brightness-105"
+                  style="background:linear-gradient(135deg,#0C66E4,#7C63FF);box-shadow:0 8px 24px -8px rgba(12,102,228,0.6);">
+            <i data-lucide="check" class="w-[18px] h-[18px]"></i> Insert mini-site
+          </button>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+            <button class="inline-flex items-center justify-center gap-1.5 rounded-xl2 border border-ink/10 px-3 py-2.5 text-[0.8rem] font-500 text-ink-soft hover:bg-ink/[0.05] hover:text-ink transition-colors">
+              <i data-lucide="maximize-2" class="w-4 h-4"></i> Open fullscreen
+            </button>
+            <button class="inline-flex items-center justify-center gap-1.5 rounded-xl2 border border-ink/10 px-3 py-2.5 text-[0.8rem] font-500 text-ink-soft hover:bg-ink/[0.05] hover:text-ink transition-colors">
+              <i data-lucide="repeat" class="w-4 h-4"></i> Replace bundle
+            </button>
+            <button class="copybtn inline-flex items-center justify-center gap-1.5 rounded-xl2 border border-ink/10 px-3 py-2.5 text-[0.8rem] font-500 text-ink-soft hover:bg-ink/[0.05] hover:text-ink transition-colors"
+                    data-copy="https://confluence.example.com/x/mini-site:rel-dashboard-7f3a">
+              <i data-lucide="link" class="w-4 h-4 ic"></i><span class="lbl">Copy link</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Permission-gated trust line -->
+        <p class="reveal mt-4 flex items-center gap-1.5 text-[0.74rem] text-ink-faint" data-rev="5">
+          <i data-lucide="users" class="w-3.5 h-3.5"></i>
+          Only people who can view this page can open this mini-site.
+        </p>
+      </div>
+
+    </section>
+
+    <p class="relative z-10 mt-6 text-[0.72rem] text-white/45">Mini-Sites Publisher · embedded tool · max 720px · usable to 375px</p>
+  </main>
+
+<style>
+  .filter-chip { background: rgba(23,43,77,0.05); color: #44546F; border: 1px solid transparent; }
+  .filter-chip:hover { background: rgba(23,43,77,0.09); }
+  .filter-active { background: linear-gradient(135deg,#0C66E4,#7C63FF); color: #fff; border-color: transparent; box-shadow: 0 2px 8px -2px rgba(12,102,228,0.5); }
+</style>
+
+<script>
+(function () {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- File manifest data ---------- */
+  const files = [
+    { path: 'index.html',       size: '6.2 KB',  icon: 'file-code-2', done: true  },
+    { path: 'app.js',           size: '184 KB',  icon: 'file-code-2', done: true  },
+    { path: 'styles.css',       size: '38 KB',   icon: 'file-type',   done: true  },
+    { path: 'assets/chart.svg', size: '21 KB',   icon: 'image',       done: true  },
+    { path: 'data/items.json',  size: '163 KB',  icon: 'file-json',   done: false },
+  ];
+
+  const manifest = document.getElementById('manifest');
+  files.forEach((f) => {
+    const li = document.createElement('li');
+    li.className = 'flex items-center gap-2.5 px-3 py-2.5';
+    li.innerHTML =
+      '<span class="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-ink/[0.05] text-ink-soft">' +
+        '<i data-lucide="' + f.icon + '" class="w-4 h-4"></i>' +
+      '</span>' +
+      '<span class="mono text-[0.78rem] text-ink flex-1 min-w-0 truncate">' + f.path + '</span>' +
+      '<span class="mono text-[0.72rem] text-ink-faint shrink-0">' + f.size + '</span>' +
+      '<span class="status shrink-0 w-5 flex justify-center"></span>';
+    manifest.appendChild(li);
+    const st = li.querySelector('.status');
+    if (f.done) {
+      st.innerHTML = '<span class="pop-in inline-flex h-5 w-5 items-center justify-center rounded-full bg-grass text-white"><i data-lucide="check" class="w-3 h-3"></i></span>';
+    } else {
+      st.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 spin text-brand"></i>';
+    }
+  });
+
+  /* ---------- Validation & security checklist ---------- */
+  const checks = [
+    { label: 'index.html found at root', state: 'pass' },
+    { label: 'All paths relative (no absolute URLs)', state: 'pass' },
+    { label: 'Within size & file-count limits', state: 'pass', meta: '5 files · 412 KB / 5 MB' },
+    { label: 'Scanning for leaked secrets', state: 'progress', security: true },
+  ];
+
+  const checklist = document.getElementById('checklist');
+  function renderChecklist(opts) {
+    opts = opts || {};
+    checklist.innerHTML = '';
+    checks.forEach((c) => {
+      const li = document.createElement('li');
+      li.className = 'flex items-center gap-2.5 rounded-lg glass-inset px-3 py-2';
+      let icon, label = c.label, sub = c.meta || '';
+
+      if (c.security && opts.secret) {
+        // error variant replaces the security row outcome
+        icon = '<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-flame text-white"><i data-lucide="x" class="w-3 h-3"></i></span>';
+        label = 'Secret scan failed';
+        sub = 'config.js:14 — AWS access key';
+        li.className += ' !border-flame/30';
+      } else if (c.state === 'pass') {
+        icon = '<span class="pop-in inline-flex h-5 w-5 items-center justify-center rounded-full bg-grass text-white"><i data-lucide="check" class="w-3 h-3"></i></span>';
+        if (c.security) label = 'No secrets found';
+      } else {
+        icon = c.security
+          ? '<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand/12 text-brand"><i data-lucide="loader-2" class="w-3.5 h-3.5 spin"></i></span>'
+          : '<i data-lucide="loader-2" class="w-4 h-4 spin text-brand"></i>';
+      }
+
+      const shield = c.security ? '<i data-lucide="shield" class="w-3.5 h-3.5 ' + (opts.secret ? 'text-flame' : 'text-grass') + ' shrink-0 ml-auto mr-0"></i>' : '';
+      li.innerHTML =
+        '<span class="shrink-0 w-5 flex justify-center">' + icon + '</span>' +
+        '<span class="flex-1 min-w-0">' +
+          '<span class="text-[0.82rem] font-500 ' + (opts.secret && c.security ? 'text-flame-deep' : 'text-ink') + '">' + label + '</span>' +
+          (sub ? '<span class="block mono text-[0.7rem] ' + (opts.secret && c.security ? 'text-flame-deep/80' : 'text-ink-faint') + '">' + sub + '</span>' : '') +
+        '</span>' +
+        (c.security ? '<i data-lucide="shield' + (opts.secret ? '-alert' : '-check') + '" class="w-4 h-4 shrink-0 ' + (opts.secret ? 'text-flame' : (c.state === 'pass' ? 'text-grass' : 'text-brand')) + '"></i>' : '');
+      checklist.appendChild(li);
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+  renderChecklist();
+
+  /* ---------- Status narrator cycling ---------- */
+  const steps = ['Uploading 5 files…', 'Validating bundle structure…', 'Scanning for secrets…', 'Provisioning embed…'];
+  const narrator = document.getElementById('narrator');
+  let nIdx = 2;
+  if (!reduce) {
+    setInterval(() => {
+      nIdx = (nIdx + 1) % steps.length;
+      narrator.style.opacity = '0';
+      setTimeout(() => { narrator.textContent = steps[nIdx]; narrator.style.opacity = '1'; }, 220);
+    }, 2600);
+    narrator.style.transition = 'opacity 0.22s ease';
+  }
+
+  /* ---------- Progress momentum (oscillate near 68 for liveness) ---------- */
+  const pct = document.getElementById('pct');
+  const barFill = document.getElementById('bar-fill');
+  const bar = barFill.parentElement;
+  if (!reduce) {
+    let p = 68;
+    setInterval(() => {
+      p = Math.min(94, p + Math.random() * 3);
+      if (p > 92) p = 68; // loop the demo so it always reads "live"
+      pct.textContent = Math.round(p);
+      barFill.style.width = p + '%';
+      bar.setAttribute('aria-valuenow', Math.round(p));
+    }, 1400);
+  }
+
+  /* ---------- Cancel feedback ---------- */
+  document.getElementById('cancel-btn').addEventListener('click', function () {
+    this.innerHTML = '<i data-lucide="x-circle" class="w-4 h-4"></i> Cancelled';
+    this.classList.add('text-flame');
+    if (window.lucide) lucide.createIcons();
+  });
+
+  /* ---------- Secret error toggle ---------- */
+  const secretBox = document.getElementById('secret-error');
+  document.getElementById('toggle-secret-on').addEventListener('click', function () {
+    renderChecklist({ secret: true });
+    secretBox.classList.remove('hidden');
+    this.classList.add('hidden');
+    secretBox.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+  });
+  document.getElementById('toggle-secret-off').addEventListener('click', function () {
+    renderChecklist();
+    secretBox.classList.add('hidden');
+    document.getElementById('toggle-secret-on').classList.remove('hidden');
+  });
+
+  /* ---------- State switcher ---------- */
+  const tabs = document.querySelectorAll('.seg-btn');
+  const panels = {
+    uploading: document.getElementById('state-uploading'),
+    preview: document.getElementById('state-preview'),
+  };
+  let revealed = false;
+
+  function activate(name) {
+    tabs.forEach((t) => {
+      const on = t.dataset.state === name;
+      t.classList.toggle('seg-active', on);
+      t.classList.toggle('text-ink-soft', !on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.uploading.classList.toggle('hidden', name !== 'uploading');
+    panels.preview.classList.toggle('hidden', name !== 'preview');
+    if (name === 'preview') runReveal();
+  }
+  tabs.forEach((t) => t.addEventListener('click', () => activate(t.dataset.state)));
+
+  /* ---------- Preview reveal + chart ---------- */
+  const chartData = {
+    '7d':  [40, 55, 48, 70, 62, 88, 96],
+    '30d': [52, 60, 58, 74, 80, 90, 100],
+    'qtr': [30, 44, 50, 58, 66, 78, 84],
+  };
+  function drawChart(key) {
+    const el = document.getElementById('chart');
+    const data = chartData[key] || chartData['30d'];
+    el.innerHTML = '';
+    data.forEach((v, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'flex-1 flex items-end';
+      const b = document.createElement('div');
+      b.className = 'chart-bar w-full rounded-t';
+      const peak = i === data.length - 1;
+      b.style.background = peak
+        ? 'linear-gradient(180deg,#7C63FF,#0C66E4)'
+        : 'linear-gradient(180deg,#9FB8FF,#4C9AFF)';
+      // Final height is committed immediately so the bar is always visible;
+      // only the scaleY entrance animates, so a dropped frame never blanks the chart.
+      b.style.height = v + '%';
+      if (!reduce) {
+        b.style.transform = 'scaleY(0.04)';
+        b.style.transition = 'transform 0.6s cubic-bezier(0.16,1,0.3,1)';
+        b.style.transitionDelay = (60 * i) + 'ms';
+      }
+      wrap.appendChild(b);
+      el.appendChild(wrap);
+      if (!reduce) requestAnimationFrame(() => { b.style.transform = 'scaleY(1)'; });
+    });
+  }
+  const metrics = {
+    '7d':  { active: '1,902', adopt: '69%', teams: '31' },
+    '30d': { active: '2,418', adopt: '74%', teams: '36' },
+    'qtr': { active: '6,140', adopt: '71%', teams: '42' },
+  };
+  function setMetrics(key) {
+    const m = metrics[key] || metrics['30d'];
+    document.getElementById('m-active').textContent = m.active;
+    document.getElementById('m-adopt').textContent = m.adopt;
+    document.getElementById('m-teams').textContent = m.teams;
+  }
+
+  function runReveal() {
+    drawChart('30d');
+    if (revealed) return;
+    revealed = true;
+    const items = panels.preview.querySelectorAll('.reveal');
+    items.forEach((el, i) => {
+      if (reduce) { el.classList.add('in'); return; }
+      setTimeout(() => el.classList.add('in'), 90 * i);
+    });
+    // re-trigger preview glow
+    const pane = document.getElementById('preview-pane');
+    if (!reduce) { pane.classList.remove('preview-glow'); void pane.offsetWidth; pane.classList.add('preview-glow'); }
+  }
+
+  /* filter chips */
+  document.querySelectorAll('.filter-chip').forEach((chip) => {
+    chip.addEventListener('click', function () {
+      document.querySelectorAll('.filter-chip').forEach((c) => c.classList.remove('filter-active'));
+      this.classList.add('filter-active');
+      const k = this.dataset.filter;
+      drawChart(k); setMetrics(k);
+    });
+  });
+
+  /* ---------- Copy buttons ---------- */
+  document.querySelectorAll('.copybtn').forEach((btn) => {
+    btn.addEventListener('click', async function () {
+      const text = this.dataset.copy;
+      try { await navigator.clipboard.writeText(text); } catch (e) {}
+      const ic = this.querySelector('.ic'), lbl = this.querySelector('.lbl');
+      const prevLbl = lbl ? lbl.textContent : '';
+      this.classList.add('copied');
+      if (ic) ic.setAttribute('data-lucide', 'check');
+      if (lbl) lbl.textContent = 'Copied';
+      if (window.lucide) lucide.createIcons();
+      setTimeout(() => {
+        this.classList.remove('copied');
+        const icon2 = this.querySelector('.ic');
+        if (icon2) icon2.setAttribute('data-lucide', this.dataset.copy.startsWith('http') ? 'link' : 'copy');
+        const l2 = this.querySelector('.lbl');
+        if (l2) l2.textContent = prevLbl;
+        if (window.lucide) lucide.createIcons();
+      }, 1600);
+    });
+  });
+
+  /* ---------- Keyboard arrow nav for tabs ---------- */
+  document.querySelectorAll('[role="tab"]').forEach((tab, i, all) => {
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const next = all[(i + dir + all.length) % all.length];
+        next.focus(); next.click();
+      }
+    });
+  });
+
+  /* ---------- Deep-link: ?state=preview opens State 2 directly ---------- */
+  try {
+    const want = new URLSearchParams(location.search).get('state');
+    if (want === 'preview') activate('preview');
+  } catch (e) {}
+
+  if (window.lucide) lucide.createIcons();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upload UI Prototype — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+<style>
+  .proto-frame { width: 100%; height: 760px; border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); background: var(--bg); }
+  .proto-bar { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--surface);
+    border:1px solid var(--border); border-bottom:none; border-radius: var(--radius) var(--radius) 0 0; font-size:13px; color:var(--muted);}
+  .proto-bar .dot{width:10px;height:10px;border-radius:50%;background:var(--border-2);}
+  .proto-bar .url{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 10px;color:var(--faint);}
+  .proto-frame.bare { border-radius: 0 0 var(--radius) var(--radius); border-top:none; height: 740px; }
+  .rank { font-size:13.5px; } .rank li { margin:6px 0; }
+  .rank .w { font-weight:700; color:var(--green); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html" class="active"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Upload UI Prototype</b></div>
+      <div class="spacer"></div>
+      <span class="badge ok">● prototype</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">In-product experience</span>Upload UI — uploading &amp; preview</h1>
+      <p class="lead">The in-product surface a Confluence author sees inside the Connect macro-editor iframe:
+        a multi-file bundle streaming up with checks ticking green, then the published mini-site rendered
+        live and embedded. Use the in-prototype switcher to move between <b>Uploading</b> and <b>Preview</b>.</p>
+
+      <div class="callout info">
+        <span class="c-ico">✨</span>
+        <div>Produced by the <b>fireworks-design</b> workflow — 8 aesthetic directions explored in parallel,
+          scored by a 6-dimension judge panel, synthesized, then adversarially refined over 3 rounds (65 agents).
+          This is the synthesized winner; the 8 explored drafts live alongside it in <code>design/upload-ui/</code>.</div>
+      </div>
+
+      <h2>The winning direction — Bold Editorial</h2>
+      <p>Magazine-grade hierarchy: a high-contrast serif display face (Fraunces) carries the emotional beats —
+        a 92px overall-percentage numeral as the upload hero and an “It’s live.” headline at the reveal — while
+        every functional control stays clean native-Atlassian sans (Inter) with a JetBrains Mono file manifest.
+        <em>Editorial drama lives in typography and rhythm, never in decorating the tool.</em></p>
+
+      <h4>Panel ranking (avg of 6 dimensions)</h4>
+      <ol class="rank">
+        <li><span class="w">Bold Editorial — 8.0 ✓ winner</span></li>
+        <li>Swiss Minimal — 7.67 · Dark Premium — 7.67 · Glass/Aurora — 7.67</li>
+        <li>Soft Organic — 7.5 · Mono Tech — 7.5 · Neo-Brutalist — 7.33 · Vibrant Gradient — 7.17</li>
+      </ol>
+
+      <h2>Live prototype</h2>
+      <p>Embedded below (or <a href="../design/upload-ui/final.html" target="_blank" rel="noopener">open full-screen ↗</a>).
+        It’s a self-contained <code>final.html</code>.</p>
+      <div class="proto-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">macro-editor · Upload a mini-site</span></div>
+      <iframe class="proto-frame bare" src="../design/upload-ui/final.html" title="Upload UI prototype" loading="lazy"></iframe>
+
+      <div class="callout gated" style="margin-top:24px">
+        <span class="c-ico">⚑</span>
+        <div>Prototype only — a visual/interaction reference for the macro-editor surface. The real component
+          is specced in <code>DESIGN.md §3.2</code> (container/presentational split, state machine, error codes)
+          and is build-gated like the rest of the system.</div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="roadmap.html"><span class="dir">← Previous</span> Implementation Roadmap</a>
+        <a class="next" href="index.html"><span class="dir">Next →</span> Overview</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose' });
+</script>
+</body>
+</html>

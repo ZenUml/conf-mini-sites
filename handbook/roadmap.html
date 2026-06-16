@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Implementation Roadmap — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html" class="active"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Implementation Roadmap</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">Delivery</span>Implementation Roadmap</h1>
+      <p class="lead">A staged, seam-first plan to host a user-uploaded <b>multi-file static bundle</b> as a live embedded object on a Confluence page. Cloudflare Workers for Platforms is the default host behind a swappable <code>HostingProvider</code> interface; the dispatch Worker is the greenfield auth gateway. <b>Every stage is gated on Stage&nbsp;0.</b> No production code is written until the four blocking gates pass.</p>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Status global: all stages <span class="badge gated">Not Started — GATED</span>.</b> Writing this plan is a non-build activity. Stages 1–6 inherit <code>GATED on Stage 0</code> until G1–G4 are all green. If any gate fails, the next ZenUML feature ships instead — and no code lands in this repo.</div>
+      </div>
+
+      <h2>Stage sequence</h2>
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TD
+  S0{"Stage 0<br/>Blocking gates<br/>G1–G4"}
+  S1["Stage 1<br/>HostingProvider seam<br/>+ CI boundary"]
+  S2["Stage 2<br/>CloudflareWfPProvider<br/>dispatch + D1"]
+  S3["Stage 3<br/>Auth gateway<br/>CVSS-9.1 · pen-test"]
+  S4["Stage 4<br/>Upload pipeline<br/>+ publish flows"]
+  S5["Stage 5<br/>Lifecycle · compliance<br/>· audit"]
+  S6["Stage 6 · CONTINGENT<br/>ForgeProvider<br/>+ feasibility spike"]
+  S0 -->|"G1–G4 pass · Cloudflare allowed"| S1
+  S1 --> S2 --> S3 --> S4 --> S5
+  S0 -.->|"G1 forbids external processor<br/>AND spike passes"| S6
+  S6 -.->|"reuse seam · Stages 1,3,4,5"| S4
+        </div>
+        <figcaption>Stage 0 blocks everything. The default path runs 1 → 2 → 3 → 4 → 5; Stage 6 (Forge) is a contingent branch off Stage 0, taken only if G1 disqualifies Cloudflare and the feasibility spike passes first.</figcaption>
+      </figure>
+
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Stage</th><th>Theme</th><th>Status</th><th>Blockers</th></tr></thead>
+        <tbody>
+          <tr><td><b>0</b></td><td>Blocking gates (no code)</td><td><span class="badge gated">In Progress</span></td><td>G1, G2, G4 open; G3 drafted, awaiting sign-off</td></tr>
+          <tr><td><b>1</b></td><td><code>HostingProvider</code> seam + CI boundary</td><td><span class="badge gated">Not Started — GATED</span></td><td>Stage 0</td></tr>
+          <tr><td><b>2</b></td><td><code>CloudflareWfPProvider</code></td><td><span class="badge gated">Not Started — GATED</span></td><td>Stage 0 + G1 not disqualifying Cloudflare</td></tr>
+          <tr><td><b>3</b></td><td>Auth gateway <span class="badge risk">CVSS-9.1</span></td><td><span class="badge gated">Not Started — GATED</span></td><td>Stage 0; no ship without external pen-test</td></tr>
+          <tr><td><b>4</b></td><td>Upload pipeline + publish flows</td><td><span class="badge gated">Not Started — GATED</span></td><td>Stage 0</td></tr>
+          <tr><td><b>5</b></td><td>Lifecycle, compliance, audit</td><td><span class="badge gated">Not Started — GATED</span></td><td>Stage 0</td></tr>
+          <tr><td><b>6</b></td><td><code>ForgeProvider</code> (contingency)</td><td><span class="badge gated">Not Started — GATED</span></td><td>G1 disqualifies Cloudflare <b>AND</b> spike passes first</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h2>Architecture decision: seam-first, provider-swappable, build-gated</h2>
+      <p><b>Default (this plan):</b> Cloudflare WfP behind a <code>HostingProvider</code> interface, built seam-first so the Cloudflare→Forge pivot is a provider implementation, not a rewrite. <b>Fallback (Stage 6, gated):</b> a <code>ForgeProvider</code>, written only if a customer's security rejects the external processor <em>and</em> a feasibility spike passes. The auth gateway (Stage 3) is <b>greenfield</b> — conf-app has no classic-Connect HS256/qsh path — and is the CVSS-9.1 component; it does not ship without an external pen-test.</p>
+
+      <hr>
+
+      <h2 id="stage-0">Stage 0 — Blocking gates <span class="badge gated">In Progress</span></h2>
+      <p><b>Goal:</b> Convert the four <code>CONTEXT.md</code> gates into explicit, signed entry criteria for Stages 1–6. This stage produces <b>no code</b>; its only artifact is the sign-off record.</p>
+
+      <div class="callout danger">
+        <span class="c-ico">⛔</span>
+        <div><b>No code until ALL four pass.</b> G1 also decides the path: if the anchor team requires <em>no external processor</em>, Cloudflare is disqualified — skip Stages 2–5 and go to Stage 6 (Forge).</div>
+      </div>
+
+      <h3>Entry criteria (each a recorded, dated sign-off)</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Gate</th><th>Criterion</th><th>Ref</th></tr></thead>
+        <tbody>
+          <tr><td><b>G1</b></td><td>Written admin + security confirmation, incl. <b>residency-vs-access</b>. If <em>no external processor</em> is required → Cloudflare disqualified → Stage 6.</td><td>DESIGN §7.1</td></tr>
+          <tr><td><b>G2</b></td><td>Demand-to-pay from <b>≥3 prospects</b> beyond the n=1 anchor team, each approving the actual external-processor architecture (residency + DPA + auth-gateway threat model).</td><td>DESIGN §7.2</td></tr>
+          <tr><td><b>G3</b></td><td>Pre-implementation lifecycle/security acceptance criteria signed off = <code>DESIGN.md</code> §2 + §5 reviewed and approved (threat model + the <code>INV-*</code> set).</td><td>DESIGN §7.3</td></tr>
+          <tr><td><b>G4</b></td><td>EV vs the next ZenUML feature + a kill criterion stronger than "cheap to build". Uses the <span class="badge cost">honest re-cost</span>: cheap to host, expensive to make safe/compliant.</td><td>DESIGN §7.4</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4>Success criteria</h4>
+      <ul>
+        <li>A dated record exists for G1–G4; G1 explicitly resolves the residency-vs-access question.</li>
+        <li>If any gate fails → <b>ship the next ZenUML feature instead</b> (no code in this repo).</li>
+      </ul>
+
+      <hr>
+
+      <h2 id="stage-1">Stage 1 — <code>HostingProvider</code> seam + CI boundary gate + contract tests <span class="badge gated">Not Started — GATED</span></h2>
+      <p><b>Goal:</b> The DI seam exists with a fake implementation, a per-provider contract-test pack, and a CI-enforced import boundary — <em>before</em> any Cloudflare code, so the pivot stays a provider swap.</p>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>conf-app is evidence the boundary rots without a gate (15+ <code>@forge/bridge</code> importers, no lint rule). Build the gate first; everything else depends on it holding. <code>InstanceHandle.providerRef</code> stays opaque to upper layers (INV-SEAM-02) — it may encode a WfP script name or a Forge custom-content set; callers never inspect it.</div>
+      </div>
+
+      <h4>Key files</h4>
+      <ul>
+        <li><code>src/hosting/HostingProvider.ts</code> — the interface (<code>createInstance/updateBundle/deleteInstance/serve/verifyHostToken/permissionModel/capabilities</code>) plus <code>InstanceHandle</code>, <code>ValidatedBundle</code>, <code>ServeAuthContext</code>, <code>HostingCapabilities</code>.</li>
+        <li><code>src/hosting/FakeHostingProvider.ts</code> — in-memory provider for upper-layer + invariant tests.</li>
+        <li><code>src/hosting/contract/providerContract.ts</code> — the contract-test pack every real provider must pass (INV-SEAM-03: asserts <code>capabilities</code>, native relative-path resolution, and as-served CSP/sandbox posture).</li>
+        <li><code>.dependency-cruiser.cjs</code> (or eslint <code>no-restricted-imports</code>) — the INV-SEAM-01 boundary rule.</li>
+        <li><code>.github/workflows/boundary.yml</code> — CI gate running the boundary check, <b>including <code>functions/</code></b> (do not inherit conf-app's <code>eslint.config.mjs</code> ignore of <code>functions/</code>).</li>
+      </ul>
+
+      <h4>Success criteria</h4>
+      <ul>
+        <li>No module above <code>src/hosting/</code> can import <code>@cloudflare/*</code> or <code>@forge/*</code> — a deliberate violating import <b>fails CI</b> (INV-SEAM-01).</li>
+        <li><code>FakeHostingProvider</code> passes the contract pack; the pack asserts relative-path resolution + as-served CSP posture as distinct capabilities (INV-SEAM-03).</li>
+        <li>Upper-layer code (upload pipeline, lifecycle, gateway orchestration) compiles against the interface only.</li>
+      </ul>
+
+      <h4>Tests</h4>
+      <ul>
+        <li><code>src/hosting/contract/providerContract.spec.ts</code> (vitest) — runs the pack against <code>FakeHostingProvider</code>.</li>
+        <li><code>tests/boundary/import-boundary.spec.ts</code> — asserts the dependency-cruiser/eslint rule reports a violation on a fixture import above the seam (guards INV-SEAM-01 from silently regressing).</li>
+      </ul>
+
+      <hr>
+
+      <h2 id="stage-2">Stage 2 — <code>CloudflareWfPProvider</code>: dispatch namespace, user Workers, D1 mapping <span class="badge gated">Not Started — GATED</span></h2>
+      <p><b>Goal:</b> Implement <code>HostingProvider</code> on WfP: a per-instance user Worker via Static Assets, the dispatch namespace, and the <code>MiniSiteInstance</code> D1 mapping + lifecycle CRUD mechanics. <b>Also gated on G1 not disqualifying Cloudflare.</b></p>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>The cron/reaper <em>skeleton</em> is reusable from <code>conf-app/workers/cron-aggregate/</code>, but its reconciliation logic is net-new (Stage 5) — here only the delete-the-Worker mechanic is built. D1↔Forge storage portability is unproven: do not design the schema assuming Forge reuse; keep all WfP specifics (e.g. <code>workerName</code>) below the seam.</div>
+      </div>
+
+      <h4>Key files</h4>
+      <ul>
+        <li><code>src/hosting/cloudflare/CloudflareWfPProvider.ts</code> — <code>createInstance/updateBundle/deleteInstance/serve</code> via the WfP script-upload/delete API + <code>env.MINISITES.get(workerName).fetch()</code>.</li>
+        <li><code>functions/migrations/0001_add_mini_site_instance.sql</code> — the table with the DB-level composite key <code>(clientKey, cloudId, instanceId)</code> (INV-GW-06) + indexes.</li>
+        <li><code>functions/utils/instanceStore.ts</code> — prepared-statement CRUD (mirror <code>conf-app/functions/utils/dbUtils.ts</code>); race-safe <code>INSERT ... ON CONFLICT DO UPDATE</code>.</li>
+        <li><code>wrangler-dev.toml</code> / <code>wrangler-stg.toml</code> / <code>wrangler-prod.toml</code> — per-env dispatch-namespace + D1 bindings. <b>Config policy:</b> dispatched user Workers carry no route / no <code>workers.dev</code> / no custom domain (INV-GW-14).</li>
+      </ul>
+
+      <h4>Success criteria</h4>
+      <ul>
+        <li><code>createInstance</code> uploads a user Worker serving a multi-file bundle with relative paths intact (<code>index.html</code> + <code>app.js</code> + <code>assets/*</code> resolve natively); <code>updateBundle</code> overwrites in place (same <code>workerName</code>, no second Worker); <code>deleteInstance</code> is idempotent.</li>
+        <li>A user Worker is reachable <b>only</b> via the dispatch binding — a direct/<code>workers.dev</code> hit fails (INV-GW-14; full proof is the Stage 3 pen-test rider).</li>
+        <li>Instance lookups are tenant-scoped by the composite key; an <code>(A)</code>-context lookup cannot return a <code>(B)</code> row.</li>
+      </ul>
+
+      <h4>Tests</h4>
+      <ul>
+        <li><code>src/hosting/cloudflare/CloudflareWfPProvider.spec.ts</code> — against the contract pack (Stage 1) + WfP-API mocks.</li>
+        <li><code>functions/utils/instanceStore.spec.ts</code> — composite-key isolation (A cannot read B), idempotent upsert.</li>
+        <li><code>tests/e2e-tests/tests/hosting/relative-paths.spec.ts</code> — a real multi-file bundle renders with sibling assets resolving (Playwright).</li>
+      </ul>
+
+      <hr>
+
+      <h2 id="stage-3">Stage 3 — The Connect auth gateway (greenfield) <span class="badge risk">CVSS-9.1</span> <span class="badge gated">Not Started — GATED</span></h2>
+      <p><b>Goal:</b> The dispatch Worker authenticates the Connect JWT, binds the resource server-side, authorizes per request, mints/validates signed-path grants for sub-resources, and serves fail-closed: <b>verify → bind → authorize → serve</b>.</p>
+
+      <div class="callout danger">
+        <span class="c-ico">⛔</span>
+        <div><b>Does not ship without an external pen-test.</b> This is the CVSS-9.1 component. conf-app's <code>authenticate.ts</code> (RS256/JWKS) is <em>not</em> reused for serving traffic — different shape entirely. Reuse only the fail-closed <code>CheckPermission.ts</code> default and the per-install-secret storage <em>shape</em> (not its plaintext column).</div>
+      </div>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart LR
+  REQ["Embed request"] --> EX["tokenExtractor<br/>scheme check"]
+  EX --> JWT["connectJwt<br/>HS256 · qsh · exp"]
+  JWT --> AZ["authorize<br/>tenant bind · perm/check"]
+  AZ --> CACHE["permissionCache<br/>fail-closed · breaker=deny"]
+  CACHE --> GR["grant<br/>signed-path · per-asset"]
+  GR --> SRV["serve via dispatch<br/>CSP · sandbox · nosniff"]
+  EX -. "scheme abuse" .-> DENY["401 / 403<br/>deny-by-default"]
+  JWT -. "forged · alg=none · expired" .-> DENY
+  AZ -. "cross-tenant · no claim" .-> DENY
+  CACHE -. "outage · revoke · breaker" .-> DENY
+        </div>
+        <figcaption>The deny-by-default gateway pipeline. Authorization is strictly ordered after authentication; every off-path edge fails closed.</figcaption>
+      </figure>
+
+      <h4>Key files</h4>
+      <ul>
+        <li><code>functions/gateway/tokenExtractor.ts</code> — single canonical extractor; validates the <code>JWT</code> scheme; rejects when <code>?jwt=</code> and <code>Authorization</code> disagree.</li>
+        <li><code>functions/gateway/connectJwt.ts</code> — <code>alg=HS256</code> pin (<code>kid</code> ignored); secret resolution by <code>(clientKey, key)</code>; HMAC; <code>exp</code> with bounded-and-composed skew; exact Atlassian <code>qsh</code> canonicalization (exclude <code>jwt</code> param, lowercase method, strip baseUrl/contextPath, Atlassian encoding + sort); <code>context-qsh</code> entrypoint-only.</li>
+        <li><code>functions/gateway/install.ts</code> — Connect <code>installed</code>/<code>uninstalled</code> handlers: RS256 verify vs <code>connect-install-keys</code> JWKS + <code>aud</code> pinning; first-install trusted solely on the asymmetric signature; atomic secret rotation; app-layer envelope-encrypted secret at rest.</li>
+        <li><code>functions/gateway/authorize.ts</code> — <code>cloudId</code>↔install cross-check; <code>contentId</code> from a signed claim; DB-level instance bind; <code>permission/check(read)</code> for the verified <code>sub</code>, ordered after authn.</li>
+        <li><code>functions/gateway/permissionCache.ts</code> — key <code>hash(clientKey:cloudId:accountId:contentId:read)</code>; positive-only, TTL ≤60s; fail-closed on outage; circuit-breaker default = deny.</li>
+        <li><code>functions/gateway/grant.ts</code> — signed-path grant mint/validate; <code>&lt;base&gt;</code> injection; per-asset re-check.</li>
+        <li><code>functions/gateway/responseHeaders.ts</code> — per-bundle CSP/sandbox/<code>nosniff</code> enforcement (I6).</li>
+        <li><code>functions/gateway/router.ts</code> — deny-by-default routing (exemption allowlist only; inverts conf-app <code>_middleware.ts</code>).</li>
+        <li><code>functions/gateway/auditLog.ts</code> — append-only decision log; no secrets/tokens logged (lint + test enforced).</li>
+      </ul>
+
+      <h4>Success criteria (each maps to an INV-GW invariant)</h4>
+      <ul>
+        <li><b>Auth:</b> forged / <code>alg=none</code> / qsh-stripped / expired / scheme-abused tokens all rejected (INV-GW-01/02/03/05).</li>
+        <li>Secret resolution is deterministic under <code>UNIQUE(clientKey, key)</code> and never picks <code>row[0]</code> (INV-GW-04).</li>
+        <li><b>Authz:</b> <code>contentId</code> from a signed claim only; DB-level tenant bind; <code>cloudId</code>↔install cross-check; per-request <code>permission/check</code>; every sub-resource re-checked via grant (INV-GW-04b/06/06b/07).</li>
+        <li><b>Fail-closed:</b> outage/miss/breaker-error all deny; revoked content not served beyond the composed ≤120s (or 0) window (INV-GW-08/11).</li>
+        <li>A brand-new/unlisted serving route returns <b>401</b>, not 200 (INV-GW-09).</li>
+        <li>A direct/<code>workers.dev</code> hit on a user Worker fails — <b>proven by the pen-test rider</b> (INV-GW-14).</li>
+        <li>No code path logs a decoded token, a lifecycle body, or a <code>sharedSecret</code>-bearing row (INV-GW-10/13).</li>
+      </ul>
+
+      <h4>Tests</h4>
+      <ul>
+        <li><code>functions/gateway/connectJwt.spec.ts</code> — differential <code>qsh</code> vectors against Atlassian's reference (not a code review); alg/exp/sig/scheme cases on a fixed clock.</li>
+        <li><code>functions/gateway/authorize.spec.ts</code> — header-supplied <code>accountId</code> cannot influence the decision; authz-after-authn ordering; signed-claim <code>contentId</code>; cross-tenant deny.</li>
+        <li><code>functions/gateway/permissionCache.spec.ts</code> — <code>allow+fresh→serve</code>; <code>allow+expired→re-check</code>; <code>recheck throws→403</code>; <code>revoke→403</code>; breaker-tripped-open → still deny.</li>
+        <li><code>functions/gateway/grant.spec.ts</code> — forged/expired grant rejected; path-<code>instanceId</code> ≠ <code>G.i</code> rejected; sub-resource re-check on revoke → 403.</li>
+        <li><code>functions/gateway/router.spec.ts</code> — unlisted route → 401 (INV-GW-09).</li>
+        <li><code>tests/secrets/no-secret-logs.spec.ts</code> — lint/test that no log statement emits a token/body/secret row.</li>
+        <li><b>External pen-test</b> (recorded in the security review): direct user-Worker probe; qsh-canonicalization fuzzing; restriction-inheritance permission edge cases; cross-tenant cache-key probe (INV-GW-14, I3, I8).</li>
+      </ul>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>Name the exact signed <code>contentId</code> claim during build; if none exists for this iframe type, re-derive from the macro <code>localId</code> carried in <code>qsh</code> — do <b>not</b> source it from <code>AP.context</code>/URL.</div>
+      </div>
+
+      <hr>
+
+      <h2 id="stage-4">Stage 4 — Shared upload pipeline + both publish flows <span class="badge gated">Not Started — GATED</span></h2>
+      <p><b>Goal:</b> One pipeline (authn → authz → validate → secret-scan → posture → atomic commit) behind two entry points — a developer CLI/MCP and the non-developer drag-and-drop widget.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TD
+  CLI["Developer CLI / MCP<br/>mini-sites publish"] --> PIPE
+  WIDGET["Drag-and-drop widget<br/>UploadContainer.vue"] --> PIPE
+  PIPE["uploadPipeline"] --> V["bundleValidation<br/>multi-file · zip-bomb · caps"]
+  V --> SCAN["secretScan<br/>patterns · entropy · allow-list"]
+  SCAN --> POST["posture check"]
+  POST --> COMMIT["commit<br/>staging → atomic flip to live"]
+  V -. "BUNDLE_NOT_MULTIFILE" .-> ERR["actionable error code<br/>nothing reaches live"]
+  SCAN -. "secret found · file+line" .-> ERR
+  COMMIT -. "COMMIT_FAILED_ROLLED_BACK" .-> ERR
+        </div>
+        <figcaption>Both flows funnel through the identical ordered pipeline; a bundle failing any step never reaches <code>status=live</code>. The provider never re-validates (INV-SEAM-02).</figcaption>
+      </figure>
+
+      <h4>Key files</h4>
+      <ul>
+        <li><code>functions/pipeline/uploadPipeline.ts</code> — the ordered pipeline; produces a <code>ValidatedBundle</code>; provider never re-validates (INV-SEAM-02).</li>
+        <li><code>functions/pipeline/bundleValidation.ts</code> — multi-file + root <code>index.html</code>; relative-paths-only (extend <code>ATTACHMENT_NAME_RE</code> to a full manifest); reject single-file <code>.html</code>; zip-bomb guard; size/count/MIME caps.</li>
+        <li><code>functions/pipeline/secretScan.ts</code> — high-signal patterns + entropy + allow-list (I7). <span class="badge gated">GATED</span> ruleset.</li>
+        <li><code>functions/pipeline/commit.ts</code> — <code>Idempotency-Key</code> + <code>bundleHash</code>; <code>status=staging</code> → atomic flip to <code>live</code> (I10).</li>
+        <li><code>src/cli/publish.ts</code> + <code>src/cli/index.ts</code> — the <code>mini-sites publish ./dist</code> library + CLI.</li>
+        <li><code>src/mcp/publishTool.ts</code> — <code>mini_sites.publish</code> MCP wrapper over the same library.</li>
+        <li><code>src/auth/oauthDeviceGrant.ts</code> — OAuth 3LO device grant + keychain refresh token; PAT fallback. <span class="badge gated">GATED</span> on OAuth client registration.</li>
+        <li><code>src/components/upload/UploadContainer.vue</code> / <code>UploadDropzone.vue</code> / <code>BundleValidationReport.vue</code> — container/presentational split, DI <code>uploadClient</code>.</li>
+      </ul>
+
+      <h4>Success criteria</h4>
+      <ul>
+        <li>Both flows funnel through the identical pipeline; a bundle failing any step never reaches <code>status=live</code>.</li>
+        <li>Distinct, actionable error codes surface (<code>BUNDLE_NOT_MULTIFILE</code> … <code>COMMIT_FAILED_ROLLED_BACK</code>).</li>
+        <li>A secret-bearing bundle is <b>blocked</b> with file+line; no bytes persisted (I7).</li>
+        <li>A retried/duplicated publish is a no-op (idempotent), never a double-write or half-state (I10).</li>
+        <li>The widget container is testable with no network (DI) and works unchanged against <code>FakeHostingProvider</code>.</li>
+      </ul>
+
+      <h4>Tests</h4>
+      <ul>
+        <li><code>functions/pipeline/bundleValidation.spec.ts</code> — single-file reject, absolute-path/traversal reject, zip-bomb guard, caps.</li>
+        <li><code>functions/pipeline/secretScan.spec.ts</code> — true-positives (AWS/Google/JWT/PEM/<code>password=</code>) + false-positive guards (UUID/hex/base64-image).</li>
+        <li><code>functions/pipeline/commit.spec.ts</code> — inject failure after each step → <code>isServable=false</code>; re-run idempotent.</li>
+        <li><code>tests/e2e-tests/tests/publish/drag-drop.spec.ts</code> + <code>.../cli-publish.spec.ts</code> — end-to-end publish via each flow.</li>
+      </ul>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>The confused-deputy guard (step 2) generalizes <code>forge-upload-attachment.ts:117-134</code> from read → write/space-scope. The macro body stores <b>only</b> the <code>instanceId</code>, never the bundle.</div>
+      </div>
+
+      <hr>
+
+      <h2 id="stage-5">Stage 5 — Lifecycle reconciliation, compliance, audit <span class="badge gated">Not Started — GATED</span></h2>
+      <p><b>Goal:</b> Keep stored bundles in exact correspondence with live macro instances without a delete webhook; honor DSAR erasure; tamper-evident audit; partial-failure + abuse bounds.</p>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>Reconciliation, not webhooks (Connect has no reliable per-macro delete event). Eager fork on a copy/export AVI event is <span class="badge gated">GATED</span> on AVI reliability. DSAR-vs-audit retention of <code>actorAccountId</code> is an <b>OPEN legal question</b> — resolve before GA.</div>
+      </div>
+
+      <h4>Key files</h4>
+      <ul>
+        <li><code>workers/reconcile/</code> (own <code>wrangler.toml</code> + <code>scheduled()</code> handler; skeleton from <code>conf-app/workers/cron-aggregate/</code>) — the orphan reaper.</li>
+        <li><code>functions/lifecycle/reconcile.ts</code> — reachability probe + <code>missingPasses</code> GC state machine; move/rename/space-relocation/restore-with-new-id robustness (I1a); registry-outage → 403 (I1b); inbound-copy-pointer retention (I1c); blast-radius cap (I1d).</li>
+        <li><code>functions/lifecycle/forkOnCopy.ts</code> — copy-on-access fork; idempotent; source byte-unchanged (I2).</li>
+        <li><code>functions/compliance/erasure.ts</code> — enumerate <code>listStoresHolding(bundleId)</code> + fork-lineage transitivity; deletion certificate; cache purge; backup-bound disclosure (I5).</li>
+        <li><code>functions/audit/auditLog.ts</code> — append-only, hash-chained, HEAD/length pinned to an external append-only anchor (R2 Object Lock) against tail-truncation (I9).</li>
+        <li><code>functions/lifecycle/integrity.ts</code> — serve-time content-hash for committed-but-corrupt; re-scan-on-scanner-bump re-quarantine; retry backoff/circuit-break (I10, I7↔I10).</li>
+        <li><code>functions/lifecycle/abuseBounds.ts</code> — upload/fork-amplification/reconcile/bandwidth bounds.</li>
+      </ul>
+
+      <h4>Success criteria</h4>
+      <ul>
+        <li>GC deletes a confirmed-absent owner after <code>GRACE</code>, <b>never</b> a live/unconfirmable one (I1 + I1a–I1d).</li>
+        <li>A copied page never shares/overwrites the source bundle; a template ×N yields N independent bundles (I2).</li>
+        <li>A DSAR erases the target <b>and all descendant forks</b> across stores; prior URLs 404; deletion record exists (I5).</li>
+        <li>Audit detects a middle edit <b>and</b> a tail truncation (I9).</li>
+        <li>Abuse/secret-compromise cannot drive mass deletion or forged grants (second control on reconcile).</li>
+      </ul>
+
+      <h4>Tests</h4>
+      <ul>
+        <li><code>functions/lifecycle/reconcile.spec.ts</code> — state-machine table incl. move/rename/restore/registry-outage rows.</li>
+        <li><code>functions/lifecycle/forkOnCopy.spec.ts</code> + <code>tests/e2e-tests/tests/lifecycle/copy-semantics.spec.ts</code> (reuse <code>helpers/macroDuplication.ts</code>).</li>
+        <li><code>functions/compliance/erasure.spec.ts</code> — no store skipped; fork-lineage enumerated.</li>
+        <li><code>functions/audit/auditLog.spec.ts</code> — middle-edit + tail-truncation detection.</li>
+        <li><code>tests/e2e-tests/tests/lifecycle/orphan-gc.spec.ts</code>, <code>.../compliance/dsar-erasure.spec.ts</code>, <code>.../lifecycle/partial-deploy-recovery.spec.ts</code>.</li>
+      </ul>
+
+      <hr>
+
+      <h2 id="stage-6">Stage 6 (contingency) — <code>ForgeProvider</code> + feasibility spike <span class="badge gated">Not Started — GATED</span></h2>
+      <p><b>Goal:</b> If G1's residency review forbids the external processor, implement <code>HostingProvider</code> on Forge — a provider swap, not a rewrite.</p>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Doubly gated:</b> taken only if G1 disqualifies Cloudflare <b>AND</b> the feasibility spike passes <em>first</em>. The spike is a hard blocker: prove client-side multi-file <b>reassembly</b> + <b>relative-path rewriting</b> (blob/service-worker) + <b>~100MB/file chunking</b> + <b>CSP-on-blob-origin</b> on <em>real</em> bundles before any provider code.</div>
+      </div>
+
+      <h4>Tasks</h4>
+      <ul>
+        <li><b>Feasibility spike (hard blocker):</b> prove client-side multi-file reassembly + relative-path rewriting (blob/service-worker) + ~100MB/file chunking + CSP-on-blob-origin on real bundles.</li>
+        <li><code>src/hosting/forge/ForgeProvider.ts</code> — custom-content + attachments storage; resolver serving; the client-side reassembly engine lives in the viewer above the seam, gated behind <code>capabilities.supportsServerSideServe=false</code>.</li>
+        <li>Re-validate which invariants change meaning: #4 byte-level no-leak becomes <b>false</b>; #6 in-iframe surface <b>grows</b>; #8 isolation becomes <b>logical</b> (app-enforced again).</li>
+      </ul>
+
+      <h4>Success criteria</h4>
+      <ul>
+        <li><code>ForgeProvider</code> passes the <b>same</b> Stage-1 contract pack (incl. relative-path resolution + as-served CSP).</li>
+        <li>The reassembly engine renders a real multi-file bundle with relative assets inside the Forge iframe.</li>
+        <li>The upper layers (Stages 1, 3-orchestration, 4, 5) are reused unchanged (the seam held).</li>
+      </ul>
+
+      <h4>Tests</h4>
+      <ul>
+        <li><code>src/hosting/forge/ForgeProvider.spec.ts</code> (contract pack) + a reassembly E2E in a real Forge embed.</li>
+      </ul>
+
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div>The reassembly engine + relative-path rewriter are net-new, security-critical — exclude them from the "≥80% reuse" figure. The Connect auth gateway (Stage 3) is greenfield on the <em>primary</em> path regardless of pivot.</div>
+      </div>
+
+      <hr>
+
+      <h2>Execution order</h2>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Stage</th><th>Why it comes here</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>Stage 0</b> — gates</td><td>No code; G1 decides Cloudflare vs Forge path.</td></tr>
+          <tr><td>2</td><td><b>Stage 1</b> — seam + CI boundary + contract pack</td><td>Everything depends on the boundary holding.</td></tr>
+          <tr><td>3</td><td><b>Stage 2</b> — <code>CloudflareWfPProvider</code></td><td>Hosting mechanics.</td></tr>
+          <tr><td>4</td><td><b>Stage 3</b> — auth gateway</td><td>Greenfield; pen-test before ship.</td></tr>
+          <tr><td>5</td><td><b>Stage 4</b> — upload pipeline + publish flows</td><td>Both entry points over one pipeline.</td></tr>
+          <tr><td>6</td><td><b>Stage 5</b> — lifecycle/compliance/audit</td><td>Correspondence, erasure, tamper-evidence.</td></tr>
+          <tr><td>7</td><td><b>Stage 6</b> — Forge contingency</td><td>Only if G1 forces it (spike first).</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h2>Definition of Done</h2>
+      <p>Mirrors the gates + invariants; checked at GA.</p>
+      <div class="callout ok">
+        <span class="c-ico">✓</span>
+        <div>
+          <ul style="margin:0">
+            <li>☐ Stage 0: G1–G4 signed off and dated; residency-vs-access resolved.</li>
+            <li>☐ INV-SEAM-01 CI gate fails on any host-SDK import above <code>src/hosting/</code> (incl. <code>functions/</code>).</li>
+            <li>☐ Contract pack passes for <code>CloudflareWfPProvider</code> (and <code>ForgeProvider</code> if built), incl. relative-path + as-served CSP.</li>
+            <li>☐ Auth gateway: INV-GW-01..15 each have a passing test; <b>external pen-test recorded</b> (direct user-Worker probe, qsh fuzzing, restriction-inheritance, cross-tenant cache key).</li>
+            <li>☐ Invariants I1–I10 (+ I1a–I1d, abuse bounds) each have a passing unit/integration/E2E test as named in <code>DESIGN.md</code>.</li>
+            <li>☐ No-secret-in-logs lint/test green; <code>sharedSecret</code> + <code>K_grant</code> app-layer-encrypted at rest.</li>
+            <li>☐ DSAR erasure proven across stores incl. fork lineage; backup-retention bound stated in the DPA.</li>
+            <li>☐ <span class="badge cost">Honest re-cost</span> reflected in the EV/kill-criterion record.</li>
+          </ul>
+        </div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="api-surface.html"><span class="dir">← Previous</span> API Surface</a>
+        <a class="next" href="gates.html"><span class="dir">Next →</span> Gates &amp; Positioning</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

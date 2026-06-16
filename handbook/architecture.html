@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture &amp; Components — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html" class="active"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Architecture &amp; Components</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">Design</span>Architecture &amp; Components</h1>
+      <p class="lead">How a user-uploaded multi-file static bundle is hosted on Cloudflare and served, live and isolated, inside a Confluence page — the Workers-for-Platforms dispatch model, the component topology, the tenant lifecycle, and the <code>HostingProvider</code> seam that keeps a forced Forge pivot bounded rather than catastrophic.</p>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Design only — build gated.</b> No production code ships until all four blocking gates pass (residency-vs-access sign-off; demand from ≥3 prospects beyond the n=1 anchor; signed lifecycle/security acceptance criteria; EV-vs-next-feature + kill criterion). This page is design documentation, not an as-built record.</div>
+      </div>
+
+      <h2>Global constraints (every section inherits these)</h2>
+      <p>Three settled facts shape every component below. They are not relitigated here — they are the boundary conditions the architecture must satisfy.</p>
+
+      <div class="statline">
+        <span class="badge risk">NOT no-egress</span>
+        <span class="badge risk">Must pass Cloud Fortified</span>
+        <span class="badge accent">WfP REQUIRED</span>
+        <span class="badge cost">Honest re-cost ~$500–700/mo</span>
+      </div>
+
+      <div class="callout danger">
+        <span class="c-ico">▲</span>
+        <div><b>Files live on Cloudflare, not inside Atlassian.</b> This is <b>NOT "Runs on Atlassian", NOT no-egress, NOT in-boundary.</b> Permissions are <b>app-enforced ACL code</b>, not inherited from Confluence. Consequence: the app must <b>pass</b> (not skip) a Cloud Fortified security review, and the auth gateway is a self-built ACL of the <b>CVE-2021-26073 / CVSS-9.1 class</b> — threat-modeled and pen-tested before any production traffic.</div>
+      </div>
+
+      <div class="callout info">
+        <span class="c-ico">◆</span>
+        <div><b>Workers for Platforms is required, not optional.</b> Plain Workers (500/account) and Pages (100/account) script caps make per-instance isolation impossible at scale. Per-instance isolation is the product's security primitive, so <b>WfP is a hard dependency.</b></div>
+      </div>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>The Cloudflare→Forge pivot must be a provider swap, not a rewrite.</b> If gate&nbsp;#1's residency review forbids an external processor, Cloudflare is <b>disqualified</b>; the design must survive that flip without a catastrophic rewrite. <b>[hardened]</b> §6 below corrects an over-optimistic reuse estimate — the pivot is <b>bounded, not free.</b></div>
+      </div>
+
+      <h2>The WfP model: one dispatch namespace, one user Worker per macro instance</h2>
+      <p>The hosting substrate is a single <b>dispatch namespace per environment</b> (<code>mini-sites-dev|stg|prod</code>), mirroring conf-app's per-env <code>wrangler-*.toml</code> split <span class="badge ok">verified</span>. The dispatch Worker holds the namespace binding and is the single auth gateway; every macro instance gets its own non-routable user Worker inside that namespace, whose only job is to serve its own bundle via <b>Workers Static Assets</b>.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TB
+  V["Confluence page viewer<br/>(sandboxed Connect macro iframe)"]
+  subgraph CF["Cloudflare — dispatch namespace mini-sites-env"]
+    DW["DISPATCH WORKER<br/>the auth gateway (§2)<br/>verify JWT · bind instance→content→tenant<br/>permission/check · mint grant token · set CSP"]
+    UW["USER WORKER ms-instanceId<br/>Workers Static Assets serves<br/>index.html + relative-path JS/CSS/asset"]
+  end
+  D1[("D1<br/>instance→tenant mapping<br/>+ metadata")]
+  KV[("KV<br/>permission cache")]
+  R2[("R2<br/>durable audit + bundles")]
+  CR["Confluence REST<br/>permission/check(read)"]
+
+  V -->|"GET /v/instanceId?jwt=…<br/>single network entry point"| DW
+  DW -->|"in-namespace dispatch — NOT routable"| UW
+  DW --> D1
+  DW --> KV
+  DW --> R2
+  DW --> CR
+        </div>
+        <figcaption>Component topology. The viewer's iframe targets only the dispatch Worker; the dispatch→user-Worker edge is in-namespace and has <b>no public route</b>. D1 holds the mapping, KV the permission cache, R2 the audit/bundle store, and Confluence REST answers the per-request read check.</figcaption>
+      </figure>
+
+      <p>The user Worker serves <code>index.html</code> plus sibling <code>app.js</code>, <code>style.css</code>, <code>assets/*</code> exactly as on a normal static host. <b>This native relative-path serving is the property that distinguishes a multi-file bundle from the single-file <code>.html</code> the existing HTML macros already handle — and it is the product's core capability.</b></p>
+
+      <h3>Non-routability is the security primitive — and it is ENFORCED, not assumed <span class="badge accent">hardened</span></h3>
+      <div class="callout danger">
+        <span class="c-ico">⛨</span>
+        <div>User Workers in a dispatch namespace have <b>no public route, no <code>*.workers.dev</code> subdomain, and no custom domain</b>, and are unreachable by cross-tenant Worker-to-Worker <code>fetch</code>. They are reachable <b>only</b> via <code>env.MINISITES.get(workerName).fetch()</code> from the dispatch Worker. The whole ACL rests on this — so it is a <b>config policy + a pen-test obligation</b>, not a platform assumption. Deployment config asserts no route/subdomain/domain on dispatched scripts, and the pen-test <b>must include an unauthenticated direct probe of a user Worker URL</b> (INV-GW-14).</div>
+      </div>
+
+      <h2>Naming / identity scheme</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Identifier</th><th>Definition</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>instanceId</code></td>
+              <td><code>sha256(cloudId + ":" + macroLocalId)</code> truncated to a Worker-name-safe slug.</td>
+              <td>Stable primary key for one mini-site on one page. The Connect per-macro <code>localId</code> + <code>cloudId</code> is globally unique and survives reload — <b>but not page copy</b> (owned by the Lifecycle model, §5.1/I2).</td>
+            </tr>
+            <tr>
+              <td><code>workerName</code></td>
+              <td><code>ms-&lt;instanceId&gt;</code> — the script name inside the dispatch namespace.</td>
+              <td><b>Never exposed to the client.</b> The iframe URL only ever targets the dispatch Worker; the <code>instanceId → workerName</code> mapping is server-side only. Guessing a <code>workerName</code> buys an attacker nothing — no public route resolves it.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Tenant lifecycle CRUD + where mapping/metadata lives</h2>
+      <p>State lives in <b>D1</b>, mirroring conf-app's usage: a <code>DB</code> binding declared per-env in <code>wrangler-*.toml</code> <span class="badge ok">verified</span>, accessed through prepared-statement helpers and idempotent upserts. Migrations live in <code>functions/migrations/NNNN_*.sql</code>. The <code>MiniSiteInstance</code> row carries the tenant-isolating composite key, the bundle hash, the lifecycle status, and the reconciliation counters.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+stateDiagram-v2
+  [*] --> staging: CREATE — validate + upload user Worker (WfP script PUT)
+  staging --> active: INSERT row (race-safe ON CONFLICT DO UPDATE)
+  active --> active: UPDATE — re-publish, same workerName, bump bundleHash
+  active --> orphan_candidate: missing from reconciliation pass
+  orphan_candidate --> active: re-observed on authenticated view
+  orphan_candidate --> deleted: reaper confirms + tears down Worker
+  active --> deleted: tenant uninstalled lifecycle hook
+  deleted --> [*]
+        </div>
+        <figcaption>Tenant lifecycle CRUD. Connect has <b>no reliable per-macro delete webhook</b> (Design Constraint #1), so deletion is two-tier: the <code>uninstalled</code> hook tears down a whole tenant, and a scheduled cron Worker — the orphan reaper — reconciles per-instance. The reaper's <code>scheduled()</code> skeleton is reusable from conf-app's <code>cron-aggregate</code>, but its reconciliation/external-delete logic is <b>net-new [hardened]</b>.</figcaption>
+      </figure>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Operation</th><th>Trigger</th><th>Mechanism</th></tr></thead>
+          <tbody>
+            <tr><td><b>CREATE</b> (first publish)</td><td>Macro first published</td><td>Validate → upload the user Worker into the dispatch namespace via the WfP script-upload API (multipart <code>PUT</code>, static-asset manifest + files) → <code>INSERT</code> the row, mirroring conf-app's race-safe <code>INSERT ... ON CONFLICT DO UPDATE</code> idiom.</td></tr>
+            <tr><td><b>UPDATE</b> (re-publish)</td><td>New bundle, same instance</td><td>Same <code>workerName</code>: re-upload script + assets, bump <code>bundleHash</code>. The upload API is idempotent on script name → a single overwrite, <b>no second Worker</b>.</td></tr>
+            <tr><td><b>DELETE</b> (cleanup)</td><td>Tenant uninstall <i>or</i> orphan reaper</td><td>Two-tier: (a) the <code>uninstalled</code> lifecycle hook tears down a whole tenant; (b) the scheduled orphan reaper reconciles per-instance. Full orphan/copy/export policy lives in the Lifecycle model (§5.1).</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Request flow, end to end</h2>
+      <p>There is exactly one network entry point: the dispatch Worker. Every byte — the initial <code>index.html</code> and every relative sub-resource — re-enters the gateway, which re-validates the grant and re-checks the permission cache before dispatching into the non-routable user Worker.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+  participant V as Viewer iframe
+  participant GW as Dispatch Worker gateway
+  participant CR as Confluence REST
+  participant UW as User Worker
+  V->>GW: GET /v/instanceId with jwt
+  GW->>GW: verify Connect JWT — alg, iss key, sig, exp, qsh
+  GW->>GW: bind instanceId then contentId then tenant via D1
+  GW->>CR: permission check read for accountId on contentId
+  CR-->>GW: allow
+  GW->>GW: mint signed-path grant token per section 2.7
+  GW->>UW: dispatch fetch index.html
+  UW-->>GW: index.html bytes
+  GW-->>V: index.html plus base href /v/instanceId/g/grant/ plus CSP
+  V->>GW: GET sub-resource under /v/instanceId/g/grant/
+  GW->>GW: re-validate grant and re-check permission cache
+  GW->>UW: dispatch fetch asset
+  UW-->>GW: asset bytes, relative paths intact
+  GW-->>V: asset plus CSP, update lastSeenAt out of band
+        </div>
+        <figcaption>End-to-end request flow. On deny / token-or-grant expiry mid-view the gateway returns 401/403 and the embed re-auths; the user Worker is <b>never reached</b>, so on the Cloudflare path revoked content cannot leak even for a half-second. <i>This byte-level guarantee is a property of the WfP choke point; it does not hold on the Forge path — see §6.</i></figcaption>
+      </figure>
+
+      <h2>Honest re-costing — does "~$25/mo, solo-buildable" survive?</h2>
+      <div class="callout cost" style="background:var(--purple-bg);border-color:color-mix(in srgb,var(--purple) 40%,var(--border));">
+        <span class="c-ico">$</span>
+        <div><b>The raw-hosting figure holds</b> — ~$25/mo WfP base (incl. 1,000 scripts) → ~$205–230/mo at 10k instances for the WfP/compute line. But that prices <b>only the hosting.</b> The acceptance criteria add a per-view + per-publish variable layer the premise ignored.</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Line item</th><th>Driver</th><th>Direction / magnitude (was $0 in the premise)</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1 reads/writes</b></td><td>Every protected view: instance lookup + <code>lastSeenAt</code>; audit + GC scans</td><td>Grows with <b>views</b>. Tens → low-hundreds $/mo.</td></tr>
+            <tr><td><b>permission/check egress + cache</b></td><td>Read-check per protected request (cached, §2.5)</td><td>KV cache + Worker CPU per view; grows with <b>views</b>.</td></tr>
+            <tr><td><b>Audit storage</b> <span class="badge cost">COST</span></td><td>Durable audit of every serve/deny/publish/delete (R2 + D1, §5.6/I9)</td><td>R2 storage + Class-A writes; <b>unbounded if retention loose</b>.</td></tr>
+            <tr><td><b>Secret-scan compute</b> <span class="badge cost">COST</span></td><td>Scan every uploaded bundle (§4 step 5, §5.4/I7)</td><td>CPU-heavy, spiky; grows with <b>publish volume</b>.</td></tr>
+            <tr><td><b>Sandbox/CSP serving</b></td><td>Per-bundle isolated origin + header enforcement (§5.3/I6)</td><td>Compute per serve; possibly a second domain.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout danger">
+        <span class="c-ico">▲</span>
+        <div><b>The premise does not survive intact.</b> Cheap to <b>host</b>, <b>expensive to make safe and compliant</b>. A realistic loaded run-rate at 10k active instances under real traffic is order <b>~$500–700/mo</b> (audit retention + secret-scan dominate), and the <b>engineering</b> cost dwarfs the infra: the greenfield auth gateway (CVSS-9.1 class), a recurring <b>Cloud Fortified review + external pen-test</b> (a four-figure recurring item, not a rounding error), orphan GC, and provable DSAR erasure are each multi-week security-critical workstreams. <b>This belongs in the EV-vs-kill-criterion gate (#4).</b></div>
+      </div>
+
+      <h2>The <code>HostingProvider</code> seam + Forge-pivot insulation</h2>
+      <p>Two distinct host abstractions are kept separate so a forced pivot is bounded. The <b>Confluence side</b> (<code>IConfluenceHost</code>, reusing conf-app's <code>IApWrapper</code> shape <span class="badge ok">verified</span>) abstracts macro render, content reads, permission checks, and metadata storage. The <b>hosting side</b> (<code>HostingProvider</code>, new and load-bearing) abstracts where bundle bytes live, how they're served, and how a viewer is authorized — conf-app has <b>no analog</b>, since it stores only diagram DSL with no large-asset hosting substrate.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TB
+  subgraph ABOVE["ABOVE the seam — provider-agnostic, reused on pivot"]
+    M["Macro registration &amp; render"]
+    UP["Upload pipeline<br/>unzip · manifest · CSP rewrite · secret-scan · sandbox"]
+    AO["Auth-gateway orchestration<br/>verify + permission/check"]
+    LC["Lifecycle reconciliation<br/>orphan · copy · export · DSAR · partial-failure"]
+    IT["Invariant test suite<br/>fake + per-provider contract-test pack"]
+  end
+  SEAM{{"HostingProvider seam contract<br/>src/hosting/HostingProvider.ts<br/>CI-enforced boundary — INV-SEAM-01"}}
+  subgraph BELOW["BELOW the seam — rewritten on pivot"]
+    CF["CloudflareWfPProvider — NOW<br/>dispatch namespace · user Workers<br/>Static Assets · D1 · wrangler-*.toml"]
+    FG["ForgeProvider — GATED<br/>client-side reassembly · custom-content<br/>+ attachments · logical isolation"]
+  end
+  M --> SEAM
+  UP --> SEAM
+  AO --> SEAM
+  LC --> SEAM
+  IT --> SEAM
+  SEAM --> CF
+  SEAM --> FG
+        </div>
+        <figcaption>The <code>HostingProvider</code> seam. Everything above the line is provider-agnostic and reused on a pivot; only the provider implementations below are rewritten. <code>CloudflareWfPProvider</code> is the current target; <code>ForgeProvider</code> is gated behind a feasibility spike.</figcaption>
+      </figure>
+
+      <h3>The seam contract</h3>
+      <div class="callout info">
+        <span class="c-ico">◆</span>
+        <div><b>No module above <code>src/hosting/</code> imports a Cloudflare or Forge SDK.</b> The interface exposes <code>createInstance</code> (idempotent on id), <code>updateBundle</code> (atomic from the viewer's POV), <code>deleteInstance</code> (idempotent — GC calls blind), <code>serve(handle, filePath, auth)</code>, and <code>verifyHostToken</code> (WfP: Connect HS256/qsh; Forge: invocation JWKS). It also exposes a <code>permissionModel</code> flag (<code>'app-enforced' | 'inherited'</code>) that drives which invariants apply, and a <code>capabilities</code> descriptor.</div>
+      </div>
+
+      <p><b>Above the seam (provider-agnostic, reused on pivot):</b> macro registration &amp; render; the upload pipeline (unzip, manifest, CSP rewrite, secret-scan, sandbox policy); the auth-gateway <i>orchestration</i> (verify + <code>permission/check</code>); lifecycle reconciliation (orphan/copy/export/DSAR/partial-failure); the <b>invariant test suite</b> (runs against the interface via a fake + a contract-test pack each provider must pass). <b>Below the seam (rewritten on pivot):</b> <code>CloudflareWfPProvider</code> (dispatch namespace, user Workers, Static Assets, D1 mapping, <code>wrangler-*.toml</code>); <code>ForgeProvider</code> (gated).</p>
+
+      <h3>Forge fallback reality check — NOT free <span class="badge accent">hardened</span></h3>
+      <div class="callout danger">
+        <span class="c-ico">▲</span>
+        <div><b><code>serve()</code> is NOT a no-op behind a flag.</b> Under Forge it <b>relocates the entire serving mechanism into a new client-side reassembly engine on the security-critical render path</b> — fetch-all-files + relative-path rewriting (script <code>src</code>, CSS <code>url()</code>) via blob:/service-worker + CSP-on-blob-origin handling. That is <b>net-new, security-critical code that the ≥80%-reuse figure must exclude</b> — not a one-line <code>supportsServerSideServe=false</code>.</div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Forge constraint</th><th>Consequence below the seam</th></tr></thead>
+          <tbody>
+            <tr><td><b>No server-side static serving</b></td><td><code>serve()</code> cannot stream files; the bundle must be <b>reassembled client-side</b> in the iframe (fetch all files + blob-URL/service-worker relative-path rewrite).</td></tr>
+            <tr><td><b>~100MB/file + custom-content body limits</b></td><td>Large bundles rejected/chunked across attachments.</td></tr>
+            <tr><td><b>Object Store EAP-only</b></td><td>Fallback storage = custom-content + attachments. The proven path handles <i>one</i> PNG with magic-byte + size cap <span class="badge ok">verified</span> — the <b>multi-file pipeline is net-new</b>.</td></tr>
+            <tr><td><b>No dispatch-namespace equivalent</b></td><td>Per-instance isolation becomes <b>logical</b> (app-scoped), not physical.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Bottom line.</b> Forge does not make the security problem disappear — it <b>relocates</b> it (gateway CVE-risk down; client-reassembly + hard storage caps up). The feasibility spike must prove reassembly + relative-path rewriting + ~100MB/file chunking + CSP-on-blob viability <b>on real bundles before a single <code>ForgeProvider</code> line is written</b>.</div>
+      </div>
+
+      <h3>The CI import boundary is NEW and must be machine-enforced <span class="badge accent">hardened</span></h3>
+      <div class="callout danger">
+        <span class="c-ico">⛨</span>
+        <div>The original design claimed the boundary is enforced "exactly as conf-app keeps <code>@forge/bridge</code> confined." <b>That is false [verified by red team]:</b> conf-app imports <code>@forge/bridge</code> from <b>15+ non-test modules</b>, has <b>no <code>no-restricted-imports</code>/boundary lint rule</b>, and its <code>eslint.config.mjs</code> <b>ignores <code>functions/</code></b> (the entire backend). conf-app is <b>live evidence the discipline rots without a gate.</b></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Invariant</th><th>What it enforces</th></tr></thead>
+          <tbody>
+            <tr><td><code>INV-SEAM-01</code></td><td>A CI-enforced architectural-boundary check (<code>eslint no-restricted-imports</code> or <code>dependency-cruiser</code>) <b>fails the build</b> on any <code>@cloudflare/*</code> or <code>@forge/*</code> import <b>above <code>src/hosting/</code></b>, and <b>must lint <code>functions/</code></b> (do not inherit conf-app's ignore). Built from day one — the ≥80% reuse number is unprotected without it.</td></tr>
+            <tr><td><code>INV-SEAM-02</code></td><td>The auth decision and bundle validation are made <b>once, above the seam</b>, and merely <i>enforced</i> below it; storage-layout decisions below the seam may not require re-reading bundle semantics (guards the Forge chunking↔manifest coupling).</td></tr>
+            <tr><td><code>INV-SEAM-03</code></td><td>A per-provider <b>contract-test pack</b> asserts each capability — including <b>native relative-path resolution</b> (provider-native on WfP, provider-absent on Forge) and the <b>as-served CSP/sandbox posture</b> — so a <code>ForgeProvider</code> that silently degrades the product's core capability fails CI.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout ok">
+        <span class="c-ico">✓</span>
+        <div><b>Blast radius if forced to pivot.</b> <b>Survives unchanged:</b> macro components; upload pipeline; auth-gateway orchestration; lifecycle reconciliation; the entire invariant test suite; <code>IConfluenceHost</code> access. <b>Rewritten/new (excluded from the reuse figure):</b> the provider impl, the client-side reassembly engine + relative-path rewriter + CSP-on-blob, and the D1↔Forge storage mapping (unproven). The "2–4 weeks, ≥80% reuse" figure is <b>only credible if</b> the reassembly engine and the greenfield Connect auth gateway are scoped <i>separately</i> and the seam-boundary CI gate actually holds.</div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="index.html"><span class="dir">← Previous</span> Overview</a>
+        <a class="next" href="auth-gateway.html"><span class="dir">Next →</span> Auth Gateway &amp; Threat Model</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

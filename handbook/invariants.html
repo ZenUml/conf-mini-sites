@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lifecycle &amp; Invariants — Conf Mini-Sites Handbook</title>
+<link rel="stylesheet" href="assets/handbook.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">M</div>
+      <div><div class="name">Conf Mini-Sites</div><div class="sub">Design Handbook</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">Design</div>
+      <a href="index.html"><span class="ico">◆</span> Overview</a>
+      <a href="architecture.html"><span class="ico">▥</span> Architecture &amp; Components</a>
+      <a href="auth-gateway.html"><span class="ico">⛨</span> Auth Gateway &amp; Threat Model</a>
+      <a href="data-model.html"><span class="ico">▦</span> Domain &amp; Data Model</a>
+      <a href="sequence-flows.html"><span class="ico">⇄</span> Sequence Flows</a>
+      <div class="nav-group">Delivery</div>
+      <a href="invariants.html" class="active"><span class="ico">✓</span> Lifecycle &amp; Invariants</a>
+      <a href="api-surface.html"><span class="ico">⇥</span> API Surface</a>
+      <a href="roadmap.html"><span class="ico">▤</span> Implementation Roadmap</a>
+      <a href="gates.html"><span class="ico">⚑</span> Gates &amp; Positioning</a>
+      <div class="nav-group">Prototype</div>
+      <a href="upload-ui.html"><span class="ico">▲</span> Upload UI</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="crumbs"><b>Lifecycle &amp; Invariants</b></div>
+      <div class="spacer"></div>
+      <span class="badge gated">● BUILD GATED</span>
+    </div>
+
+    <main class="content">
+      <h1><span class="eyebrow">Delivery</span>Lifecycle &amp; Invariants</h1>
+      <p class="lead">Ten acceptance criteria, restated as falsifiable invariants. Each names the threat it guards,
+      the concrete test (unit / integration / E2E layer + assertion), and the honest residual risk. This is the
+      gate-#3 deliverable — the security &amp; correctness contract the build must satisfy before it is unlocked.</p>
+
+      <div class="callout ok">
+        <span class="c-ico">✓</span>
+        <div><b>This page is the gate-#3 acceptance artifact.</b> Per the design, "Testable invariants &amp; threat
+        models" is itself the gate-#3 deliverable. Every constraint below maps to a falsifiable invariant with a
+        named test layer and a stated residual risk. The auth-gateway invariants (<code>INV-GW-*</code>) referenced
+        in I3/I4/I8 are the detailed expansion documented under <a href="auth-gateway.html">Auth Gateway &amp; Threat
+        Model</a>.</div>
+      </div>
+
+      <div class="callout gated">
+        <span class="c-ico">⚑</span>
+        <div><b>Status: BUILD GATED.</b> This is design documentation, not shipped code. Items tagged
+        <span class="badge gated">GATED</span> depend on unverified platform behaviour (chiefly
+        <code>avi:confluence:*</code> event reliability and Cloudflare backup/erasure semantics). Items tagged
+        <span class="badge cost">COST</span> carry recurring cost or ops that the "~$25/mo, solo-buildable" premise
+        does <b>not</b> absorb — a finding, not a blocker. <b>[hardened]</b> markers denote invariants added or
+        strengthened after the red-team / completeness review.</div>
+      </div>
+
+      <h2>Invariant register (I1–I10)</h2>
+      <p>The full set at a glance. Statement, the threat it guards, the layered test, and residual risk.
+      Tags surface <span class="badge gated">GATED</span> and <span class="badge cost">COST</span> items inline;
+      severity / cross-tenant items carry a <span class="badge risk">RISK</span> tag.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Invariant</th><th>Threat guarded</th><th>Concrete test</th><th>Residual risk</th><th>Tags</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>I1</b></td>
+              <td>Orphan-GC reconciliation: a bundle is retained <b>iff</b> a reachability check confirms its owning
+              <code>contentId</code> exists and still references the <code>bundleId</code>; absent ≥ GRACE passes ⇒ deleted;
+              unconfirmable (API error) ⇒ never deleted, never served past the gate.</td>
+              <td>(a) storage leak / cost — no delete webhook; (b) worse: <b>wrong deletion</b> of a live bundle when a
+              transient outage looks like "deleted".</td>
+              <td><b>unit</b> state-machine table; <b>integration</b> over local D1 + in-memory provider;
+              <b>E2E</b> <code>lifecycle/orphan-gc.spec.ts</code> create→delete page→reconcile→assert 404 + row gone.</td>
+              <td>Eventually consistent (survives up to <code>GRACE × interval</code>); unbounded leak during a
+              sustained Confluence outage (correct by design).</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><b>I2</b></td>
+              <td>Copy / duplicate / template / space-export: a copied instance <b>never</b> shares a mutable bundle
+              with its source and never overwrites it. Foreign-identity access ⇒ <b>fork</b> (copy-on-access snapshot →
+              new <code>bundleId</code>, rebind); source byte-for-byte unchanged.</td>
+              <td>Silent shared mutable state — proven real in the repo: a copy still points at the source
+              <code>customContent</code>; editing one page silently rewrites the other.</td>
+              <td><b>unit</b> <code>forkOnCopy.spec.ts</code> (fork-on-foreign-access + idempotent);
+              <b>integration</b> 10 <code>contentId</code>s → 10 <code>bundleId</code>s, source identical;
+              <b>E2E</b> via <code>macroDuplication.ts</code> — mutate copy, assert source unchanged.</td>
+              <td>A never-rendered copy keeps a dangling pointer (→ I1c). Eager fork on copy/export event is
+              <b>GATED</b> on whether <code>avi:confluence:*</code> events fire reliably.</td>
+              <td><span class="badge gated">GATED</span></td>
+            </tr>
+            <tr>
+              <td><b>I3</b></td>
+              <td>Permission-cache staleness / fail-closed serve: a protected request is served <b>only if</b> a
+              decision for <code>(viewerAccountId, contentId, "read")</code> is affirmative under a cache entry younger
+              than <code>PERM_CACHE_TTL</code>; absent / expired / erroring ⇒ <b>403, never the bundle</b>; revocation
+              clears within ≤ TTL.</td>
+              <td>Serving revoked content — direct disclosure, since permissions are app-enforced.</td>
+              <td><b>unit</b> (allow+fresh→serve; allow+expired→re-check; <b>recheck throws→403</b> — the key assertion;
+              deny→403; revoke→403); <b>integration</b> flip allow→deny; <b>E2E</b> revoke-no-serve + pen-test rider
+              (direct user-Worker probe must fail, INV-GW-14).</td>
+              <td>≤ TTL window for a just-revoked user; shrinking to 0 = a synchronous Confluence call per asset
+              (<b>COST</b>); event-driven invalidation <b>GATED</b> on AVI reliability.</td>
+              <td><span class="badge cost">COST</span> <span class="badge gated">GATED</span></td>
+            </tr>
+            <tr>
+              <td><b>I4</b></td>
+              <td>Token expiry mid-view: every protected request carries a currently-valid grant derived from a
+              currently-valid Atlassian JWT (signed-path grant, §2.7); expired / malformed ⇒ <b>401 with a re-auth
+              signal</b>, never cached-as-allow, never served.</td>
+              <td>A long-open embed whose initial token expires, naively kept serving (bypass) or crashing.</td>
+              <td><b>unit</b> (valid→pass; exp past→401; bad sig→401; qsh mismatch→401; wrong aud/app→401, fixed clock);
+              <b>integration</b> <code>exp=now+2s</code> → 200 at T+0, 401 at T+3s, no bytes; <b>E2E</b>
+              hold-open → asset-fetch → re-auth, incl. parent-eviction path <b>[hardened]</b>.</td>
+              <td>Clock skew needs <code>clockTolerance</code> leeway composing with cache TTL (~120s) — sign off or
+              set to 0. Eviction fails closed (acceptable).</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td><b>I5</b></td>
+              <td>GDPR / DSAR erasure on the external host: a DSAR results within SLA in <b>provable deletion</b> of all
+              copies of the bundle bytes + metadata across <b>every</b> store, post-deletion fetch returns 404, and a
+              deletion record exists. <b>[hardened]</b> erasure transitively erases every I2 fork descended from the
+              target.</td>
+              <td>Inability to honor erasure because data lives externally with caches / backups we don't account for —
+              a GDPR / DPA blocker.</td>
+              <td><b>unit</b> enumerate <code>listStoresHolding(bundleId)</code> + assert a delete per store + a
+              deletion certificate; <b>integration</b> write→populate edge cache→erase→404 + purge + row gone;
+              <b>E2E</b> full-tenant erasure → every prior URL 404.</td>
+              <td><b>Backups</b>: "bytes exist nowhere" may only hold after backup-retention expiry (bounded delay must
+              be in the DPA); edge purge is async; audit logs carry the DSAR subject's <code>actorAccountId</code> —
+              retention basis is <b>OPEN (legal)</b>.</td>
+              <td><span class="badge cost">COST</span> <span class="badge gated">GATED</span></td>
+            </tr>
+            <tr>
+              <td><b>I6</b></td>
+              <td>Malicious uploaded JS — sandboxing / CSP / origin isolation: per-bundle origin isolation
+              <b>[hardened — HARD, not "ideally"]</b>, opaque-origin iframe sandbox (<b>no</b>
+              <code>allow-same-origin</code> vs control plane), pinned restrictive CSP baseline, no trusted-origin
+              authority leak. <b>All four must hold.</b></td>
+              <td>Attacker JS from a trusted-looking domain → XSS, credential phishing, malware, clickjacking. We host
+              <i>active</i> bundles, so we contain — we cannot sanitize JS away.</td>
+              <td><b>unit</b> every response has CSP + <code>nosniff</code> + correct <code>Content-Type</code> +
+              bundle-origin ≠ control-plane; <b>integration</b> hostile fixture (<code>top.location</code>,
+              <code>document.cookie</code>, exfil <code>fetch</code> blocked) + four same-tenant fixtures
+              <b>[hardened]</b>; <b>E2E</b> in a real embed.</td>
+              <td><b>PROVIDER-SPECIFIC</b>: containment ≠ content-safety (a cryptominer / phish within its own sandbox
+              needs I7 + abuse policy). CSP baseline is <b>GATED</b> but pinned to stay falsifiable.</td>
+              <td><span class="badge risk">RISK</span> <span class="badge gated">GATED</span></td>
+            </tr>
+            <tr>
+              <td><b>I7</b></td>
+              <td>Secret-leak detection: every upload is scanned before it is servable; a detected secret <b>blocks
+              go-live</b> (or quarantines), notifies the uploader, and is audit-logged. "Made servable" never precedes
+              "scan completed". <b>[hardened]</b> a scanner-version bump re-quarantines already-live bundles until
+              re-scan (I7↔I10 coupling).</td>
+              <td>An AI-generated bundle with a baked-in key / token / PEM becomes readable by everyone with page access
+              and persists externally — a customer incident + processor liability.</td>
+              <td><b>unit</b> fixture table (AWS / Google / JWT / PEM / <code>password=</code> detected; UUID / hex-color /
+              base64-image not flagged); <b>integration</b> secret bundle → <code>quarantined</code>, not servable;
+              <b>E2E</b> blocked-with-reason.</td>
+              <td>Scanning is <b>best-effort</b> (novel / obfuscated / encrypted secrets evade; false positives
+              frustrate) — stated to customers as best-effort, not a guarantee. Per-upload CPU.</td>
+              <td><span class="badge cost">COST</span></td>
+            </tr>
+            <tr>
+              <td><b>I8</b></td>
+              <td>Tenant isolation (cross-install / cross-space / cross-instance): no request authenticated for
+              <code>cloudId=A</code> can read / list / enumerate / provision any <code>bundleId</code> owned by
+              <code>cloudId=B</code>; every storage key, registry row, permission check, dispatch route <b>and edge-cache
+              key</b> is namespaced by <code>cloudId</code> from the verified token; a mismatch ⇒ 404 (avoids an
+              existence oracle).</td>
+              <td>Cross-tenant exposure — the highest-severity failure and a guaranteed Cloud-Fortified blocker.</td>
+              <td><b>unit</b> A-token→B-resource→404 + key-builder cannot produce a B key from an A context;
+              <b>integration</b> exhaustive A→B (direct / guessed / enumeration, all three scopes distinct);
+              <b>E2E</b> two-tenant deny + audit entry. <b>[hardened]</b> edge-cache-key-includes-<code>cloudId</code>
+              promoted to an automated unit assertion (a cache key omitting <code>cloudId</code> is cache poison).</td>
+              <td><b>PROVIDER-SPECIFIC</b>: a WfP namespace-isolation platform bug is vendor risk — disclose in the
+              review.</td>
+              <td><span class="badge risk">RISK</span></td>
+            </tr>
+            <tr>
+              <td><b>I9</b></td>
+              <td>Audit logs: every security-relevant event (auth decision, permission re-check, upload / scan,
+              fork-on-copy, GC deletion, DSAR erasure, cross-tenant denial) is written to an <b>append-only,
+              tamper-evident</b> log <code>(timestamp, cloudId, actorAccountId, action, resourceId, outcome)</code>;
+              no path updates / deletes a row before retention expiry.</td>
+              <td>Inability to investigate / prove an incident; an attacker (or bug) erasing tracks.</td>
+              <td><b>unit</b> API exposes only <code>append</code>+<code>query</code> + each record carries a prior-record
+              hash; <b>integration</b> tamper a middle record → verifier detects; <b>E2E</b> a denied cross-tenant
+              access + a GC deletion both appear. <b>[hardened]</b> pin chain HEAD/length to an external append-only
+              anchor for tail-truncation detection.</td>
+              <td>Tamper-<i>proof</i> (vs evident) needs WORM / Object-Lock / external SIEM; log volume at 10k instances
+              is non-trivial.</td>
+              <td><span class="badge cost">COST</span></td>
+            </tr>
+            <tr>
+              <td><b>I10</b></td>
+              <td>Partial-failure recovery (no half-state serves): a bundle is servable <b>iff</b> provisioning
+              completed atomically (bytes fully written <b>and</b> registry committed <b>and</b> scan passed); any
+              mid-way failure leaves it not servable, idempotently resumable or cleanly rolled back — never a
+              half-deployed Worker serving a truncated bundle.</td>
+              <td>WfP Worker-create + asset-upload + registry-write + scan has no native cross-system transaction; a gap
+              could serve partial assets, a row pointing at nothing, or an unscanned "live" bundle (bypassing I7).</td>
+              <td><b>unit</b> inject failure after each step → <code>isServable=false</code> + re-run idempotent;
+              <b>integration</b> provider throws mid-write → "not ready", cleanup/retry reconciles (ties to I1);
+              <b>E2E</b> kill-mid-deploy → "deploying/failed" not a broken render → retry succeeds.</td>
+              <td><b>[hardened]</b> add a serve-time content-hash check for committed-but-corrupt bytes; retry-storm
+              backoff / circuit-breaking as an invariant; the I7 re-scan-on-version-bump tie-in.</td>
+              <td><span class="badge cost">COST</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Sub-model A — Lifecycle (I1 &amp; I2)</h2>
+      <p>The lifecycle pair shares one structure: a <code>BundleRegistry</code> / <code>MiniSiteInstance</code> row
+      keyed by <code>(clientKey, cloudId, instanceId)</code>, carrying the immutable <code>bundleId</code> storage
+      handle and the owning <code>contentId</code>. This mirrors conf-app's <code>CustomContent</code> keyed by
+      <code>(contentId, appId)</code> (migration <code>0004</code>, verified). Confluence emits no reliable per-macro
+      delete event, so retention is driven by a standing <b>reconciliation cron</b> (the repo's
+      <code>aggregate-events.ts</code> <code>x-cron-secret</code> → <code>purgeOldEvents</code> is the shape; the
+      external-reachability probe is net-new).</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+stateDiagram-v2
+  [*] --> Provisioned
+  Provisioned --> Retained: "owner present (missingPasses = 0)"
+  Retained --> Retained: "present, reset counter"
+  Retained --> AbsentCounting: "absent (missingPasses = 1)"
+  AbsentCounting --> AbsentCounting: "absent x (GRACE-1), retained"
+  AbsentCounting --> Retained: "owner re-appears, counter reset"
+  AbsentCounting --> Deleted: "absent x GRACE, delete once"
+  Retained --> Retained: "API error, fail-safe-retain, no change"
+  AbsentCounting --> AbsentCounting: "API error, counter unchanged, retained"
+  Retained --> Retained: "inbound copy-pointer present (I1c hold)"
+  Deleted --> [*]
+        </div>
+        <figcaption>I1 orphan-GC reconciliation state machine. Present ⇒ <code>missingPasses=0</code>; absent for
+        <code>GRACE−1</code> passes ⇒ retained; absent for <code>GRACE</code> passes ⇒ deleted once; any API error ⇒
+        retained, counter unchanged (fail-safe-retain). An un-forked inbound copy-pointer (I1c) pins retention.</figcaption>
+      </figure>
+
+      <h3>I1 — Orphan-GC reconciliation correctness <span class="badge accent">Lifecycle</span></h3>
+      <p><b>Invariant.</b> A stored bundle is retained <b>iff</b> a reachability check confirms its owning
+      <code>contentId</code> still exists <i>and</i> still references that <code>bundleId</code>; a bundle
+      confirmed-absent for <code>≥ GRACE_PERIOD</code> consecutive passes is deleted; a bundle whose owner
+      <b>cannot be confirmed present or absent</b> (API error / outage) is <b>never deleted</b> (fail-safe-retain) and
+      <b>never served</b> beyond the permission gate (fail-closed-serve, I3).</p>
+      <p><b>Threat.</b> (a) storage leak / cost from no delete webhook; (b) worse — <b>wrong deletion</b> of a live
+      bundle because a transient outage looked like "deleted."</p>
+
+      <h4>I1a–I1d — red-team-hardened additions</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Add-on</th><th>What it pins down</th></tr></thead>
+          <tbody>
+            <tr><td><b>I1a — owner-identity stability</b></td>
+              <td>Reachability must survive page <b>move / rename / space-relocation</b>, and a
+              <b>restore-from-trash that returns a NEW <code>contentId</code> must re-bind, not orphan</b> (a single
+              <code>exists</code> probe is insufficient). Default: treat trash as present (retain) until purge.</td></tr>
+            <tr><td><b>I1b — registry-store outage</b></td>
+              <td>If <code>BundleRegistry</code> / D1 is itself unreadable, <b>serve = 403</b> (cannot confirm ownership
+              ⇒ deny) — distinct from the permission-outage case (I3).</td></tr>
+            <tr><td><b>I1c — inbound copy-pointer retention</b></td>
+              <td>A bundle with any inbound un-forked copy-pointer (I2) is retained — else GC deletes a source an
+              un-rendered copy still depends on, making the copy permanently un-forkable.</td></tr>
+            <tr><td><b>I1d — reconcile blast-radius cap</b></td>
+              <td>The reconcile endpoint is triggered by a shared secret (<code>x-cron-secret</code> pattern); a leaked
+              secret = attacker-driven mass deletion. The reaper <b>cannot delete &gt; N bundles/pass without a second
+              control</b>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><b>Test.</b> <b>unit</b> table over the state machine
+      (<code>present→retained</code>; <code>absent×(GRACE-1)→retained</code>; <code>absent×GRACE→deleted once</code>;
+      <code>apiError→counter unchanged, retained</code>); <b>integration</b> over local D1 + in-memory provider;
+      <b>E2E</b> <code>tests/e2e-tests/tests/lifecycle/orphan-gc.spec.ts</code> create → delete page → reconcile →
+      assert 404 + row gone.</p>
+      <p><b>Residual.</b> Eventually consistent (a bundle survives up to <code>GRACE × interval</code>); an unbounded
+      leak during a sustained Confluence outage (correct by design).</p>
+
+      <h3>I2 — Copy / duplicate / template / space-export semantics <span class="badge accent">Lifecycle</span> <span class="badge gated">GATED</span></h3>
+      <p><b>Invariant.</b> A copied macro instance <b>never shares a mutable bundle with its source and never overwrites
+      it</b>. On first authenticated render or save of a macro whose Confluence identity differs from the
+      <code>bundleId</code>'s recorded owner, the gateway <b>forks</b> (copy-on-access snapshot → new
+      <code>bundleId</code>, rebind new <code>contentId</code>); the source binding is byte-for-byte unchanged.</p>
+      <p><b>Threat.</b> Silent shared mutable state — proven real in the repo: on copy "the Forge context still points at
+      the source customContent … the save creates a fresh record with a different id" + <code>diagram.isCopy</code>
+      (<code>src/model/ContentProvider/Persistence.ts ~62-69</code>, conf-app#170). For a hosted bundle, two pages on
+      one mutable bundle = editing one silently rewrites the other; a template instantiated 50× must yield 50
+      independent bundles.</p>
+      <p><b>Test.</b> <b>unit</b> <code>forkOnCopy.spec.ts</code> (fork-on-foreign-access + idempotent — no re-fork);
+      <b>integration</b> (10 distinct <code>contentId</code>s → 10 distinct <code>bundleId</code>s, source
+      byte-identical); <b>E2E</b> reusing <code>tests/e2e-tests/helpers/macroDuplication.ts</code>
+      (<code>duplicateMacroSamePage</code>, <code>copyMacroToNewPage</code>) — mutate the copy, assert source unchanged
+      (UI evidence).</p>
+      <p><b>Residual.</b> A never-rendered / never-saved copy keeps a dangling pointer (covered by I1c). Bulk
+      space-export captures the macro body but not the external bundle → the importing site renders a "bundle not
+      available in this site" placeholder (cross-tenant, I8). Eager fork on a copy/export AVI event is
+      <span class="badge gated">GATED</span> on whether <code>avi:confluence:*</code> copy/export events fire
+      reliably.</p>
+
+      <h2>Sub-model B — Access / Auth gateway (I3, I4, I8)</h2>
+      <p>The primary pen-test targets. These are the detailed expansion point for the <code>INV-GW-*</code> family in
+      the <a href="auth-gateway.html">Auth Gateway</a> page — the IDOR class here is
+      <abbr title="CVE-2021-26073">CVE-2021-26073</abbr> territory, and a cross-tenant break (I8) is the highest-severity
+      failure, a guaranteed Cloud-Fortified blocker.</p>
+
+      <figure class="diagram">
+        <div class="mermaid">
+flowchart TD
+  Req["protected request"] --> JWT{"Atlassian JWT valid?<br/>(I4)"}
+  JWT -- no --> R401["401 + re-auth signal"]
+  JWT -- yes --> Grant{"signed-path grant valid?<br/>(I4, §2.7)"}
+  Grant -- no --> R401
+  Grant -- yes --> Tenant{"cloudId from token<br/>matches resource? (I8)"}
+  Tenant -- no --> R404["404 (no existence oracle)"]
+  Tenant -- yes --> Perm{"perm cache fresh + allow?<br/>(I3)"}
+  Perm -- "expired" --> Recheck{"re-check read"}
+  Recheck -- "throws / deny" --> R403["403, never bytes"]
+  Recheck -- "allow" --> Serve["serve bundle"]
+  Perm -- "deny / error" --> R403
+  Perm -- "allow + fresh" --> Serve
+        </div>
+        <figcaption>Fail-closed decision order for a protected request. Every branch that is not a confirmed
+        affirmative denies — 401 on auth, 404 on tenant mismatch (avoiding an existence oracle), 403 on permission.
+        A re-check that <i>throws</i> resolves to 403, never to the bytes (the load-bearing I3 assertion).</figcaption>
+      </figure>
+
+      <h3>I3 — Permission-cache staleness / fail-closed serving</h3>
+      <p><b>Invariant.</b> A protected request is served <b>only if</b> a decision for
+      <code>(viewerAccountId, contentId, "read")</code> is currently affirmative under a cache entry younger than
+      <code>PERM_CACHE_TTL</code>; absent / expired / erroring ⇒ <b>403, never the bundle</b>; revocation invalidates
+      within ≤ TTL. conf-app's <code>src/model/page/CheckPermission.ts</code> posts to <code>/permission/check</code>
+      and <b>returns <code>false</code> on any error</b> (verified) — that fail-closed default is the load-bearing
+      pattern. The single most important assertion: <b>a re-check that throws resolves to 403</b>.</p>
+      <p><b>Residual.</b> A ≤ TTL window for a just-revoked user (shrinking to 0 means a synchronous Confluence call per
+      asset → latency / rate-limit / cost <span class="badge cost">COST</span>); event-driven invalidation
+      <span class="badge gated">GATED</span> on AVI reliability. Confluence's effective permission (page restrictions vs
+      space perms vs inherited) is subtle — the pen-test must probe restriction-inheritance edge cases.</p>
+
+      <h3>I4 — Token expiry mid-view</h3>
+      <p><b>Invariant.</b> Every protected request carries a currently-valid grant derived from a currently-valid
+      Atlassian JWT (§2.7); expired / malformed ⇒ <b>401 with a re-auth signal</b>, never cached-as-allow, never served;
+      a view outliving token lifetime degrades to a re-auth prompt, not open access. The signed-path grant +
+      refresh-and-retry mechanism (§2.7) <b>closes the previously-unimplementable gap.</b></p>
+      <p><b>Residual.</b> Clock skew needs <code>clockTolerance</code> leeway, but it composes with cache TTL (~120s,
+      §2.4) — sign off or set to 0. Re-auth inside a sandboxed iframe relies on messaging the parent; if the parent is
+      evicted the view fails closed (acceptable) — <b>add an E2E for the eviction path, not just the happy path
+      [hardened]</b>.</p>
+
+      <h3>I8 — Tenant isolation (cross-install / cross-space / cross-instance) <span class="badge risk">RISK</span></h3>
+      <p><b>Invariant.</b> No request authenticated for <code>cloudId=A</code> can read / list / enumerate / provision
+      any <code>bundleId</code> owned by <code>cloudId=B</code>; every storage key, registry row, permission check,
+      dispatch route, <b>and edge-cache key</b> is namespaced by <code>cloudId</code> (taken from the verified token,
+      never the URL); a <code>cloudId</code> mismatch ⇒ <b>404</b> (preferred over 403 to avoid an existence oracle).
+      conf-app already namespaces by <code>cloudId</code> everywhere (<code>license:${cloudId}:${spaceKey}</code> KV,
+      <code>page-snapshots/${cloudId}/...</code> R2, verified).</p>
+      <p><b>[hardened].</b> Move the <b>edge-cache-key-includes-<code>cloudId</code></b> property from
+      manual-pen-test-only to an <b>automated unit assertion on the cache-key builder</b> (identical to the storage-key
+      builder test) — a Cache API key omitting <code>cloudId</code> is a cross-tenant cache poison. Integration must
+      assert all three scopes (cross-install / cross-space / cross-instance) <b>distinctly</b>, by direct id, guessed id,
+      and enumeration.</p>
+      <p><b>Residual <span class="badge accent">PROVIDER-SPECIFIC</span>.</b> A WfP namespace-isolation platform bug is
+      vendor risk — disclose in the review.</p>
+
+      <h2>Sub-model C — Uploaded-content security (I6, I7)</h2>
+      <p>We host <i>active</i> bundles (that is the product), so we cannot sanitize JS away — we <b>contain</b> it. This
+      is the area with the least precedent in conf-app (which renders its own diagram output, not arbitrary uploaded
+      JS), hence the highest-novelty risk and a named Cloud-Fortified focus.</p>
+
+      <h3>I6 — Malicious uploaded JS: sandboxing / CSP / origin isolation <span class="badge risk">RISK</span> <span class="badge gated">GATED</span></h3>
+      <p><b>Invariant (all four must hold):</b></p>
+      <ol>
+        <li><b>Per-bundle origin isolation [hardened — HARD, not "ideally"]:</b> every bundle is served from an origin
+        distinct from the control-plane origin <b>and distinct per bundle</b> (not merely per tenant). Same-tenant
+        bundle A must not be able to script bundle B, fetch B's assets, read B via a co-framed DOM, or poison a
+        shared-origin edge-cache key. Uploaded JS never executes on the origin holding the gateway's auth state.</li>
+        <li><b>Iframe sandbox:</b> <code>&lt;iframe sandbox="allow-scripts allow-forms allow-popups-to-escape-sandbox"&gt;</code>
+        — <b>no <code>allow-same-origin</code></b> relative to the control plane (opaque origin; this is why §2.7 uses
+        path grants, not cookies).</li>
+        <li><b>CSP [GATED baseline — but pinned now]:</b> the bundle response carries a restrictive CSP, pinned now so
+        I6 is falsifiable: <code>frame-ancestors</code> = the Confluence / app embed origin only (anti-clickjacking);
+        <code>script-src</code> self + bundle origin (no inline unless hashed); <code>connect-src</code> /
+        <code>form-action</code> restricted to prevent exfiltration / phishing via the trusted origin; never
+        <code>frame-ancestors *</code>. Security review may tighten, not loosen.</li>
+        <li><b>No trusted-origin authority leak:</b> a bundle response never sets or exposes the gateway's session state
+        / <code>K_grant</code> to bundle-origin script.</li>
+      </ol>
+      <p><b>Test.</b> <b>unit</b> (every response has the CSP, <code>nosniff</code>, correct <code>Content-Type</code>,
+      bundle-origin ≠ control-plane); <b>integration</b> with a hostile fixture attempting <code>top.location</code>,
+      <code>document.cookie</code>, exfil <code>fetch</code> → all blocked, plus the <b>four same-tenant fixtures
+      [hardened]</b>: A-scripts-B, A-fetches-B-assets, shared-origin-cache-poison, B-readable-via-co-framed-DOM;
+      <b>E2E</b> in a real embed (console / UI evidence).</p>
+      <p><b>Residual <span class="badge accent">PROVIDER-SPECIFIC</span>.</b> Containment ≠ content-safety (a
+      cryptominer / phish <i>within</i> its own sandbox needs I7 + abuse policy, not CSP). Forge-equivalent: platform
+      CSP / sandbox shifts much of this to Atlassian — a genuine posture advantage <i>if</i> the pivot is forced (but
+      reassembly re-expands the in-iframe surface, §6).</p>
+
+      <h3>I7 — Secret-leak detection <span class="badge cost">COST</span></h3>
+      <p><b>Invariant.</b> Every upload is scanned before it is servable; a detected secret <b>blocks go-live</b> (or
+      quarantines), notifies the uploader, and is audit-logged (I9); "made servable" never precedes "scan completed".
+      <b>[hardened] I7↔I10 coupling:</b> a <b>scanner-version bump must re-quarantine already-live bundles</b> until
+      re-scan.</p>
+      <p><b>Threat.</b> An AI-generated bundle with a baked-in key / token / PEM becomes readable by everyone with page
+      access and persists externally — a customer incident + a processor liability.</p>
+      <p><b>Test.</b> <b>unit</b> fixture table (AWS / Google / JWT / PEM / <code>password=</code> detected;
+      UUID / hex-color / base64-image <i>not</i> flagged); <b>integration</b> (secret bundle → <code>quarantined</code>,
+      not servable); <b>E2E</b> blocked-with-reason.</p>
+      <p><b>Residual.</b> Scanning is <b>best-effort</b> (novel / obfuscated / encrypted secrets evade; false positives
+      frustrate) — <b>state to customers as best-effort, not a guarantee</b>; we notify, we do not rotate / revoke the
+      leaked secret. Per-upload CPU <span class="badge cost">COST</span>.</p>
+
+      <h2>Sub-model D — Operations &amp; compliance (I5, I9, I10)</h2>
+
+      <h3>I5 — GDPR / DSAR erasure on the external host <span class="badge cost">COST</span> <span class="badge gated">GATED</span></h3>
+      <p><b>Invariant.</b> A DSAR / erasure request results, within SLA, in <b>provable deletion</b> of all copies of the
+      affected bundle bytes + metadata across <b>every</b> store (primary object store, derived caches, backups) such
+      that a post-deletion fetch of any prior <code>bundleId</code> returns 404 and an auditable deletion record exists.
+      No soft delete satisfies it for the bytes. <b>[hardened] fork-lineage transitivity:</b> erasure must
+      <b>transitively erase every I2 fork descended from the target</b>, not just the named <code>bundleId</code>
+      (<code>listStoresHolding</code> is per-bundleId and would miss forks).</p>
+      <p><b>Residual (significant).</b> <b>Backups</b> — true "bytes exist nowhere" may be achievable only after
+      backup-retention expiry (GDPR permits documented, bounded backup-rotation delays — must be verified with
+      Cloudflare and stated in the DPA, <span class="badge cost">COST</span> <span class="badge gated">GATED</span>);
+      edge purge is async ("purge issued" ≠ "globally complete" — set a served-bytes-after-erasure bound); <b>I9 audit
+      logs contain the DSAR subject's <code>actorAccountId</code></b> — resolve the retention basis (pseudonymize vs
+      legitimate-interest) rather than deferring (<b>OPEN — legal</b>).</p>
+
+      <h3>I9 — Audit logs <span class="badge cost">COST</span></h3>
+      <p><b>Invariant.</b> Every security-relevant event (auth decision, permission re-check, upload / scan,
+      fork-on-copy, GC deletion, DSAR erasure, cross-tenant denial) is written to an <b>append-only, tamper-evident</b>
+      log <code>(timestamp, cloudId, actorAccountId, action, resourceId, outcome)</code>, retained, and queryable; no
+      code path updates / deletes an existing row before retention expiry. conf-app has the substrate (insert-only D1
+      fact tables + immutable R2 archival, verified) but <b>not</b> hash-chaining.</p>
+      <p><b>[hardened] tail-truncation.</b> A hash chain in mutable D1 detects <b>middle edits but not deletion of the
+      most recent records</b> — an attacker with DB creds can truncate the tail undetectably. Pin the chain HEAD /
+      length to an <b>external append-only anchor</b> (R2 Object Lock or a periodic external checkpoint) to make
+      tail-truncation detectable <span class="badge cost">COST</span>.</p>
+      <p><b>Residual.</b> Tamper-<i>proof</i> (vs evident) needs WORM / Object-Lock / external SIEM
+      <span class="badge cost">COST</span>; log volume at 10k instances is non-trivial.</p>
+
+      <h3>I10 — Partial-failure recovery (no half-state serves) <span class="badge cost">COST</span></h3>
+      <p><b>Invariant.</b> A bundle is servable <b>iff</b> its provisioning completed atomically (bytes fully written
+      <b>and</b> registry committed <b>and</b> scan passed); any mid-way failure leaves it <b>not servable</b>, and the
+      transaction is idempotently resumable or cleanly rolled back — never a half-deployed Worker serving a truncated
+      bundle. conf-app documents exactly this idempotent-resume discipline
+      (<code>forge-custom-content.ts:44-67</code>, "recover from prior requests that inserted the version but failed
+      before completing the write", verified).</p>
+      <p><b>[hardened] additions.</b> (a) a <b>serve-time content-hash</b> integrity check for the
+      <b>committed-but-corrupt</b> case (write succeeded, bytes wrong — not caught by transaction logic)
+      <span class="badge cost">COST</span>; (b) <b>retry-storm backoff / circuit-breaking</b> as an invariant (avoid
+      amplifying a Cloudflare outage); (c) the I7 re-scan-on-version-bump tie-in.</p>
+
+      <h2>Cross-cutting invariant — abuse / DoS bounds <span class="badge risk">RISK</span></h2>
+      <div class="callout danger">
+        <span class="c-ico">⚠</span>
+        <div><b>This invariant was missing entirely (§5.5, [hardened]).</b> The system bounds <b>upload size / count</b>,
+        <b>fork amplification</b> (a template instantiated N× = N <code>copyBundle</code> calls — cap per pass / tenant),
+        <b>reconcile-endpoint abuse</b> (I1d blast-radius cap), and <b>bundle-serve bandwidth</b> per tenant.
+        Compromise of any control secret (<code>x-cron-secret</code>, <code>K_grant</code>, PAT) must <b>not</b> enable
+        mass deletion or forged grants — secrets are rotated, envelope-encrypted, never logged, and the reconcile path
+        requires a <b>second control</b> beyond the shared secret.</div>
+      </div>
+
+      <h2>STRIDE — gateway threat model (§2.8)</h2>
+      <p>The auth gateway is the highest-risk component. Each STRIDE row maps a concrete threat to its control and the
+      <code>INV-GW-*</code> invariant that makes it falsifiable. Row 4 (<code>instanceId</code> / <code>contentId</code>
+      tamper) and row 7 (IDOR) are the <abbr title="CVSS 9.1">CVSS-9.1</abbr> class — broken authorization yielding
+      cross-page / cross-tenant disclosure.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>STRIDE</th><th>Threat</th><th>Control</th><th>Invariant</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Spoofing</td><td>Forged JWT</td><td>HS256 verified vs per-<code>(clientKey,key)</code> secret</td><td>INV-GW-01</td></tr>
+            <tr><td>2</td><td>Spoofing</td><td><code>alg=none</code> / RS↔HS confusion</td><td>Hard-pin <code>alg=HS256</code> before key selection; <code>kid</code> ignored</td><td>INV-GW-03</td></tr>
+            <tr><td>3</td><td>Tampering</td><td><code>qsh</code> strip / replay across method / path</td><td>Exact Atlassian canonical recompute; <code>context-qsh</code> entrypoint-only</td><td>INV-GW-02</td></tr>
+            <tr><td>4</td><td>Tampering</td><td><code>instanceId</code> / <code>contentId</code> tamper → other page's bundle</td><td>DB-level <code>(clientKey,cloudId,instanceId)</code> bind; <code>contentId</code> from signed claim</td><td>INV-GW-06/06b</td></tr>
+            <tr><td>5</td><td>Repudiation</td><td>Abusive access leaves no trace</td><td>Append-only audit of allow / deny; no secrets logged</td><td>INV-GW-13</td></tr>
+            <tr><td>6</td><td>Info-disc</td><td>Cross-tenant via clientKey / cloudId confusion</td><td><code>(clientKey,key)</code> secret; <code>cloudId</code>↔install cross-check</td><td>INV-GW-04/04b</td></tr>
+            <tr><td>7</td><td>Info-disc</td><td>IDOR — read content lacking <code>read</code></td><td>Per-request <code>permission/check(read)</code> for verified <code>sub</code></td><td>INV-GW-07</td></tr>
+            <tr><td>8</td><td>Info-disc</td><td>Sub-resource bypass (assets unchecked)</td><td>Signed-path grant + per-asset re-check (§2.7)</td><td>INV-GW-07</td></tr>
+            <tr><td>9</td><td>Info-disc</td><td>Direct hit on a user Worker</td><td>Non-routable, dispatch-only, <b>enforced + pen-tested</b></td><td>INV-GW-14</td></tr>
+            <tr><td>10</td><td>Info-disc</td><td>Serve revoked content from stale cache / outage</td><td>Fail-closed; positive cache ≤60s; breaker default = deny</td><td>INV-GW-08/11</td></tr>
+            <tr><td>11</td><td>Info-disc</td><td>Expired token keeps serving</td><td>Re-verify every request; grant TTL; refresh-and-retry</td><td>INV-GW-05/12</td></tr>
+            <tr><td>12</td><td>Info-disc</td><td><code>sharedSecret</code> / <code>K_grant</code> leak</td><td>Verify + <code>aud</code>-pin install; app-layer encrypt; never log; delete on uninstall</td><td>INV-GW-10</td></tr>
+            <tr><td>13</td><td>DoS</td><td><code>permission/check</code> flood; 401-refresh loop</td><td>Per-tenant / IP rate limit; cache positives; breaker → fail-closed</td><td>INV-GW-15</td></tr>
+            <tr><td>14</td><td>EoP</td><td>Unlisted / new route served unauthed</td><td>Deny-by-default routing (inverts conf-app <code>_middleware.ts</code>)</td><td>INV-GW-09</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Cost honesty &amp; provider seam</h2>
+      <div class="callout info">
+        <span class="c-ico">ℹ</span>
+        <div><b>The "solo-buildable" premise survives the happy path, but not the full invariant set.</b> I3 (tight TTL +
+        invalidation infra), I5 (cross-store provable erasure + backup bound), I6 (per-bundle origin + pen-test), I9
+        (tamper-evident store + volume) and I1 (a standing reconciliation cron) each add recurring cost / ops
+        <span class="badge cost">COST</span>, plus a periodic external pen-test. This is a finding, not a blocker.
+        On the <b>provider seam</b>: I6 and I8 are the invariants whose threat surface changes most under a Forge pivot
+        (§6); I1, I2, I5, I7, I9 and I10 are provider-agnostic and port unchanged.</div>
+      </div>
+
+      <nav class="footer-nav">
+        <a href="sequence-flows.html"><span class="dir">← Previous</span> Sequence Flows</a>
+        <a class="next" href="api-surface.html"><span class="dir">Next →</span> API Surface</a>
+      </nav>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default', securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: true }, sequence: { useMaxWidth: true }, er: { useMaxWidth: true } });
+</script>
+</body>
+</html>

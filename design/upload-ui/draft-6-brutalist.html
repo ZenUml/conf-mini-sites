@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini-Sites Publisher — Upload &amp; Live Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:    "#172B4D",
+          subink: "#44546F",
+          bg:     "#F7F8F9",
+          surf:   "#EBECF0",
+          line:   "#DFE1E6",
+          brand:  "#0C66E4",
+          branddk:"#0747A6",
+          pass:   "#22A06B",
+          passdk: "#1B7A52",
+          amber:  "#E2B203",
+          danger: "#CA3521",
+          dangerbg:"#FFEDEB",
+          paper:  "#FFFFFF"
+        },
+        fontFamily: {
+          display: ['"Space Grotesk"', "sans-serif"],
+          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'SFMono-Regular', 'ui-monospace', 'Menlo', 'Consolas', 'monospace']
+        },
+        boxShadow: {
+          hard:    "4px 4px 0 0 #172B4D",
+          hardsm:  "3px 3px 0 0 #172B4D",
+          hardxs:  "2px 2px 0 0 #172B4D",
+          hardbrand:"4px 4px 0 0 #0747A6",
+          hardpass: "3px 3px 0 0 #1B7A52",
+          harddanger:"3px 3px 0 0 #8C2820"
+        },
+        borderRadius: {
+          brut: "6px"
+        }
+      }
+    }
+  };
+</script>
+<style>
+  :root {
+    --step--1: 0.78rem;
+    --step-0: 0.875rem;
+    --step-1: 1rem;
+    --step-2: 1.25rem;
+    --step-3: 1.5rem;
+  }
+  * { -webkit-font-smoothing: antialiased; }
+  body { font-family: 'Inter', sans-serif; }
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+
+  /* Neo-brutalist core: hard borders + offset shadows */
+  .brut { border: 2px solid #172B4D; }
+  .brut-thin { border: 1.5px solid #172B4D; }
+
+  .label-cap {
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    font-size: 0.66rem;
+    color: #44546F;
+  }
+
+  /* Live shimmer stripe on the progress bar */
+  .progress-stripe {
+    background-image: repeating-linear-gradient(
+      -55deg,
+      rgba(255,255,255,0.0) 0px,
+      rgba(255,255,255,0.0) 10px,
+      rgba(255,255,255,0.45) 10px,
+      rgba(255,255,255,0.45) 20px
+    );
+    background-size: 200% 100%;
+    animation: stripe-move 0.9s linear infinite;
+  }
+  @keyframes stripe-move {
+    0%   { background-position: 0 0; }
+    100% { background-position: 56px 0; }
+  }
+
+  /* Soft pulsing momentum glow behind the % */
+  @keyframes momentum {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-1px); }
+  }
+  .momentum { animation: momentum 1.6s ease-in-out infinite; }
+
+  /* Live dot pulse */
+  @keyframes pip-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(34,160,107,0.55); }
+    70%  { box-shadow: 0 0 0 7px rgba(34,160,107,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,160,107,0); }
+  }
+  .pip-pulse { animation: pip-pulse 1.8s ease-out infinite; }
+
+  /* Spinner for in-progress checklist/manifest rows */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.8s linear infinite; }
+
+  /* Check tick pop-in */
+  @keyframes tick-pop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    60%  { transform: scale(1.18); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .tick-pop { animation: tick-pop 0.32s cubic-bezier(.34,1.56,.64,1) both; }
+
+  /* Scroll-reveal */
+  .reveal { opacity: 0; transform: translateY(12px); transition: opacity .5s ease, transform .5s ease; }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* Preview pane reveal — the wow beat */
+  @keyframes pane-reveal {
+    0%   { opacity: 0; transform: translateY(16px) scale(0.985); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .pane-reveal { animation: pane-reveal 0.6s cubic-bezier(.16,.84,.44,1) both; }
+
+  @keyframes glow-fade {
+    0%   { box-shadow: 0 0 0 0 rgba(12,102,228,0.0), 6px 6px 0 0 #172B4D; }
+    35%  { box-shadow: 0 0 34px 4px rgba(12,102,228,0.28), 6px 6px 0 0 #172B4D; }
+    100% { box-shadow: 0 0 0 0 rgba(12,102,228,0.0), 6px 6px 0 0 #172B4D; }
+  }
+  .glow-once { animation: glow-fade 1.6s ease-out 0.15s both; }
+
+  /* Growing bar in the embedded dashboard */
+  @keyframes bar-grow { from { height: 0; } }
+  .bar-grow { animation: bar-grow 0.7s cubic-bezier(.16,.84,.44,1) both; }
+
+  /* Middle-ellipsis truncation for long monospace paths */
+  .mid-ellipsis {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .mid-ellipsis .me-start {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .mid-ellipsis .me-end { white-space: nowrap; flex: none; }
+
+  /* Segmented switcher */
+  .seg-btn { transition: background .14s ease, color .14s ease, transform .08s ease; }
+  .seg-btn[aria-selected="true"] {
+    background: #172B4D;
+    color: #fff;
+  }
+  .seg-btn:active { transform: translateY(1px); }
+
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid #0C66E4;
+    outline-offset: 2px;
+  }
+
+  .btn-press { transition: transform .08s ease, box-shadow .08s ease; }
+  .btn-press:hover { transform: translate(-1px,-1px); }
+  .btn-press:active { transform: translate(2px,2px); box-shadow: none !important; }
+
+  .scroll-cap { scrollbar-width: thin; scrollbar-color: #B3BAC5 transparent; }
+  .scroll-cap::-webkit-scrollbar { width: 8px; }
+  .scroll-cap::-webkit-scrollbar-thumb { background: #B3BAC5; border-radius: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-stripe, .momentum, .pip-pulse, .spin, .tick-pop,
+    .pane-reveal, .glow-once, .bar-grow, .momentum { animation: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  }
+</style>
+</head>
+
+<body class="bg-bg text-ink font-sans antialiased">
+
+<!-- Faux Confluence canvas backdrop so the embedded tool reads in context -->
+<div class="min-h-screen w-full px-3 py-6 sm:px-6 sm:py-10"
+     style="background-image: radial-gradient(#DFE1E6 1.2px, transparent 1.2px); background-size: 22px 22px; background-color:#F7F8F9;">
+
+  <!-- ============ THE MACRO PANEL (capped ~720px) ============ -->
+  <main class="mx-auto w-full" style="max-width: 720px;" aria-label="Add mini-site macro panel">
+
+    <div class="bg-paper brut rounded-brut shadow-hard overflow-hidden">
+
+      <!-- ---------- PANEL HEADER ---------- -->
+      <header class="bg-paper border-b-2 border-ink">
+        <div class="flex items-center gap-3 px-4 py-3 sm:px-5">
+          <!-- Mini-Sites mark -->
+          <div class="flex-none w-9 h-9 brut-thin rounded-brut bg-brand shadow-hardxs grid place-items-center" aria-hidden="true">
+            <i data-lucide="layout-grid" class="w-5 h-5 text-white" stroke-width="2.5"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h1 class="font-display font-bold leading-none text-ink" style="font-size: 1.02rem; letter-spacing: -0.01em;">
+              Add mini-site
+            </h1>
+            <p class="mt-1 text-subink truncate" style="font-size: 0.74rem;">
+              Publishing
+              <span class="font-mono font-semibold text-ink">rel-dashboard.zip</span>
+            </p>
+          </div>
+          <button type="button"
+                  class="flex-none w-8 h-8 grid place-items-center brut-thin rounded-brut bg-paper btn-press shadow-hardxs"
+                  aria-label="Close panel and return to editor">
+            <i data-lucide="x" class="w-4 h-4 text-ink" stroke-width="2.5"></i>
+          </button>
+        </div>
+
+        <!-- ---------- STATE SWITCHER (segmented, quiet, secondary) ---------- -->
+        <div class="px-4 pb-3 sm:px-5">
+          <p class="label-cap mb-1.5">Preview both states</p>
+          <div role="tablist" aria-label="Panel state"
+               class="grid grid-cols-2 gap-0 brut-thin rounded-brut overflow-hidden bg-surf p-0.5 shadow-hardxs">
+            <button id="tab-uploading" role="tab" aria-selected="true" aria-controls="state-uploading"
+                    class="seg-btn rounded-[4px] py-1.5 font-mono font-semibold text-[0.74rem] text-subink flex items-center justify-center gap-1.5">
+              <i data-lucide="upload-cloud" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>
+              Uploading
+            </button>
+            <button id="tab-preview" role="tab" aria-selected="false" aria-controls="state-preview"
+                    class="seg-btn rounded-[4px] py-1.5 font-mono font-semibold text-[0.74rem] text-subink flex items-center justify-center gap-1.5">
+              <i data-lucide="monitor-play" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>
+              Preview
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- ================= STATE 1 · UPLOADING ================= -->
+      <section id="state-uploading" role="tabpanel" aria-labelledby="tab-uploading"
+               class="px-4 py-5 sm:px-5 sm:py-6 bg-bg">
+
+        <!-- ---- PROGRESS HERO ---- -->
+        <div class="reveal">
+          <div class="flex items-end justify-between gap-3">
+            <div class="min-w-0">
+              <p class="label-cap mb-1">Overall progress</p>
+              <div class="flex items-baseline gap-2 momentum">
+                <span id="pct-num" class="font-display font-bold leading-none text-ink"
+                      style="font-size: 3.6rem; letter-spacing: -0.04em;">68</span>
+                <span class="font-display font-bold text-brand leading-none" style="font-size: 1.6rem;">%</span>
+              </div>
+            </div>
+            <button id="cancel-btn" type="button"
+                    class="flex-none mb-1 font-mono font-semibold text-[0.74rem] text-subink px-3 py-1.5 brut-thin rounded-brut bg-paper btn-press shadow-hardxs flex items-center gap-1.5">
+              <i data-lucide="x" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>
+              Cancel
+            </button>
+          </div>
+
+          <!-- determinate bar w/ live shimmer -->
+          <div class="mt-3 brut rounded-brut bg-paper shadow-hardsm overflow-hidden" style="height: 26px;"
+               role="progressbar" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100" aria-label="Upload and validation progress">
+            <div id="pct-fill" class="h-full bg-brand progress-stripe border-r-2 border-ink"
+                 style="width: 68%; transition: width .5s ease;"></div>
+          </div>
+
+          <!-- one-line step narrator -->
+          <div class="mt-3 flex items-center gap-2.5 brut-thin rounded-brut bg-paper px-3 py-2 shadow-hardxs">
+            <span class="flex-none w-2.5 h-2.5 rounded-full bg-brand pip-pulse" style="box-shadow:none;" aria-hidden="true"></span>
+            <p class="font-mono text-[0.78rem] text-ink min-w-0 truncate">
+              <span class="text-subink">&gt;</span>
+              <span id="narrator">Scanning for secrets…</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- ---- LIVE FILE MANIFEST ---- -->
+        <div class="reveal mt-6">
+          <div class="flex items-center justify-between mb-2">
+            <p class="label-cap">File manifest</p>
+            <span class="font-mono font-semibold text-[0.72rem] text-passdk bg-pass/15 px-2 py-0.5 brut-thin rounded-brut"
+                  style="border-color:#1B7A52;" id="manifest-counter">3 of 5 uploaded</span>
+          </div>
+
+          <div class="brut rounded-brut bg-paper shadow-hardsm overflow-hidden">
+            <ul class="scroll-cap overflow-y-auto divide-y-2 divide-line" style="max-height: 178px;" id="manifest-list">
+
+              <!-- uploaded -->
+              <li class="flex items-center gap-2.5 px-3 py-2">
+                <i data-lucide="file-code-2" class="w-4 h-4 flex-none text-subink" stroke-width="2" aria-hidden="true"></i>
+                <span class="mid-ellipsis font-mono text-[0.78rem] text-ink flex-1">
+                  <span class="me-start">index.html</span>
+                </span>
+                <span class="font-mono text-[0.72rem] text-subink flex-none tabular-nums">2.1 KB</span>
+                <span class="flex-none w-5 h-5 grid place-items-center bg-pass brut-thin rounded-[4px] tick-pop" style="border-color:#1B7A52;" aria-label="uploaded">
+                  <i data-lucide="check" class="w-3 h-3 text-white" stroke-width="3.5" aria-hidden="true"></i>
+                </span>
+              </li>
+
+              <li class="flex items-center gap-2.5 px-3 py-2">
+                <i data-lucide="file-code-2" class="w-4 h-4 flex-none text-subink" stroke-width="2" aria-hidden="true"></i>
+                <span class="mid-ellipsis font-mono text-[0.78rem] text-ink flex-1">
+                  <span class="me-start">app.js</span>
+                </span>
+                <span class="font-mono text-[0.72rem] text-subink flex-none tabular-nums">14.6 KB</span>
+                <span class="flex-none w-5 h-5 grid place-items-center bg-pass brut-thin rounded-[4px] tick-pop" style="border-color:#1B7A52;" aria-label="uploaded">
+                  <i data-lucide="check" class="w-3 h-3 text-white" stroke-width="3.5" aria-hidden="true"></i>
+                </span>
+              </li>
+
+              <li class="flex items-center gap-2.5 px-3 py-2">
+                <i data-lucide="file-type" class="w-4 h-4 flex-none text-subink" stroke-width="2" aria-hidden="true"></i>
+                <span class="mid-ellipsis font-mono text-[0.78rem] text-ink flex-1">
+                  <span class="me-start">styles.css</span>
+                </span>
+                <span class="font-mono text-[0.72rem] text-subink flex-none tabular-nums">6.3 KB</span>
+                <span class="flex-none w-5 h-5 grid place-items-center bg-pass brut-thin rounded-[4px] tick-pop" style="border-color:#1B7A52;" aria-label="uploaded">
+                  <i data-lucide="check" class="w-3 h-3 text-white" stroke-width="3.5" aria-hidden="true"></i>
+                </span>
+              </li>
+
+              <!-- in progress (mid-transition) -->
+              <li class="flex items-center gap-2.5 px-3 py-2 bg-brand/5">
+                <i data-lucide="file-image" class="w-4 h-4 flex-none text-subink" stroke-width="2" aria-hidden="true"></i>
+                <span class="mid-ellipsis font-mono text-[0.78rem] text-ink flex-1 min-w-0">
+                  <span class="me-start">assets/chart.svg</span>
+                </span>
+                <span class="font-mono text-[0.72rem] text-subink flex-none tabular-nums">9.8 KB</span>
+                <span class="flex-none w-5 h-5 grid place-items-center" aria-label="uploading">
+                  <i data-lucide="loader-2" class="w-4 h-4 text-brand spin" stroke-width="2.5" aria-hidden="true"></i>
+                </span>
+              </li>
+
+              <!-- pending -->
+              <li class="flex items-center gap-2.5 px-3 py-2">
+                <i data-lucide="file-json-2" class="w-4 h-4 flex-none text-subink/60" stroke-width="2" aria-hidden="true"></i>
+                <span class="mid-ellipsis font-mono text-[0.78rem] text-subink flex-1 min-w-0">
+                  <span class="me-start">data/items.json</span>
+                </span>
+                <span class="font-mono text-[0.72rem] text-subink/70 flex-none tabular-nums">3.4 KB</span>
+                <span class="flex-none w-5 h-5 grid place-items-center" aria-label="pending">
+                  <span class="w-2 h-2 rounded-full bg-line" style="outline:1.5px solid #B3BAC5;"></span>
+                </span>
+              </li>
+
+            </ul>
+          </div>
+        </div>
+
+        <!-- ---- VALIDATION & SECURITY CHECKLIST ---- -->
+        <div class="reveal mt-6">
+          <p class="label-cap mb-2">Validation &amp; security</p>
+          <ul class="brut rounded-brut bg-paper shadow-hardsm divide-y-2 divide-line overflow-hidden">
+
+            <!-- pass: root index -->
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="flex-none w-6 h-6 grid place-items-center bg-pass brut-thin rounded-[4px] tick-pop" style="border-color:#1B7A52;" aria-hidden="true">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-white" stroke-width="3.5"></i>
+              </span>
+              <span class="text-[0.82rem] text-ink flex-1 font-medium">index.html found at root</span>
+              <span class="font-mono text-[0.66rem] font-semibold uppercase tracking-wider text-passdk">Passed</span>
+            </li>
+
+            <!-- pass: relative paths -->
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="flex-none w-6 h-6 grid place-items-center bg-pass brut-thin rounded-[4px] tick-pop" style="border-color:#1B7A52;" aria-hidden="true">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-white" stroke-width="3.5"></i>
+              </span>
+              <span class="text-[0.82rem] text-ink flex-1 font-medium">All paths relative
+                <span class="text-subink font-normal">— no absolute URLs</span>
+              </span>
+              <span class="font-mono text-[0.66rem] font-semibold uppercase tracking-wider text-passdk">Passed</span>
+            </li>
+
+            <!-- pass: caps with real numbers -->
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="flex-none w-6 h-6 grid place-items-center bg-pass brut-thin rounded-[4px] tick-pop" style="border-color:#1B7A52;" aria-hidden="true">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-white" stroke-width="3.5"></i>
+              </span>
+              <span class="text-[0.82rem] text-ink flex-1 font-medium">Within size &amp; file-count limits
+                <span class="font-mono text-[0.72rem] text-subink font-normal block sm:inline">5 files · 412 KB / 5 MB</span>
+              </span>
+              <span class="font-mono text-[0.66rem] font-semibold uppercase tracking-wider text-passdk">Passed</span>
+            </li>
+
+            <!-- in progress: secret scan (calm, shield, neutral) -->
+            <li class="flex items-center gap-3 px-3 py-2.5 bg-brand/5">
+              <span class="flex-none w-6 h-6 grid place-items-center bg-paper brut-thin rounded-[4px]" aria-hidden="true">
+                <i data-lucide="shield" class="w-3.5 h-3.5 text-brand" stroke-width="2.5"></i>
+              </span>
+              <span class="text-[0.82rem] text-ink flex-1 font-medium flex items-center gap-2">
+                Scanning for leaked secrets
+                <i data-lucide="loader-2" class="w-3.5 h-3.5 text-brand spin" stroke-width="2.5" aria-hidden="true"></i>
+              </span>
+              <span class="font-mono text-[0.66rem] font-semibold uppercase tracking-wider text-brand">In&nbsp;progress</span>
+            </li>
+
+          </ul>
+
+          <!-- toggle: show the bounded secret-detected error variant -->
+          <button id="show-error" type="button"
+                  class="mt-3 w-full font-mono text-[0.7rem] text-subink flex items-center justify-center gap-1.5 py-1.5 brut-thin rounded-brut bg-surf btn-press shadow-hardxs">
+            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-danger" stroke-width="2.5" aria-hidden="true"></i>
+            <span id="show-error-label">Demo: show the secret-detected hard-stop</span>
+          </button>
+
+          <!-- ---- INLINE SECRET ERROR (bounded, de-emphasized, replaces only the security outcome) ---- -->
+          <div id="secret-error" class="hidden mt-3">
+            <div class="brut rounded-brut bg-dangerbg shadow-harddanger overflow-hidden" style="border-color:#CA3521;" role="alert">
+              <div class="flex items-start gap-3 px-3 py-2.5 border-b-2" style="border-color:#CA3521;">
+                <span class="flex-none w-6 h-6 grid place-items-center bg-danger brut-thin rounded-[4px]" style="border-color:#8C2820;" aria-hidden="true">
+                  <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-white" stroke-width="2.5"></i>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[0.82rem] font-semibold" style="color:#8C2820;">Secret detected — publish stopped</p>
+                  <p class="font-mono text-[0.72rem] mt-0.5" style="color:#A3392F;">
+                    <span class="font-semibold">config.js:14</span> — AWS access key
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-2 px-3 py-2">
+                <span class="font-mono text-[0.66rem] uppercase tracking-wider" style="color:#A3392F;">Bounded · 1 issue</span>
+                <button type="button"
+                        class="font-mono font-semibold text-[0.72rem] text-white bg-danger px-3 py-1.5 brut-thin rounded-brut btn-press"
+                        style="border-color:#8C2820; box-shadow: 2px 2px 0 0 #8C2820;">
+                  Remove secret &amp; re-upload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= STATE 2 · PREVIEW / DONE ================= -->
+      <section id="state-preview" role="tabpanel" aria-labelledby="tab-preview"
+               class="hidden px-4 py-5 sm:px-5 sm:py-6 bg-bg">
+
+        <!-- ---- PUBLISHED CONFIRMATION ---- -->
+        <div class="reveal flex items-start justify-between gap-3 flex-wrap">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="flex-none w-2.5 h-2.5 rounded-full bg-pass pip-pulse" aria-hidden="true"></span>
+              <h2 class="font-display font-bold text-ink leading-none" style="font-size: 1.18rem; letter-spacing:-0.02em;">
+                Published
+              </h2>
+              <span class="font-display font-bold text-passdk leading-none" style="font-size:1.18rem;">·</span>
+              <span class="text-pass font-semibold text-[0.86rem]">Live on this page</span>
+            </div>
+            <p class="mt-1.5 text-subink text-[0.78rem]">Embedded below. Renders for anyone who can view this page.</p>
+          </div>
+        </div>
+
+        <!-- ---- LIVE PREVIEW PANE (the wow moment) ---- -->
+        <div id="preview-pane" class="reveal mt-4">
+          <div class="glow-once pane-reveal brut rounded-brut bg-paper overflow-hidden" style="box-shadow: 6px 6px 0 0 #172B4D;">
+
+            <!-- browser chrome -->
+            <div class="flex items-center gap-2 px-3 py-2 bg-surf border-b-2 border-ink">
+              <div class="flex items-center gap-1.5 flex-none" aria-hidden="true">
+                <span class="w-3 h-3 rounded-full bg-danger brut-thin" style="border-width:1.5px;"></span>
+                <span class="w-3 h-3 rounded-full bg-amber brut-thin" style="border-width:1.5px;"></span>
+                <span class="w-3 h-3 rounded-full bg-pass brut-thin" style="border-width:1.5px;"></span>
+              </div>
+              <!-- faux address bar = instance ref -->
+              <div class="flex-1 min-w-0 flex items-center gap-1.5 bg-paper brut-thin rounded-[4px] px-2 py-1">
+                <i data-lucide="lock" class="w-3 h-3 flex-none text-pass" stroke-width="2.5" aria-hidden="true"></i>
+                <span class="mid-ellipsis font-mono text-[0.68rem] text-subink flex-1 min-w-0">
+                  <span class="me-start">mini-site:rel-dashboard-7f3a</span>
+                </span>
+                <span class="flex-none font-mono text-[0.6rem] font-semibold uppercase tracking-wider text-pass">Live</span>
+              </div>
+              <button type="button" class="flex-none w-6 h-6 grid place-items-center" aria-label="Reload preview">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-subink" stroke-width="2.5" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <!-- embedded mini-site: filterable dashboard -->
+            <div class="p-3.5 sm:p-4 bg-paper" style="background-image: radial-gradient(#EBECF0 1px, transparent 1px); background-size: 16px 16px;">
+
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <p class="font-display font-bold text-ink leading-none" style="font-size:0.98rem;">Release health</p>
+                  <p class="font-mono text-[0.64rem] text-subink mt-1">source · <span class="font-semibold">data/items.json</span></p>
+                </div>
+                <!-- filter chips, one active -->
+                <div class="flex items-center gap-1.5" role="group" aria-label="Time filter">
+                  <button class="dash-chip font-mono text-[0.66rem] font-semibold px-2 py-1 brut-thin rounded-brut bg-ink text-white shadow-hardxs" aria-pressed="true">7d</button>
+                  <button class="dash-chip font-mono text-[0.66rem] font-semibold px-2 py-1 brut-thin rounded-brut bg-paper text-subink" aria-pressed="false">30d</button>
+                  <button class="dash-chip font-mono text-[0.66rem] font-semibold px-2 py-1 brut-thin rounded-brut bg-paper text-subink" aria-pressed="false">90d</button>
+                </div>
+              </div>
+
+              <!-- metric tiles -->
+              <div class="grid grid-cols-3 gap-2 mt-3">
+                <div class="brut-thin rounded-brut bg-paper px-2.5 py-2 shadow-hardxs">
+                  <p class="font-mono text-[0.58rem] uppercase tracking-wider text-subink">Deploys</p>
+                  <p class="font-display font-bold text-ink leading-none mt-1" style="font-size:1.15rem;">128</p>
+                </div>
+                <div class="brut-thin rounded-brut bg-paper px-2.5 py-2 shadow-hardxs">
+                  <p class="font-mono text-[0.58rem] uppercase tracking-wider text-subink">Pass rate</p>
+                  <p class="font-display font-bold text-passdk leading-none mt-1" style="font-size:1.15rem;">94%</p>
+                </div>
+                <div class="brut-thin rounded-brut bg-paper px-2.5 py-2 shadow-hardxs">
+                  <p class="font-mono text-[0.58rem] uppercase tracking-wider text-subink">P95</p>
+                  <p class="font-display font-bold text-ink leading-none mt-1" style="font-size:1.15rem;">1.2s</p>
+                </div>
+              </div>
+
+              <!-- bar chart (implies assets/chart.svg) -->
+              <div class="mt-3 brut-thin rounded-brut bg-paper px-3 pt-2.5 pb-2 shadow-hardxs">
+                <div class="flex items-center justify-between">
+                  <p class="font-mono text-[0.62rem] text-subink">Builds / day</p>
+                  <p class="font-mono text-[0.58rem] text-subink">render · <span class="font-semibold">assets/chart.svg</span></p>
+                </div>
+                <div class="mt-2 flex items-end justify-between gap-1.5" style="height: 64px;" aria-hidden="true">
+                  <div class="bar-grow flex-1 bg-brand brut-thin"  style="height: 44%; animation-delay:.05s;"></div>
+                  <div class="bar-grow flex-1 bg-brand brut-thin"  style="height: 66%; animation-delay:.10s;"></div>
+                  <div class="bar-grow flex-1 bg-brand brut-thin"  style="height: 38%; animation-delay:.15s;"></div>
+                  <div class="bar-grow flex-1 bg-pass  brut-thin"  style="height: 92%; animation-delay:.20s;"></div>
+                  <div class="bar-grow flex-1 bg-brand brut-thin"  style="height: 58%; animation-delay:.25s;"></div>
+                  <div class="bar-grow flex-1 bg-brand brut-thin"  style="height: 72%; animation-delay:.30s;"></div>
+                  <div class="bar-grow flex-1 bg-brand brut-thin"  style="height: 50%; animation-delay:.35s;"></div>
+                </div>
+                <div class="mt-1 flex items-center justify-between font-mono text-[0.55rem] text-subink/80">
+                  <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- INSTANCE REFERENCE (copyable) ---- -->
+        <div class="reveal mt-4">
+          <p class="label-cap mb-1.5">Instance reference</p>
+          <div class="flex items-stretch gap-2">
+            <code class="flex-1 min-w-0 brut-thin rounded-brut bg-surf px-3 py-2 font-mono text-[0.78rem] text-ink shadow-hardxs flex items-center">
+              <span class="mid-ellipsis flex-1"><span class="me-start">mini-site:rel-dashboard-7f3a</span></span>
+            </code>
+            <button id="copy-ref" type="button"
+                    class="flex-none font-mono font-semibold text-[0.72rem] text-ink px-3 brut-thin rounded-brut bg-paper btn-press shadow-hardxs flex items-center gap-1.5"
+                    aria-label="Copy instance reference">
+              <i data-lucide="copy" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>
+              <span id="copy-ref-label">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ---- BUNDLE SUMMARY CHIPS (receipt) ---- -->
+        <div class="reveal mt-4">
+          <p class="label-cap mb-1.5">Bundle summary</p>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-mono text-[0.72rem] font-semibold text-ink px-2.5 py-1 brut-thin rounded-brut bg-paper shadow-hardxs flex items-center gap-1.5">
+              <i data-lucide="files" class="w-3.5 h-3.5 text-subink" stroke-width="2.5" aria-hidden="true"></i>5 files
+            </span>
+            <span class="font-mono text-[0.72rem] font-semibold text-ink px-2.5 py-1 brut-thin rounded-brut bg-paper shadow-hardxs flex items-center gap-1.5">
+              <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-subink" stroke-width="2.5" aria-hidden="true"></i>412 KB
+            </span>
+            <span class="font-mono text-[0.72rem] font-semibold px-2.5 py-1 brut-thin rounded-brut shadow-hardxs flex items-center gap-1.5"
+                  style="background:#E3F5EC; color:#1B7A52; border-color:#1B7A52;">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>No secrets found
+            </span>
+            <span class="font-mono text-[0.72rem] font-semibold text-subink px-2.5 py-1 brut-thin rounded-brut bg-surf shadow-hardxs flex items-center gap-1.5">
+              <i data-lucide="box" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>Sandboxed
+            </span>
+          </div>
+        </div>
+
+        <!-- ---- RESULT ACTIONS ---- -->
+        <div class="reveal mt-5">
+          <!-- primary dominant -->
+          <button type="button"
+                  class="w-full font-display font-bold text-white text-[0.95rem] bg-brand py-3 brut rounded-brut shadow-hardbrand btn-press flex items-center justify-center gap-2">
+            <i data-lucide="plus" class="w-4.5 h-4.5" stroke-width="3" aria-hidden="true"></i>
+            Insert mini-site
+          </button>
+
+          <!-- secondaries -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2.5">
+            <button type="button" class="font-mono font-semibold text-[0.74rem] text-ink py-2 brut-thin rounded-brut bg-paper btn-press shadow-hardxs flex items-center justify-center gap-1.5">
+              <i data-lucide="maximize-2" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>Open fullscreen
+            </button>
+            <button type="button" class="font-mono font-semibold text-[0.74rem] text-ink py-2 brut-thin rounded-brut bg-paper btn-press shadow-hardxs flex items-center justify-center gap-1.5">
+              <i data-lucide="upload" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i>Replace bundle
+            </button>
+            <button id="copy-link" type="button" class="font-mono font-semibold text-[0.74rem] text-ink py-2 brut-thin rounded-brut bg-paper btn-press shadow-hardxs flex items-center justify-center gap-1.5">
+              <i data-lucide="link" class="w-3.5 h-3.5" stroke-width="2.5" aria-hidden="true"></i><span id="copy-link-label">Copy link</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ---- PERMISSION-GATED TRUST LINE ---- -->
+        <p class="reveal mt-4 flex items-center gap-2 text-subink text-[0.72rem]">
+          <i data-lucide="lock" class="w-3.5 h-3.5 flex-none" stroke-width="2.5" aria-hidden="true"></i>
+          Only people who can view this page can open this mini-site.
+        </p>
+      </section>
+
+      <!-- ---------- PANEL FOOTER ---------- -->
+      <footer class="border-t-2 border-ink bg-surf px-4 py-2.5 sm:px-5 flex items-center justify-between gap-2">
+        <span class="font-mono text-[0.62rem] uppercase tracking-widest text-subink">Mini-Sites Publisher</span>
+        <span class="font-mono text-[0.62rem] text-subink flex items-center gap-1.5">
+          <i data-lucide="shield" class="w-3 h-3" stroke-width="2.5" aria-hidden="true"></i>Validated · Sandboxed embed
+        </span>
+      </footer>
+
+    </div>
+
+    <p class="mt-4 text-center font-mono text-[0.64rem] text-subink/70">
+      Embedded tool · capped 720px · usable to 375px
+    </p>
+  </main>
+</div>
+
+<!-- lucide icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  (function () {
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (window.lucide) lucide.createIcons();
+
+    // ---- State switcher ----
+    var tabUploading = document.getElementById('tab-uploading');
+    var tabPreview   = document.getElementById('tab-preview');
+    var paneUploading= document.getElementById('state-uploading');
+    var panePreview  = document.getElementById('state-preview');
+
+    function reRevealIn(container) {
+      var els = container.querySelectorAll('.reveal');
+      els.forEach(function (el, i) {
+        el.classList.remove('in');
+        if (reduce) { el.classList.add('in'); return; }
+        setTimeout(function () { el.classList.add('in'); }, 40 + i * 55);
+      });
+    }
+    // Re-fire the preview pane wow animation each time you enter State 2
+    function refirePreview() {
+      if (reduce) return;
+      var pane = panePreview.querySelector('.glow-once');
+      if (!pane) return;
+      pane.classList.remove('glow-once', 'pane-reveal');
+      void pane.offsetWidth;
+      pane.classList.add('glow-once', 'pane-reveal');
+      panePreview.querySelectorAll('.bar-grow').forEach(function (b) {
+        var d = b.style.animationDelay;
+        b.style.animation = 'none'; void b.offsetWidth;
+        b.style.animation = ''; b.style.animationDelay = d;
+      });
+    }
+
+    function select(which) {
+      var up = which === 'uploading';
+      tabUploading.setAttribute('aria-selected', up ? 'true' : 'false');
+      tabPreview.setAttribute('aria-selected', up ? 'false' : 'true');
+      paneUploading.classList.toggle('hidden', !up);
+      panePreview.classList.toggle('hidden', up);
+      if (up) { reRevealIn(paneUploading); }
+      else    { reRevealIn(panePreview); refirePreview(); }
+    }
+    tabUploading.addEventListener('click', function () { select('uploading'); });
+    tabPreview.addEventListener('click', function () { select('preview'); });
+
+    // ---- Live progress simulation (State 1) ----
+    var pctNum = document.getElementById('pct-num');
+    var pctFill = document.getElementById('pct-fill');
+    var bar = pctFill ? pctFill.parentElement : null;
+    var narrator = document.getElementById('narrator');
+    var steps = [
+      'Uploading 5 files…',
+      'Validating bundle structure…',
+      'Checking relative paths…',
+      'Scanning for secrets…',
+      'Provisioning embed…'
+    ];
+    var pct = 68, stepIdx = 3;
+    if (!reduce && pctNum) {
+      setInterval(function () {
+        if (paneUploading.classList.contains('hidden')) return;
+        pct += Math.random() * 4;
+        if (pct >= 96) pct = 62;          // loop so the panel keeps feeling alive in the demo
+        var shown = Math.round(pct);
+        pctNum.textContent = shown;
+        pctFill.style.width = shown + '%';
+        if (bar) bar.setAttribute('aria-valuenow', shown);
+        if (Math.random() < 0.22) {
+          stepIdx = (stepIdx + 1) % steps.length;
+          narrator.textContent = steps[stepIdx];
+        }
+      }, 1100);
+    }
+
+    // ---- Secret-error toggle (bounded, demo only) ----
+    var showErr = document.getElementById('show-error');
+    var secretErr = document.getElementById('secret-error');
+    var showErrLabel = document.getElementById('show-error-label');
+    if (showErr && secretErr && showErrLabel) {
+      showErr.addEventListener('click', function () {
+        var hidden = secretErr.classList.toggle('hidden');  // true when now hidden
+        var visible = !hidden;
+        showErrLabel.textContent = visible ? 'Demo: hide the secret-detected hard-stop'
+                                           : 'Demo: show the secret-detected hard-stop';
+        if (visible) {
+          secretErr.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+        }
+      });
+    }
+
+    // ---- Dashboard filter chips (interactive active state) ----
+    document.querySelectorAll('.dash-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('.dash-chip').forEach(function (c) {
+          c.setAttribute('aria-pressed', 'false');
+          c.classList.remove('bg-ink', 'text-white', 'shadow-hardxs');
+          c.classList.add('bg-paper', 'text-subink');
+        });
+        chip.setAttribute('aria-pressed', 'true');
+        chip.classList.remove('bg-paper', 'text-subink');
+        chip.classList.add('bg-ink', 'text-white', 'shadow-hardxs');
+      });
+    });
+
+    // ---- Copy controls ----
+    function wireCopy(btnId, labelId, text, doneLabel) {
+      var btn = document.getElementById(btnId);
+      var label = document.getElementById(labelId);
+      if (!btn || !label) return;
+      var orig = label.textContent;
+      btn.addEventListener('click', function () {
+        var done = function () {
+          label.textContent = doneLabel;
+          setTimeout(function () { label.textContent = orig; }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, done);
+        } else { done(); }
+      });
+    }
+    wireCopy('copy-ref', 'copy-ref-label', 'mini-site:rel-dashboard-7f3a', 'Copied');
+    wireCopy('copy-link', 'copy-link-label', 'https://confluence.example.com/x/mini-site:rel-dashboard-7f3a', 'Copied');
+
+    // ---- Cancel ----
+    var cancel = document.getElementById('cancel-btn');
+    if (cancel) {
+      cancel.addEventListener('click', function () {
+        cancel.innerHTML = '<span class="font-mono">Cancelling…</span>';
+      });
+    }
+
+    // ---- Initial scroll-reveal for the active (Uploading) state ----
+    reRevealIn(paneUploading);
+  })();
+</script>
+</body>
+</html>

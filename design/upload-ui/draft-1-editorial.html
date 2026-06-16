@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Mini-Sites Publisher — Upload &amp; Live Preview</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand:   { blue: '#0C66E4', blueHover: '#0055CC', blueDeep: '#09326C' },
+          ink:     { 900: '#091E42', 800: '#172B4D', 600: '#44546F', 500: '#626F86', 400: '#8590A2' },
+          surf:    { page: '#F7F8F9', sunk: '#F1F2F4', line: '#DFE1E6', line2: '#EBECF0', card: '#FFFFFF' },
+          ok:      { base: '#22A06B', deep: '#216E4E', soft: '#DCFFF1', line: '#7EE2B8' },
+          warn:    { base: '#E2B203' },
+          stop:    { base: '#CA3521', deep: '#AE2A19', soft: '#FFECEB', line: '#FD9891' },
+        },
+        fontFamily: {
+          display: ['Fraunces', 'Georgia', 'serif'],
+          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'SFMono-Regular', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        },
+        fontSize: {
+          'kick':  ['11px', { lineHeight: '1', letterSpacing: '0.16em' }],
+          'lbl':   ['11px', { lineHeight: '1.2', letterSpacing: '0.07em' }],
+          'meta':  ['12px', { lineHeight: '1.4' }],
+          'body':  ['14px', { lineHeight: '1.55' }],
+          'mono':  ['12.5px', { lineHeight: '1.4' }],
+        },
+        borderRadius: { xs: '4px', sm: '6px', DEFAULT: '8px', lg: '10px', xl: '14px' },
+        boxShadow: {
+          panel: '0 1px 1px rgba(9,30,66,0.10), 0 0 1px rgba(9,30,66,0.18)',
+          raise: '0 4px 8px -2px rgba(9,30,66,0.14), 0 0 1px rgba(9,30,66,0.20)',
+          reveal:'0 18px 40px -18px rgba(12,102,228,0.40), 0 2px 6px rgba(9,30,66,0.10)',
+        },
+      },
+    },
+  };
+</script>
+
+<style>
+  :root { --ease: cubic-bezier(0.16,1,0.3,1); }
+
+  html, body { background: #E9EBEE; }
+  body { font-family: 'Inter', sans-serif; color: #172B4D; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+  .display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
+  .num-tab { font-variant-numeric: tabular-nums; }
+
+  /* ---- editorial hairline kicker ---- */
+  .kicker-rule::before {
+    content: ""; display: inline-block; width: 26px; height: 2px;
+    background: currentColor; vertical-align: middle; margin-right: 10px; opacity: .9;
+  }
+
+  /* ---- segmented switcher ---- */
+  .seg { position: relative; }
+  .seg-thumb {
+    position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px);
+    background: #fff; border-radius: 6px; box-shadow: 0 1px 2px rgba(9,30,66,.16);
+    transition: transform .42s var(--ease);
+  }
+  .seg[data-on="2"] .seg-thumb { transform: translateX(100%); }
+
+  /* ---- progress bar shimmer ---- */
+  .bar-fill { transition: width 1.1s var(--ease); }
+  .bar-shimmer {
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0) 35%, rgba(255,255,255,.55) 50%, rgba(255,255,255,0) 65%, transparent 100%);
+    background-size: 220% 100%;
+    animation: shimmer 1.7s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 220% 0; } to { background-position: -120% 0; } }
+
+  .stripe {
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.22) 0 8px, rgba(255,255,255,0) 8px 16px);
+    animation: stripe-move 1s linear infinite;
+  }
+  @keyframes stripe-move { from { background-position: 0 0; } to { background-position: 32px 0; } }
+
+  /* ---- spinner ---- */
+  .spin { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- check pop ---- */
+  .pop { animation: pop .42s var(--ease) both; }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+
+  /* ---- row settle ---- */
+  .settle { animation: settle .45s var(--ease) both; }
+  @keyframes settle { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+  /* ---- live pulse dot ---- */
+  .pulse::after {
+    content: ""; position: absolute; inset: 0; border-radius: 9999px;
+    box-shadow: 0 0 0 0 rgba(34,160,107,.55); animation: pulse 1.9s var(--ease) infinite;
+  }
+  @keyframes pulse { to { box-shadow: 0 0 0 9px rgba(34,160,107,0); } }
+
+  /* ---- preview reveal ---- */
+  .reveal { animation: reveal .85s var(--ease) both; }
+  @keyframes reveal { 0% { opacity: 0; transform: translateY(14px) scale(.985); } 100% { opacity: 1; transform: none; } }
+  .glow-once { animation: glow 1.5s var(--ease) both; }
+  @keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(12,102,228,0); } 28% { box-shadow: 0 22px 50px -18px rgba(12,102,228,.5), 0 0 0 1px rgba(12,102,228,.35); } 100% { box-shadow: 0 18px 40px -18px rgba(12,102,228,.30), 0 0 0 1px rgba(223,225,230,1); } }
+
+  /* ---- chart bars grow ---- */
+  .gbar { transition: height .7s var(--ease), background-color .25s ease; }
+
+  /* ---- big numeral count animation hook ---- */
+  .lift { animation: lift .7s var(--ease) both; }
+  @keyframes lift { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  /* ---- focus ring (ADS-style) ---- */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #0C66E4; outline-offset: 2px; border-radius: 5px;
+  }
+
+  /* ---- middle-ellipsis path ---- */
+  .path-mid { display: inline-flex; min-width: 0; max-width: 100%; }
+  .path-mid .p-head { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .path-mid .p-tail { flex: none; white-space: nowrap; }
+
+  .scroll-thin::-webkit-scrollbar { width: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #D5D9E0; border-radius: 9999px; border: 2px solid #fff; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+  .state-pane[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .001ms !important; }
+    .bar-shimmer, .stripe { display: none; }
+  }
+</style>
+</head>
+
+<body class="min-h-screen flex items-start sm:items-center justify-center p-3 sm:p-7">
+
+  <!-- ============================================================= -->
+  <!-- EDITORIAL PANEL FRAME — caps at ~720px, the Confluence macro  -->
+  <!-- ============================================================= -->
+  <main class="w-full max-w-[720px] bg-surf-card rounded-xl shadow-panel ring-1 ring-black/[0.06] overflow-hidden"
+        aria-label="Add mini-site — upload and live preview">
+
+    <!-- ───────────────────────── PANEL HEADER ───────────────────────── -->
+    <header class="flex items-center gap-3 px-5 sm:px-7 pt-4 pb-3.5 border-b border-surf-line2">
+      <!-- Mini-Sites mark -->
+      <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand-blue text-white shrink-0" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M9.6 6.5h.01"/>
+        </svg>
+      </span>
+      <div class="min-w-0 flex-1">
+        <h1 class="text-[15px] font-semibold text-ink-800 leading-tight">Add mini-site</h1>
+        <p class="text-meta text-ink-500 leading-tight mt-0.5 flex items-center gap-1.5 min-w-0">
+          <span class="shrink-0">Publishing</span>
+          <span class="font-mono text-[12px] text-ink-600 truncate">rel-dashboard.zip</span>
+        </p>
+      </div>
+      <button type="button" aria-label="Close and return to editor"
+        class="grid place-items-center w-8 h-8 rounded-lg text-ink-500 hover:bg-surf-sunk hover:text-ink-800 transition-colors shrink-0">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+
+    <!-- ───────────────────────── STATE SWITCHER ─────────────────────── -->
+    <div class="px-5 sm:px-7 pt-3.5 pb-1">
+      <div class="flex items-center justify-between gap-3 mb-2">
+        <span class="text-lbl font-semibold uppercase text-ink-400">Review state</span>
+        <span class="text-[10.5px] text-ink-400">Toggle to preview both</span>
+      </div>
+      <div id="switcher" data-on="1" role="tablist" aria-label="Publish state"
+           class="seg relative grid grid-cols-2 w-full p-1 bg-surf-sunk rounded-lg select-none">
+        <span class="seg-thumb" aria-hidden="true"></span>
+        <button id="tab-1" role="tab" aria-selected="true" aria-controls="state-uploading"
+          class="relative z-10 h-8 rounded-md text-[12.5px] font-semibold text-ink-800 inline-flex items-center justify-center gap-1.5 transition-colors">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          Uploading
+        </button>
+        <button id="tab-2" role="tab" aria-selected="false" aria-controls="state-preview"
+          class="relative z-10 h-8 rounded-md text-[12.5px] font-semibold text-ink-500 inline-flex items-center justify-center gap-1.5 transition-colors">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.6"/></svg>
+          Preview
+        </button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- STATE 1 · UPLOADING                                              -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section id="state-uploading" role="tabpanel" aria-labelledby="tab-1" class="state-pane px-5 sm:px-7 pt-5 pb-6">
+
+      <!-- ── PROGRESS HERO ── editorial: kicker + giant numeral ── -->
+      <div class="lift">
+        <p class="kicker-rule text-kick font-semibold uppercase text-brand-blue mb-2.5">Streaming bundle</p>
+
+        <div class="flex items-end justify-between gap-4">
+          <div class="flex items-baseline gap-1 leading-none">
+            <span id="pct-num" class="display num-tab text-[76px] sm:text-[92px] font-semibold tracking-[-0.03em] text-ink-900">0</span>
+            <span class="display text-[30px] sm:text-[34px] font-medium text-ink-400 -translate-y-1">%</span>
+          </div>
+          <button id="btn-cancel" type="button"
+            class="mb-3 inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-[12.5px] font-medium text-ink-600 hover:text-stop-deep hover:bg-stop-soft transition-colors">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            Cancel
+          </button>
+        </div>
+
+        <!-- determinate bar with shimmer + stripe -->
+        <div class="relative mt-1 h-2.5 w-full rounded-full bg-surf-line2 overflow-hidden" role="progressbar" aria-label="Overall upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bar-root">
+          <div id="bar-fill" class="bar-fill stripe relative h-full rounded-full bg-brand-blue" style="width:0%">
+            <span class="bar-shimmer" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <!-- one-line status narrator -->
+        <p class="mt-3 flex items-center gap-2 text-body text-ink-600">
+          <svg class="spin shrink-0" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0C66E4" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg>
+          <span id="narrator" aria-live="polite">Uploading 5 files…</span>
+        </p>
+      </div>
+
+      <!-- ── LIVE FILE MANIFEST ── -->
+      <div class="mt-7">
+        <div class="flex items-baseline justify-between mb-2.5">
+          <h2 class="text-lbl font-semibold uppercase text-ink-600">File manifest</h2>
+          <span class="font-mono text-[11.5px] text-ink-500"><span id="up-count">3</span> of 5 uploaded</span>
+        </div>
+
+        <ul id="manifest" class="scroll-thin max-h-[176px] overflow-y-auto rounded-lg border border-surf-line2 divide-y divide-surf-line2 bg-surf-card">
+          <!-- rows injected by JS -->
+        </ul>
+      </div>
+
+      <!-- ── VALIDATION & SECURITY CHECKLIST ── -->
+      <div class="mt-6">
+        <h2 class="text-lbl font-semibold uppercase text-ink-600 mb-2.5">Validation &amp; security</h2>
+
+        <ul id="checklist" class="rounded-lg border border-surf-line2 bg-surf-card divide-y divide-surf-line2 overflow-hidden">
+          <!-- check rows injected by JS -->
+        </ul>
+
+        <!-- DE-EMPHASIZED secret-error variant (hidden by default, toggle for review) -->
+        <div class="mt-3 flex items-center justify-between gap-3">
+          <p class="text-[10.5px] text-ink-400 leading-snug">Reviewer aid — the only error variant, normally never shown.</p>
+          <button id="toggle-secret" type="button"
+            class="shrink-0 text-[11px] font-medium text-ink-500 underline decoration-dotted underline-offset-2 hover:text-stop-base transition-colors">
+            Show secret-detected state
+          </button>
+        </div>
+
+        <div id="secret-notice" hidden
+          class="mt-2 rounded-lg border border-stop-line bg-stop-soft px-4 py-3"
+          role="status" aria-live="off">
+          <div class="flex items-start gap-2.5">
+            <span class="grid place-items-center w-5 h-5 rounded-full bg-stop-base text-white shrink-0 mt-0.5" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[13px] font-semibold text-stop-deep leading-tight">Secret detected — publish stopped</p>
+              <p class="mt-1 text-meta text-stop-deep/85">
+                <span class="font-mono text-[12px] bg-white/70 rounded-xs px-1 py-0.5 text-stop-deep">config.js:14</span>
+                <span class="ml-1">AWS access key (<span class="font-mono">AKIA…</span>) found in source.</span>
+              </p>
+              <button type="button"
+                class="mt-2.5 inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-stop-base hover:bg-stop-deep text-white text-[12.5px] font-semibold transition-colors">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+                Remove secret &amp; re-upload
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <!-- STATE 2 · PREVIEW / DONE                                         -->
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <section id="state-preview" role="tabpanel" aria-labelledby="tab-2" class="state-pane px-5 sm:px-7 pt-5 pb-6" hidden>
+
+      <!-- ── PUBLISHED CONFIRMATION ── editorial headline ── -->
+      <div class="lift">
+        <p class="kicker-rule text-kick font-semibold uppercase text-ok-base mb-2.5">Published · live on this page</p>
+        <div class="flex items-end justify-between gap-3">
+          <h2 class="display text-[46px] sm:text-[58px] font-semibold tracking-[-0.025em] text-ink-900 leading-[0.95]">It’s live.</h2>
+          <span class="relative inline-flex items-center gap-1.5 mb-2 px-2.5 h-7 rounded-full bg-ok-soft text-ok-deep text-[12px] font-semibold">
+            <span class="relative inline-grid place-items-center w-2 h-2">
+              <span class="pulse absolute inset-0 rounded-full"></span>
+              <span class="w-2 h-2 rounded-full bg-ok-base"></span>
+            </span>
+            Live
+          </span>
+        </div>
+      </div>
+
+      <!-- ── instance reference (copyable) ── -->
+      <div class="mt-4 flex items-center gap-2 rounded-lg border border-surf-line2 bg-surf-page px-3 py-2">
+        <span class="text-lbl font-semibold uppercase text-ink-400 shrink-0">Ref</span>
+        <code id="instance-ref" class="font-mono text-[12.5px] text-ink-800 truncate flex-1 select-all">mini-site:rel-dashboard-7f3a</code>
+        <button id="btn-copy-ref" type="button" aria-label="Copy instance reference"
+          class="shrink-0 inline-flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-surf-line text-[12px] font-medium text-ink-600 bg-white hover:bg-surf-sunk transition-colors">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span id="copy-ref-label">Copy</span>
+        </button>
+      </div>
+
+      <!-- ════ THE WOW · LIVE PREVIEW PANE ════ -->
+      <div id="preview-pane" class="mt-5 reveal glow-once rounded-xl overflow-hidden border border-surf-line bg-white">
+
+        <!-- browser chrome -->
+        <div class="flex items-center gap-2.5 px-3.5 h-10 bg-surf-sunk border-b border-surf-line2">
+          <span class="flex items-center gap-1.5" aria-hidden="true">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#FF5F57]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#28C840]"></span>
+          </span>
+          <div class="flex-1 flex items-center gap-2 h-6 px-2.5 rounded-md bg-white border border-surf-line2 min-w-0">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#22A06B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            <span class="font-mono text-[11px] text-ink-500 truncate">mini-site:rel-dashboard-7f3a · live preview</span>
+          </div>
+          <button type="button" aria-label="Reload preview" class="grid place-items-center w-6 h-6 rounded text-ink-400 hover:text-ink-700 hover:bg-white transition-colors">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+          </button>
+        </div>
+
+        <!-- rendered mini-site: filterable dashboard (sourced from data/items.json) -->
+        <div class="px-4 sm:px-6 py-5 bg-white">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p class="text-kick font-semibold uppercase text-brand-blue/80">assets/chart.svg · data/items.json</p>
+              <h3 class="display text-[22px] font-semibold text-ink-900 leading-tight mt-1">Release readiness</h3>
+            </div>
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-ok-deep bg-ok-soft px-2 h-6 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-ok-base"></span> updated just now
+            </span>
+          </div>
+
+          <!-- filter chips (one active) — actually re-render the chart -->
+          <div class="mt-3.5 flex flex-wrap gap-2" role="group" aria-label="Filter dashboard by quarter">
+            <button data-q="q3" class="chip is-active px-3 h-8 rounded-full text-[12.5px] font-medium border transition-colors">Q3 · this</button>
+            <button data-q="q2" class="chip px-3 h-8 rounded-full text-[12.5px] font-medium border transition-colors">Q2</button>
+            <button data-q="all" class="chip px-3 h-8 rounded-full text-[12.5px] font-medium border transition-colors">All time</button>
+          </div>
+
+          <!-- metric tiles -->
+          <div class="mt-4 grid grid-cols-2 gap-2.5">
+            <div class="rounded-lg bg-surf-page border border-surf-line2 px-3.5 py-3">
+              <p class="text-[11px] font-medium text-ink-500">Shipped</p>
+              <p class="display text-[28px] font-semibold text-ink-900 leading-none mt-1.5"><span id="m-shipped" class="num-tab">128</span></p>
+            </div>
+            <div class="rounded-lg bg-surf-page border border-surf-line2 px-3.5 py-3">
+              <p class="text-[11px] font-medium text-ink-500">On track</p>
+              <p class="display text-[28px] font-semibold text-ok-deep leading-none mt-1.5"><span id="m-ontrack" class="num-tab">94</span><span class="text-[15px] text-ink-400 font-sans font-medium">%</span></p>
+            </div>
+          </div>
+
+          <!-- bar chart (implies assets/chart.svg) -->
+          <div class="mt-4">
+            <div class="flex items-end justify-between gap-2 h-[112px]" id="chart" aria-label="Items by category">
+              <!-- bars injected by JS -->
+            </div>
+            <div class="mt-2 flex justify-between text-[10.5px] text-ink-400 font-mono" id="chart-labels"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BUNDLE SUMMARY CHIPS — the receipt ── -->
+      <div class="mt-5 flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-surf-sunk text-ink-700 text-meta font-medium">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          5 files
+        </span>
+        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-surf-sunk text-ink-700 text-meta font-medium font-mono">412 KB</span>
+        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-ok-soft text-ok-deep text-meta font-semibold">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+          No secrets found
+        </span>
+        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-surf-sunk text-ink-600 text-meta font-medium">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6v6H9z"/></svg>
+          Sandboxed
+        </span>
+      </div>
+
+      <!-- ── RESULT ACTIONS ── -->
+      <div class="mt-5">
+        <button type="button"
+          class="w-full h-11 rounded-lg bg-brand-blue hover:bg-brand-blueHover active:scale-[0.99] text-white text-[14.5px] font-semibold transition-all inline-flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(9,30,66,.16)]">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          Insert &amp; done
+        </button>
+
+        <div class="mt-2.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <button type="button" class="action-2">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            Open fullscreen
+          </button>
+          <button type="button" class="action-2">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            Replace bundle
+          </button>
+          <button id="btn-copy-link" type="button" class="action-2">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+            <span id="copy-link-label">Copy link</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── PERMISSION-GATED TRUST LINE ── -->
+      <p class="mt-4 flex items-center gap-2 text-[11.5px] text-ink-400">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg>
+        Only people who can view this page can open this mini-site.
+      </p>
+    </section>
+  </main>
+
+  <!-- secondary action button base style -->
+  <style>
+    .action-2 {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 38px; padding: 0 12px; border-radius: 8px;
+      border: 1px solid #DFE1E6; background: #fff; color: #44546F;
+      font-size: 13px; font-weight: 500; transition: background-color .18s, border-color .18s, color .18s;
+    }
+    .action-2:hover { background: #F1F2F4; border-color: #C1C7D0; color: #172B4D; }
+    .action-2:active { transform: scale(0.99); }
+
+    .chip { border-color: #DFE1E6; background: #fff; color: #44546F; }
+    .chip:hover { background: #F1F2F4; }
+    .chip.is-active { background: #E9F2FE; border-color: #0C66E4; color: #09326C; box-shadow: inset 0 0 0 1px #0C66E4; }
+  </style>
+
+<script>
+(function () {
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ───────────────────────── STATE SWITCHER ───────────────────────── */
+  var switcher = document.getElementById('switcher');
+  var tab1 = document.getElementById('tab-1');
+  var tab2 = document.getElementById('tab-2');
+  var paneUp = document.getElementById('state-uploading');
+  var panePv = document.getElementById('state-preview');
+
+  function activate(which) {
+    var isUp = which === 1;
+    switcher.dataset.on = String(which);
+    tab1.setAttribute('aria-selected', isUp ? 'true' : 'false');
+    tab2.setAttribute('aria-selected', isUp ? 'false' : 'true');
+    tab1.classList.toggle('text-ink-800', isUp);
+    tab1.classList.toggle('text-ink-500', !isUp);
+    tab2.classList.toggle('text-ink-800', !isUp);
+    tab2.classList.toggle('text-ink-500', isUp);
+    paneUp.hidden = !isUp;
+    panePv.hidden = isUp;
+    if (isUp) { restartUploading(); } else { restartPreview(); }
+  }
+  tab1.addEventListener('click', function () { activate(1); });
+  tab2.addEventListener('click', function () { activate(2); });
+  switcher.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { activate(1); tab1.focus(); }
+    if (e.key === 'ArrowRight') { activate(2); tab2.focus(); }
+  });
+
+  /* ───────────────────────── STATE 1 DATA ───────────────────────── */
+  var FILES = [
+    { path: 'index.html',        size: '6.4 KB',  glyph: 'html' },
+    { path: 'app.js',            size: '38.1 KB', glyph: 'js' },
+    { path: 'styles.css',        size: '12.7 KB', glyph: 'css' },
+    { path: 'assets/chart.svg',  size: '21.9 KB', glyph: 'svg' },
+    { path: 'data/items.json',   size: '4.3 KB',  glyph: 'json' }
+  ];
+
+  var GLYPH = {
+    html: { c: '#0C66E4', t: '<>' },
+    js:   { c: '#B07B00', t: 'JS' },
+    css:  { c: '#7F56D9', t: '{}' },
+    svg:  { c: '#22A06B', t: '▱' },
+    json: { c: '#44546F', t: '{·}' }
+  };
+
+  function splitPath(p) {
+    var i = p.lastIndexOf('/');
+    if (i === -1) {
+      var dot = p.lastIndexOf('.');
+      return { head: p.slice(0, dot), tail: p.slice(dot) };
+    }
+    var file = p.slice(i + 1);
+    var dot2 = file.lastIndexOf('.');
+    return { head: p.slice(0, i + 1 + dot2), tail: file.slice(dot2) };
+  }
+
+  var manifest = document.getElementById('manifest');
+  var upCount = document.getElementById('up-count');
+
+  function pendingDot() {
+    return '<span class="inline-grid place-items-center w-4 h-4"><svg class="spin" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8590A2" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg></span>';
+  }
+  function greenCheck() {
+    return '<span class="pop inline-grid place-items-center w-4 h-4 rounded-full bg-ok-base"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17l9-10"/></svg></span>';
+  }
+
+  function buildManifest() {
+    manifest.innerHTML = '';
+    FILES.forEach(function (f, idx) {
+      var g = GLYPH[f.glyph];
+      var sp = splitPath(f.path);
+      var li = document.createElement('li');
+      li.className = 'settle flex items-center gap-3 px-3.5 py-2.5';
+      li.style.animationDelay = (reduce ? 0 : idx * 55) + 'ms';
+      li.innerHTML =
+        '<span class="shrink-0 grid place-items-center w-6 h-6 rounded-md font-mono text-[10px] font-semibold" style="background:' + g.c + '1A;color:' + g.c + '">' + g.t + '</span>' +
+        '<span class="path-mid font-mono text-mono text-ink-800 flex-1 min-w-0">' +
+          '<span class="p-head">' + sp.head + '</span><span class="p-tail">' + sp.tail + '</span>' +
+        '</span>' +
+        '<span class="shrink-0 font-mono text-[11.5px] text-ink-500 tabular-nums">' + f.size + '</span>' +
+        '<span class="status shrink-0 w-4 h-4 grid place-items-center" data-i="' + idx + '">' + pendingDot() + '</span>';
+      manifest.appendChild(li);
+    });
+  }
+
+  /* ───────────────────────── STATE 1 CHECKLIST ───────────────────────── */
+  var CHECKS = [
+    { id:'root',   label:'index.html found at root',          note:'entry point detected',           done:true,  shield:false },
+    { id:'rel',    label:'All paths relative · no absolute URLs', note:'5 / 5 references resolved',   done:true,  shield:false },
+    { id:'caps',   label:'Within size & file-count limits',   note:'5 files · 412 KB / 5 MB',        done:true,  shield:false },
+    { id:'secret', label:'Scanning for leaked secrets',       note:'shield · AWS, GCP, tokens, keys',done:false, shield:true }
+  ];
+  var checklist = document.getElementById('checklist');
+
+  function shieldGlyph(green) {
+    var col = green ? '#fff' : '#5E6C84';
+    var bg = green ? 'bg-ok-base' : 'bg-surf-sunk';
+    return '<span class="status inline-grid place-items-center w-5 h-5 rounded-full ' + bg + '">' +
+      (green
+        ? '<svg class="pop" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>'
+        : '<svg class="spin" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="' + col + '" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg>') +
+      '</span>';
+  }
+
+  function buildChecklist() {
+    checklist.innerHTML = '';
+    CHECKS.forEach(function (c) {
+      var li = document.createElement('li');
+      li.className = 'flex items-center gap-3 px-3.5 py-2.5';
+      var lead = c.shield
+        ? shieldGlyph(c.done)
+        : '<span class="status inline-grid place-items-center w-5 h-5">' + (c.done ? greenCheck() : pendingDot()) + '</span>';
+      li.innerHTML =
+        lead +
+        '<span class="flex-1 min-w-0">' +
+          '<span class="block text-[13px] font-medium ' + (c.done ? 'text-ink-800' : 'text-ink-600') + ' leading-tight">' + c.label + '</span>' +
+          '<span class="block text-[11px] text-ink-400 leading-tight mt-0.5 font-mono">' + c.note + '</span>' +
+        '</span>' +
+        (c.shield && !c.done
+          ? '<span class="shrink-0 text-[11px] font-medium text-ink-400">in progress</span>'
+          : (c.done ? '<span class="shrink-0 text-[11px] font-semibold text-ok-deep">' + (c.shield ? 'No secrets' : 'Passed') + '</span>' : ''));
+      li.dataset.id = c.id;
+      checklist.appendChild(li);
+    });
+  }
+
+  /* resolve the in-progress (secret) row to green to prove the spinner→check beat */
+  var secretTimer = null;
+  function animateSecretResolve() {
+    if (secretTimer) clearTimeout(secretTimer);
+    secretTimer = setTimeout(function () {
+      var row = checklist.querySelector('[data-id="secret"]');
+      if (!row) return;
+      var sec = CHECKS.find(function (c){ return c.id === 'secret'; });
+      sec.done = true;
+      var st = row.querySelector('.status');
+      st.outerHTML = shieldGlyph(true);
+      row.querySelector('span.text-\\[13px\\]')?.classList.remove('text-ink-600');
+      row.querySelector('span.text-\\[13px\\]')?.classList.add('text-ink-800');
+      var tail = row.lastElementChild;
+      tail.outerHTML = '<span class="shrink-0 text-[11px] font-semibold text-ok-deep">No secrets</span>';
+      row.querySelector('.font-mono.text-\\[11px\\]') && (row.querySelector('span.text-ink-400.font-mono').textContent = 'no secrets found · scanned 5 files');
+    }, reduce ? 0 : 2600);
+  }
+
+  /* ───────────────────────── STATE 1 ANIMATION ───────────────────────── */
+  var pctNum = document.getElementById('pct-num');
+  var barFill = document.getElementById('bar-fill');
+  var barRoot = document.getElementById('bar-root');
+  var narrator = document.getElementById('narrator');
+
+  var NARR = [
+    { at: 0,  t: 'Uploading 5 files…' },
+    { at: 62, t: 'Validating bundle structure…' },
+    { at: 80, t: 'Scanning for secrets…' },
+    { at: 93, t: 'Provisioning embed…' }
+  ];
+
+  var rafId = null, pctTimer = null;
+  function setPct(p) {
+    p = Math.round(p);
+    pctNum.textContent = p;
+    barFill.style.width = p + '%';
+    barRoot.setAttribute('aria-valuenow', String(p));
+    var msg = NARR[0].t;
+    for (var i = 0; i < NARR.length; i++) if (p >= NARR[i].at) msg = NARR[i].t;
+    narrator.textContent = msg;
+  }
+
+  function tickManifest(p) {
+    /* mark first ceil(p/100*N) rows uploaded, leave one mid-transition near 60-80% */
+    var n = FILES.length;
+    var uploaded = Math.min(n, Math.floor((p / 100) * (n + 0.4)));
+    var statuses = manifest.querySelectorAll('.status');
+    var count = 0;
+    statuses.forEach(function (s, i) {
+      if (i < uploaded) {
+        if (!s.dataset.up) { s.dataset.up = '1'; s.innerHTML = greenCheck(); }
+        count++;
+      }
+    });
+    upCount.textContent = count;
+  }
+
+  function runUploading() {
+    var p = 0;
+    setPct(0);
+    function step() {
+      /* ease toward 100, slowing near the top to feel like real streaming */
+      var inc = p < 70 ? (1.6 + Math.random() * 1.8) : (0.5 + Math.random() * 0.9);
+      p = Math.min(100, p + inc);
+      setPct(p);
+      tickManifest(p);
+      if (p < 100) {
+        pctTimer = setTimeout(step, 90 + Math.random() * 70);
+      } else {
+        narrator.textContent = 'Bundle published · finalizing preview';
+        animateSecretResolve();
+      }
+    }
+    if (reduce) {
+      setPct(78); tickManifest(78);   /* static, alive-looking snapshot for reduced motion */
+      upCount.textContent = '3';
+      narrator.textContent = 'Scanning for secrets…';
+    } else {
+      pctTimer = setTimeout(step, 380);
+    }
+  }
+
+  function restartUploading() {
+    if (pctTimer) clearTimeout(pctTimer);
+    if (secretTimer) clearTimeout(secretTimer);
+    buildManifest();
+    buildChecklist();
+    document.getElementById('secret-notice').hidden = true;
+    document.getElementById('toggle-secret').textContent = 'Show secret-detected state';
+    runUploading();
+  }
+
+  /* ───────────────────────── SECRET ERROR TOGGLE ───────────────────────── */
+  var toggleSecret = document.getElementById('toggle-secret');
+  var secretNotice = document.getElementById('secret-notice');
+  toggleSecret.addEventListener('click', function () {
+    var show = secretNotice.hidden;
+    secretNotice.hidden = !show;
+    toggleSecret.textContent = show ? 'Hide secret-detected state' : 'Show secret-detected state';
+    /* when showing the error, flip the security checklist row to the red stop, de-emphasized inline */
+    var row = checklist.querySelector('[data-id="secret"]');
+    if (row) {
+      if (show) {
+        row.querySelector('.status').outerHTML =
+          '<span class="status inline-grid place-items-center w-5 h-5 rounded-full bg-stop-base"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>';
+        var lbl = row.querySelector('span.text-\\[13px\\]'); if (lbl) lbl.textContent = 'Secret detected in source';
+        row.lastElementChild.outerHTML = '<span class="shrink-0 text-[11px] font-semibold text-stop-deep">Stopped</span>';
+        secretNotice.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+      } else {
+        buildChecklist();
+        animateSecretResolve();
+      }
+    }
+  });
+
+  /* ───────────────────────── STATE 2 · PREVIEW ───────────────────────── */
+  var CHART = {
+    q3:  { vals: [38, 52, 27, 44, 19], shipped: 128, ontrack: 94 },
+    q2:  { vals: [29, 41, 33, 22, 14], shipped: 96,  ontrack: 88 },
+    all: { vals: [44, 49, 36, 47, 31], shipped: 412, ontrack: 91 }
+  };
+  var CAT = ['core', 'api', 'docs', 'infra', 'misc'];
+  var chartEl = document.getElementById('chart');
+  var chartLabels = document.getElementById('chart-labels');
+  var mShipped = document.getElementById('m-shipped');
+  var mOntrack = document.getElementById('m-ontrack');
+
+  function renderChart(key, animate) {
+    var d = CHART[key];
+    var max = Math.max.apply(null, d.vals);
+    chartEl.innerHTML = '';
+    d.vals.forEach(function (v, i) {
+      var pct = Math.round((v / max) * 100);
+      var col = i === 1 ? '#0C66E4' : '#85B7EB';  /* the peak bar in full brand blue */
+      var wrap = document.createElement('div');
+      wrap.className = 'flex-1 flex flex-col justify-end items-center h-full';
+      var bar = document.createElement('div');
+      bar.className = 'gbar w-full rounded-t-[3px]';
+      bar.style.background = col;
+      bar.style.height = (animate && !reduce ? 0 : pct) + '%';
+      bar.title = CAT[i] + ' · ' + v;
+      wrap.appendChild(bar);
+      chartEl.appendChild(wrap);
+      if (animate && !reduce) {
+        requestAnimationFrame(function () { requestAnimationFrame(function () { bar.style.height = pct + '%'; }); });
+      }
+    });
+    chartLabels.innerHTML = CAT.map(function (c) { return '<span class="flex-1 text-center">' + c + '</span>'; }).join('');
+    mShipped.textContent = d.shipped;
+    mOntrack.textContent = d.ontrack;
+  }
+
+  var chips = panePv.querySelectorAll('.chip');
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.remove('is-active'); });
+      chip.classList.add('is-active');
+      renderChart(chip.dataset.q, true);
+    });
+  });
+
+  function restartPreview() {
+    var pane = document.getElementById('preview-pane');
+    if (!reduce) { pane.classList.remove('reveal', 'glow-once'); void pane.offsetWidth; pane.classList.add('reveal', 'glow-once'); }
+    chips.forEach(function (c) { c.classList.remove('is-active'); });
+    panePv.querySelector('.chip[data-q="q3"]').classList.add('is-active');
+    renderChart('q3', true);
+  }
+
+  /* ───────────────────────── COPY HANDLERS ───────────────────────── */
+  function wireCopy(btnId, labelId, text, doneLabel) {
+    var btn = document.getElementById(btnId);
+    var lbl = document.getElementById(labelId);
+    var orig = lbl.textContent;
+    btn.addEventListener('click', function () {
+      var write = navigator.clipboard && navigator.clipboard.writeText
+        ? navigator.clipboard.writeText(text)
+        : Promise.reject();
+      write.then(function () { flip(); }).catch(function () { flip(); });
+      function flip() {
+        lbl.textContent = doneLabel;
+        btn.classList.add('text-ok-deep');
+        setTimeout(function () { lbl.textContent = orig; btn.classList.remove('text-ok-deep'); }, 1500);
+      }
+    });
+  }
+  wireCopy('btn-copy-ref', 'copy-ref-label', 'mini-site:rel-dashboard-7f3a', 'Copied');
+  wireCopy('btn-copy-link', 'copy-link-label', 'https://your-site.atlassian.net/wiki/spaces/REL/pages/rel-dashboard-7f3a', 'Copied');
+
+  /* ───────────────────────── BOOT ───────────────────────── */
+  buildManifest();
+  buildChecklist();
+  runUploading();
+  renderChart('q3', false);
+})();
+</script>
+</body>
+</html>

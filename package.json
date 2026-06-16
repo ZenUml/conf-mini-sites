@@ -1,0 +1,17 @@
+{
+  "name": "conf-mini-sites",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Host a multi-file static bundle, embedded live in Confluence. Atlassian Connect + Cloudflare Workers for Platforms.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1"
+  }
+}

@@ -66,6 +66,22 @@ Confluence page
   Atlassian" / not no-egress**; the external-processor disclosure + secret-scan + CSP sandboxing still apply.
   What's gone vs. the Connect design is the *permission* gateway, not the *hosting* disclosure.
 
+## Live findings (verified against the purchased WfP account, 2026-06-17)
+
+- **Programmatic per-instance provisioning works.** The real `CloudflareWfpClient` uploaded `ms-test2` into
+  `mini-sites-dev` via the WfP REST API, the dispatch Worker served its `index.html` + `assets/app.js` (200,
+  correct content-types), and `deleteWorker` removed it from the namespace (control-plane script list confirms).
+- **Per-instance Workers are non-routable.** `https://ms-test1.zenuml.workers.dev/` → `error code 1042`; the
+  ONLY way in is the dispatch Worker. This is the WfP isolation guarantee, proven.
+- **Deletion is eventually-consistent at the dispatch EDGE.** After `deleteWorker` (script gone at the control
+  plane, confirmed by the API), the dispatch binding kept serving the compiled Worker for **>2 minutes**
+  (cache-buster query + POST both still 200; no `cf-cache-status`/`cache-control` → it is the dispatch
+  namespace's edge script cache, not HTTP caching, and not our code — the dispatch Worker is a clean
+  pass-through). **Consequence:** script deletion is NOT a prompt-revocation mechanism. Prompt revocation MUST
+  come from the **short-lived signed-path grant** (≤60s TTL, minted only by the Forge resolver for an
+  authorized viewer of a live instance). This is exactly why the grant survives the Forge pivot — it is the
+  serve-path's revocation primitive; `deleteInstance` is only eventual cleanup.
+
 ## Design constraints (acceptance criteria — each needs a testable invariant + threat model BEFORE code)
 
 - Orphan cleanup when a macro/page is deleted (Connect has no reliable per-macro delete webhook).

@@ -13,8 +13,11 @@ binding = "MINISITES"
 namespace = "mini-sites-dev"
 
 [vars]
-# CSP frame-ancestors — the Confluence/Forge embed origin.
-EMBED_ANCESTORS = "https://*.atlassian.net"
+# CSP frame-ancestors — the mini-site iframe is nested INSIDE the Forge Custom UI iframe, whose origin is a
+# Forge CDN domain (not *.atlassian.net). Allow the Confluence + Forge runtime domains so the browser doesn't
+# block the embed. Tighten to the exact Custom-UI origin once observed live (read it from the CSP violation /
+# browser during the install+render verification).
+EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*.atl-paas.net"
 
 # Secret (set out-of-band, never committed):
 #   K_GRANT — the HMAC key shared with the Forge resolver. Set with:

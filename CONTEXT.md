@@ -66,6 +66,31 @@ Confluence page
   Atlassian" / not no-egress**; the external-processor disclosure + secret-scan + CSP sandboxing still apply.
   What's gone vs. the Connect design is the *permission* gateway, not the *hosting* disclosure.
 
+## Build + deploy state (2026-06-17)
+
+**Built, deployed, and verified live (backend end-to-end):**
+- **Control Worker** `conf-mini-sites-remote-dev` — Forge-token verify (jose JWKS) OR shared-secret auth →
+  validate + secret-scan → provision per-instance Worker via WfP REST (`/publish`); mint serve grant
+  (`/serve-url`); orphan delete (`/instance`). Secrets: `WFP_API_TOKEN`, `K_GRANT`, `CONTROL_SHARED_SECRET`.
+- **Dispatch Worker** `conf-mini-sites-dispatch-dev` — verify HMAC grant → route via dispatch-namespace
+  binding → `<base>` + CSP; fail-closed (404 on missing instance, 401 on bad grant). Secret: `K_GRANT`.
+- **Per-instance Workers** — `ms-<instanceId>` in dispatch namespace `mini-sites-dev`, non-routable.
+- **Forge app** `Conf Mini-Sites` (v3.0.0, development env) — macro + resolver (`getServeUrl`, `publish`) +
+  Custom UI (upload + iframe preview), in `forge-app/`. `forge lint`: no issues. Forge vars: `CONTROL_BASE_URL`,
+  `CONTROL_SHARED_SECRET` (encrypted).
+- **Live-verified chain** (public HTTP, the exact calls the resolver makes): `/publish` (2-file bundle) → 200;
+  `/serve-url` → grant URL; dispatch serve of entrypoint (200, `<base>` injected) + relative sub-resource
+  (200); `/instance` delete → 200. Single-file bundle → 422; bad/expired/wrong-instance grant → 401; no/garbage
+  auth → 401. 196 unit tests pass; typecheck clean.
+
+**Remaining (needs a Confluence site where the account is admin — a user decision):**
+1. `cd forge-app && forge install --site <SITE> --product Confluence -e development` (the d4c-forge-dev site
+   failed earlier — account not admin there).
+2. Add the **Mini-Site** macro to a page; upload a bundle; confirm it renders through the WfP serve path.
+   Drive Confluence via the conf-app Playwright auth states (lite-dev / lite-stg / zenuml) if installing there.
+3. **CSP tighten:** the dispatch Worker's `frame-ancestors` is broadened to the Atlassian+Forge domains; read
+   the actual Forge Custom-UI iframe origin from the browser at first render and tighten `EMBED_ANCESTORS`.
+
 ## Live findings (verified against the purchased WfP account, 2026-06-17)
 
 - **Programmatic per-instance provisioning works.** The real `CloudflareWfpClient` uploaded `ms-test2` into

@@ -83,13 +83,28 @@ Confluence page
   (200); `/instance` delete → 200. Single-file bundle → 422; bad/expired/wrong-instance grant → 401; no/garbage
   auth → 401. 196 unit tests pass; typecheck clean.
 
-**Remaining (needs a Confluence site where the account is admin — a user decision):**
-1. `cd forge-app && forge install --site <SITE> --product Confluence -e development` (the d4c-forge-dev site
-   failed earlier — account not admin there).
-2. Add the **Mini-Site** macro to a page; upload a bundle; confirm it renders through the WfP serve path.
-   Drive Confluence via the conf-app Playwright auth states (lite-dev / lite-stg / zenuml) if installing there.
-3. **CSP tighten:** the dispatch Worker's `frame-ancestors` is broadened to the Atlassian+Forge domains; read
-   the actual Forge Custom-UI iframe origin from the browser at first render and tighten `EMBED_ANCESTORS`.
+**END-TO-END VERIFIED ON A REAL CONFLUENCE PAGE (lite-dev, 2026-06-17):** installed the Forge app on
+lite-dev.atlassian.net, created a page with the Mini-Site macro, and confirmed the **full chain renders**:
+Forge macro → Custom UI (`getServeUrl`) → resolver → control Worker (shared-secret) → grant mint → nested
+iframe → dispatch Worker (grant verify) → per-instance Worker serving the multi-file bundle. The page shows the
+live mini-site with its HTML **and** `style.css` applied (relative path resolved via injected `<base>` + grant
+path). The broadened CSP `frame-ancestors` correctly allows the Forge Custom-UI embedding. Two bugs were caught
+**only** by this live render and fixed: (a) `@forge/resolver` "not a constructor" — the Forge app package must
+be **CommonJS** (no `type:module`) with default imports; (b) the precomputed instanceId matched, confirming
+Forge's `extension.localId` equals the ADF node `localId`.
+
+**Polish / follow-ups (non-blocking — the pipeline works):**
+1. **Macro iframe height** — the Forge macro renders the mini-site clipped to ~150px tall. Make the Custom UI
+   drive the macro height (Forge auto-resize / explicit height) so the full mini-site shows.
+2. **Upload UI path** — verified the resolver/serve path via a pre-published bundle; still exercise the actual
+   in-page folder upload (`Choose files` → `Publish`) end-to-end. Consider moving upload to the macro **config**
+   (edit-only) so viewers can't re-publish.
+3. **CSP tighten** — `EMBED_ANCESTORS` is broadened to Atlassian+Forge domains; tighten to the exact Forge
+   Custom-UI origin now that it's observable.
+4. **Auth hardening** — resolver→control uses a shared secret; upgrade to the Forge invocation token
+   (`forgeToken.ts` is built + tested) by adding `auth.appUserToken` + scopes to the `control` remote.
+5. **CF API token** — the control Worker's `WFP_API_TOKEN` is currently the wrangler OAuth token (expires);
+   mint a dedicated Cloudflare API token (Workers Scripts:Edit) for durable runtime provisioning.
 
 ## Live findings (verified against the purchased WfP account, 2026-06-17)
 

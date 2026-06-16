@@ -9,3 +9,6 @@ dist/
 
 # Nested workspace-repo worktrees (a different git repo) live under .claude/worktrees — not part of this repo.
 .claude/worktrees/
+
+# JetBrains IDE
+.idea/

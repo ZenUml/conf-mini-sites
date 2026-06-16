@@ -1,0 +1,21 @@
+# Dispatch Worker (the serve gateway) — Forge model (CONTEXT.md 2026-06-17). The SINGLE network entry point to
+# the non-routable per-instance Workers. It verifies the HMAC signed-path grant (minted by the Forge resolver)
+# and routes to the per-instance Worker via the dispatch-namespace binding. No D1, no Connect secrets, no
+# Confluence permission checker — Forge inherits permissions.
+name = "conf-mini-sites-dispatch-dev"
+main = "src/dispatch/index.ts"
+compatibility_date = "2026-06-16"
+
+# Workers for Platforms: the ONE dispatch namespace. Per-instance Workers (ms-<instanceId>) live here and are
+# NOT independently routable — reachable only via env.MINISITES.get(name).fetch() (DESIGN §1.1, INV-GW-14).
+[[dispatch_namespaces]]
+binding = "MINISITES"
+namespace = "mini-sites-dev"
+
+[vars]
+# CSP frame-ancestors — the Confluence/Forge embed origin.
+EMBED_ANCESTORS = "https://*.atlassian.net"
+
+# Secret (set out-of-band, never committed):
+#   K_GRANT — the HMAC key shared with the Forge resolver. Set with:
+#     npx wrangler secret put K_GRANT --config wrangler-dispatch.toml

@@ -40,6 +40,10 @@ jobs:
   release:
     name: ${{ github.event.release.tag_name }} to production
     runs-on: ubuntu-latest
+    # Forge CLI shows a first-run analytics-consent prompt that can't render in a non-TTY runner
+    # (fails with "Prompts can not be meaningfully rendered in non-TTY environments"). Disable it job-wide.
+    env:
+      FORGE_DISABLE_ANALYTICS: '1'
     steps:
       - name: Fetch sources at the released tag
         uses: actions/checkout@v4
@@ -134,7 +138,7 @@ jobs:
       - name: Set CONTROL_SHARED_SECRET in Forge production
         if: steps.forge.outputs.ok == 'true' && steps.forge.outputs.has_secret == 'true'
         working-directory: forge-app
-        run: forge variables set CONTROL_SHARED_SECRET "$CONTROL_SHARED_SECRET" --encrypt -e production
+        run: forge variables set CONTROL_SHARED_SECRET "$CONTROL_SHARED_SECRET" --encrypt -e production --non-interactive
         env:
           FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
           FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}

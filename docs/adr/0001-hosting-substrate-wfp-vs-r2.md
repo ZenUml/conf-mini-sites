@@ -53,9 +53,9 @@ external API tokens.
 
 | Claim | Verdict for our use case |
 |---|---|
-| **Free version control + rollback** | **Real, weak differentiator.** WfP creates an implicit version + deployment per upload and supports rollback (wrangler/dashboard/API). But it's ops-level — an end-user "restore previous version" UX is build-it-ourselves either way, and triggering rollback still uses the WfP API (**token**). R2 matches it token-free: hash/version-keyed objects + a live-version pointer (rollback = flip the pointer), or R2 object versioning. |
-| **Better isolation** | **Mostly theoretical here.** The per-instance Worker never *executes* the bundle — it's a generated base64 byte-server. The bundle's JS runs in the **viewer's browser**, sandboxed by the iframe + CSP + grant — the real security boundary, **identical under R2**. WfP isolation (own isolate, per-tenant CPU/mem limits, egress controls) only pays off if tenants run **server-side** code. |
-| **Better performance** | **A wash; R2 + Cache API ≥.** WfP: per-tenant isolate (~ms cold start) + in-isolate base64 decode per request. R2: one always-warm dispatch Worker (no per-tenant cold-start fan-out) + an R2 GET, with the **Cache API** in front for near-zero repeat-serve latency. No per-account script-count (~1000) or size caps, no $25/mo base. |
+| **Free version control + rollback** | **Real, weak differentiator — but only vs. a *correctly-built* R2 path.** WfP creates an implicit version + deployment per upload and supports rollback (wrangler/dashboard/API). It's ops-level — an end-user "restore previous version" UX is build-it-ourselves either way, and triggering rollback still uses the WfP API (**token**). R2 *can* match it token-free, but **the currently-built `R2HostingProvider` does NOT**: it overwrites in place (`deletePrefix` then sequential `put`, [R2HostingProvider.ts:57-61](../../src/hosting/R2HostingProvider.ts)), so there is no pointer to roll back to and a republish is non-atomic. Pointer-based versioning is a **to-build requirement** (see "Required R2 design"). |
+| **Better isolation** | **Real but bounded availability benefit — not purely theoretical (revised after review).** The browser sandbox + CSP + grant are the *security* boundary and are identical under R2. But WfP runs each tenant's byte-serving in its **own isolate**, whereas R2 funnels *all* tenants through the **one** dispatch Worker — which today even buffers each whole object into memory (`new Response(obj.bytes)`, [R2HostingProvider.ts:53](../../src/hosting/R2HostingProvider.ts) / `arrayBuffer()` in R2BundleObjectStore). So a tenant with large assets or abusive traffic stresses the *shared* serving path more directly under R2. WfP's per-tenant resource isolation + limits are a genuine availability edge. R2 mitigations are required (stream bodies, publish-time caps, rate limits — below). |
+| **Better performance** | **A wash *if the cache contract is content-addressed* (revised).** WfP: per-tenant isolate (~ms cold start) + in-isolate base64 decode per request. R2: one always-warm dispatch Worker (no per-tenant cold-start fan-out) + an R2 GET. The Cache API helps repeat-serve latency **but must be keyed by content hash, not the mutable live path** — otherwise it reintroduces exactly the stale-serving the ADR criticizes WfP for (R2 object delete does NOT purge Worker Cache API entries). No per-account script-count (~1000) or size caps, no $25/mo base. |
 
 Additional WfP costs for us: the API token, provisioning complexity, and a measured **>2-min edge-delete lag**
 (a deleted instance kept serving from the dispatch edge cache; see CONTEXT "Live findings") — so deletion is
@@ -72,10 +72,44 @@ Additional WfP costs for us: the API token, provisioning complexity, and a measu
 
 ## Decision
 
-For the static-bundle product as specified: **adopt R2 as the hosting substrate.** Swap the control Worker to
-`R2HostingProvider` (write via `env.BUNDLES`) and the dispatch Worker to serve from `env.BUNDLES` (+ Cache API),
-add the `BUNDLES` R2 bucket + bindings, redeploy, and re-verify the e2e suite. Retain `CloudflareWfPProvider`
-behind the seam as the alternative substrate should server-side compute ever be required.
+For the static-bundle product as specified: **adopt R2 as the hosting substrate — conditional on building the
+R2 design below.** This is *not* a drop-in swap to the current `R2HostingProvider`: that provider overwrites in
+place (non-atomic) and buffers whole objects, which (per the adversarial review) would reintroduce stale/mixed
+serving and shared-Worker memory pressure. The token-elimination + simplicity case for R2 holds **only with**
+the content-addressed, atomic, cache-correct design below. Retain `CloudflareWfPProvider` behind the seam as the
+alternative substrate should server-side compute ever be required.
+
+### Required R2 design (acceptance criteria — must ship with the swap)
+
+1. **Content-addressed, immutable versions.** Write each file under `b/<contentHash>/<path>` (hash of the
+   validated bundle). Versions are immutable; a republish writes a *new* hash, never mutating the live one.
+2. **Atomic cutover via the grant, not in-place overwrite.** `serve-url` resolves the instance's *current*
+   version and **binds that `contentHash` into the signed grant**. The dispatch Worker serves strictly from the
+   grant's hash. Result: republish is atomic (new grants → new version; in-flight old grants serve the old,
+   immutable version for ≤ the grant TTL); rollback = point the instance at a prior hash (a pointer flip), no
+   data copy. No reader ever sees a mixed/half-written bundle. Replace the misleading "atomic from a viewer's
+   POV" comment on the in-place provider.
+3. **Cache correctness.** Verify the grant **before** any Cache API lookup. Key cached bytes by
+   `<cloudId>/<contentHash>/<path>` (content-addressed, never a mutable live path). Then delete/republish can
+   never serve stale: a deleted instance's grant no longer resolves (→404), and a republished instance resolves
+   a new hash (old cache entry simply unreferenced). Add an e2e: populate cache → delete/republish → old bytes
+   unreachable.
+4. **Stream, don't buffer.** Serve via the R2 object's `body` (`ReadableStream`) and pass `Range`/`ETag`
+   through — never `arrayBuffer()` the whole file into the shared Worker. Requires widening `BundleObjectStore`
+   to return a stream.
+5. **Per-tenant blast-radius mitigations** (the WfP-isolation gap): keep the publish-time size/file caps
+   (`validateBundle`: ≤25 MB/file, ≤2000 files), rely on Cloudflare platform DoS protection on the dispatch
+   Worker, and add per-instance rate limiting + per-instance serve observability.
+6. **GC of orphaned versions.** Deleting an instance (or superseding a version) must remove the now-unreferenced
+   `b/<hash>/…` objects (a sweep), so storage doesn't grow unbounded and deleted content is truly gone.
+
+### Tests gating adoption
+
+- Atomic republish: a concurrent reader during `updateBundle` sees the old *or* new bundle, never a 404 or a
+  mix.
+- Failed write mid-publish leaves the previously-live version fully intact (no partial destruction).
+- Cache: populate → delete and → republish; the old bytes are unreachable.
+- Large file streams without buffering the whole object in the Worker.
 
 ## Consequences
 
@@ -84,9 +118,13 @@ no dashboard step); drops the WfP dependency + ~$25/mo base + the ~1000-script c
 always-warm serving Worker; grant/CSP/iframe unchanged.
 
 **Negative / trade-offs:** reverses the earlier "each macro must have a paired Worker" decision and does not use
-the purchased WfP entitlement; forgoes WfP's per-tenant isolate + first-class versioning (mitigated: not needed
-for static bytes; versioning achievable token-free in R2); the dispatch Worker becomes a shared serving path (a
-bug there affects all instances — mitigated: it is small, our own, and tested, vs trivial per-tenant byte-servers).
+the purchased WfP entitlement; forgoes WfP's **per-tenant serving-resource isolation** — a real availability
+edge (all tenants share one dispatch Worker), mitigated by streaming + publish caps + rate limits + platform
+DoS protection (Required R2 design §4–5); forgoes WfP's first-class versioning (mitigated: content-addressed
+versions + grant-bound hash give atomic publish + pointer rollback token-free, §1–2). **The current
+`R2HostingProvider` is not adoption-ready** — it overwrites in place and buffers whole objects; it must be
+reworked to the Required R2 design (atomic, content-addressed, streamed, cache-correct) *before* the swap. So
+"R2 is already built behind the seam" means the *seam + contract* are built, **not** a production-grade provider.
 
 **Revisit if:** mini-sites gain server-side execution, per-tenant resource isolation/limits become a
 requirement, or a security review specifically requires per-tenant compute isolation.

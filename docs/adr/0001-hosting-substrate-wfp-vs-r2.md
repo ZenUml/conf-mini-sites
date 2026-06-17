@@ -84,16 +84,20 @@ alternative substrate should server-side compute ever be required.
 1. **Content-addressed, immutable versions.** Write each file under `b/<contentHash>/<path>` (hash of the
    validated bundle). Versions are immutable; a republish writes a *new* hash, never mutating the live one.
 2. **Atomic cutover via the grant, not in-place overwrite.** `serve-url` resolves the instance's *current*
-   version and **binds that `contentHash` into the signed grant**. The dispatch Worker serves strictly from the
-   grant's hash. Result: republish is atomic (new grants → new version; in-flight old grants serve the old,
-   immutable version for ≤ the grant TTL); rollback = point the instance at a prior hash (a pointer flip), no
-   data copy. No reader ever sees a mixed/half-written bundle. Replace the misleading "atomic from a viewer's
-   POV" comment on the in-place provider.
-3. **Cache correctness + liveness gate.** Verify the grant **before** any Cache API lookup, **then a per-request
-   instance liveness/tombstone check before cache/R2** — a content-bound grant is self-contained, so it cannot
-   self-revoke on delete; only a liveness check stops a pre-delete grant from replaying deleted content. Key
-   cached bytes by `<cloudId>/<contentHash>/<path>` (content-addressed, never a mutable live path), so a
-   republish resolves a new hash (old cache entry simply unreferenced — no stale serve).
+   version + **incarnation** and **binds both `contentHash` and the instance `incarnation` into the signed
+   grant** (alongside `instanceId`). The dispatch Worker serves strictly from the grant's hash. Result:
+   republish is atomic (new grants → new version; in-flight old grants serve the old, immutable version for ≤
+   the grant TTL); rollback = point the instance at a prior hash (a pointer flip), no data copy. No reader ever
+   sees a mixed/half-written bundle. Replace the misleading "atomic from a viewer's POV" comment on the in-place
+   provider.
+3. **Cache correctness + liveness/incarnation gate.** Verify the grant **before** any Cache API lookup, **then a
+   per-request instance check before cache/R2: `row.live && grant.incarnation === row.incarnation`** — a
+   content-bound grant is self-contained, so it cannot self-revoke on delete; a boolean tombstone alone is *not
+   enough* because `instanceId` is stable (hash of `cloudId:localId`) and rows upsert in place, so a
+   `delete → recreate same id` would flip "live" back on and re-validate old grants. The incarnation match
+   closes that resurrection hole. Key cached bytes by `<cloudId>/<contentHash>/<path>` (content-addressed,
+   never a mutable live path), so a republish resolves a new hash (old cache entry simply unreferenced — no
+   stale serve).
 4. **Stream, don't buffer.** Serve via the R2 object's `body` (`ReadableStream`) and pass `Range`/`ETag`
    through — never `arrayBuffer()` the whole file into the shared Worker. Requires widening `BundleObjectStore`
    to return a stream.
@@ -104,8 +108,10 @@ alternative substrate should server-side compute ever be required.
    - **Republish / rollback:** the instance stays live; only its current-version pointer changes. **Retain
      prior version objects through a grace window of `max(grant TTL + cache TTL)`** so in-flight old grants keep
      serving the old *immutable* version until they expire (no 404 mid-publish).
-   - **Delete:** write a **tombstone** for the instance (step 3's liveness check rejects every grant for it →
-     404 immediately, no replay), *then* the version objects become GC-eligible.
+   - **Delete:** write a **tombstone** AND **monotonically bump the instance `incarnation`** (step 3's gate
+     rejects every existing grant → 404 immediately, no replay), *then* the version objects become GC-eligible.
+     A later recreate of the same `instanceId` gets the new incarnation, so pre-delete grants never re-validate
+     (closes the same-id resurrection hole).
    - **GC:** sweep a `b/<hash>/…` version only once it has **no live references AND the grace window has
      elapsed** — never delete a hash a still-valid grant could reference (except a tombstoned instance, which is
      already 404 via the liveness gate).
@@ -115,6 +121,8 @@ alternative substrate should server-side compute ever be required.
 - Atomic republish: a concurrent reader during `updateBundle` sees the old *or* new bundle, never a 404 or a mix.
 - **Old grant after republish** still serves the old version until its TTL (grace window honored).
 - **Old grant after delete** returns 404 immediately (tombstone/liveness gate — no replay of deleted content).
+- **Delete → recreate same `instanceId`**: pre-delete grants 404 (incarnation mismatch) while new grants serve
+  (no resurrection replay).
 - **GC** does not delete a version while a still-valid grant could reference it (grace window honored).
 - Failed write mid-publish leaves the previously-live version fully intact (no partial destruction).
 - Cache: populate → delete ⇒ unreachable; populate → republish ⇒ new bytes (old entry unreferenced).

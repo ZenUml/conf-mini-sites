@@ -16,3 +16,8 @@ forge-app/ui-src/.app.compiled.css
 
 # Storybook build output
 forge-app/storybook-static/
+
+# Playwright e2e
+tests/e2e/.auth/
+test-results/
+playwright-report/

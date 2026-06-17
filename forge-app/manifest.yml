@@ -45,6 +45,11 @@ app:
   runtime:
     name: nodejs22.x
   id: ari:cloud:ecosystem::app/2efdb7d9-ee5a-4294-b56a-b514e36e1a98
+  # Paid-via-Atlassian listing: the app is licensed. Forge injects license context into the resolver/UI;
+  # enforcement (degrade when inactive) is tracked in EAG-92. Adding this disables installation-link sharing
+  # (Marketplace-only from now on), but the app stays in the "Choose a Forge app" picker (sharing stays enabled).
+  licensing:
+    enabled: true
   # CONTROL_BASE_URL (read by the resolver as process.env.CONTROL_BASE_URL) is set via the CLI:
   #   forge variables set CONTROL_BASE_URL https://conf-mini-sites-remote-dev.zenuml.workers.dev
 

@@ -35,6 +35,11 @@ remotes:
     baseUrl: https://conf-mini-sites-remote-dev.zenuml.workers.dev
     operations:
       - fetch
+  # Production control Worker (the prod env's CONTROL_BASE_URL points here).
+  - key: control-prod
+    baseUrl: https://conf-mini-sites-remote-production.zenuml.workers.dev
+    operations:
+      - fetch
 
 app:
   runtime:
@@ -49,5 +54,9 @@ permissions:
     fetch:
       backend:
         - address: https://conf-mini-sites-remote-dev.zenuml.workers.dev
+        # Production control Worker — the prod env's CONTROL_BASE_URL resolves here (resolver api.fetch egress).
+        - address: https://conf-mini-sites-remote-production.zenuml.workers.dev
     frames:
       - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev
+        # Production dispatch Worker — the nested mini-site iframe in the prod Custom UI.
+      - address: https://conf-mini-sites-dispatch-production.zenuml.workers.dev

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Release Readiness — Mini-Site demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <img src="assets/logo.svg" alt="" class="logo" width="40" height="40" />
+      <div>
+        <p class="kicker">Multi-file mini-site demo</p>
+        <h1>Release readiness</h1>
+      </div>
+      <span class="live" id="updated">loading…</span>
+    </header>
+
+    <div class="chips" role="group" aria-label="Filter by quarter">
+      <button class="chip is-active" data-q="q3">Q3 · current</button>
+      <button class="chip" data-q="q2">Q2</button>
+      <button class="chip" data-q="all">All time</button>
+    </div>
+
+    <section class="tiles">
+      <div class="tile"><p class="t-label">Shipped</p><p class="t-value" id="m-shipped">—</p></div>
+      <div class="tile"><p class="t-label">On track</p><p class="t-value ok" id="m-ontrack">—<span class="pct">%</span></p></div>
+    </section>
+
+    <section class="chart-card">
+      <div class="chart" id="chart" role="img" aria-label="Items by category"></div>
+      <div class="labels" id="labels"></div>
+    </section>
+
+    <footer class="foot">
+      <span>index.html · styles.css · app.js · data/metrics.json · assets/logo.svg</span>
+      <span id="src">5 files</span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

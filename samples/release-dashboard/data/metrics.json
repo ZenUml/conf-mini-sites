@@ -1,0 +1,5 @@
+{
+  "q3":  { "vals": [38, 52, 27, 44, 19], "shipped": 128, "ontrack": 94 },
+  "q2":  { "vals": [29, 41, 33, 22, 14], "shipped": 96,  "ontrack": 88 },
+  "all": { "vals": [44, 49, 36, 47, 31], "shipped": 412, "ontrack": 91 }
+}

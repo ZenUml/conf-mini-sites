@@ -124,6 +124,22 @@ not a bare-DOM placeholder. Built in `forge-app/`:
    mint a dedicated Cloudflare API token (Workers Scripts:Edit) for durable runtime provisioning.
 5. **Launcher debug line** — `view.js` has a tiny `#dbg` status line (aids modal-open debugging); drop it for production.
 
+## Testing + design catalog (2026-06-17)
+
+- **Unit/integration** — `src/**/*.test.ts` (vitest), 200 tests; `npm test`. Typecheck: `npm run typecheck`.
+- **E2E** — Playwright at `tests/e2e` (`playwright.config.ts`), 21 tests, ALL passing live:
+  - `api/*` (15) — hit the deployed control + dispatch Workers (shared-secret): provision, auth gates,
+    validation (BUNDLE_NOT_MULTIFILE / MISSING_INDEX_HTML), secret-detected, serve-url (NOT_PUBLISHED /
+    BAD_INSTANCE_ID), grant-gated dispatch (valid/tampered/non-grant), lifecycle revocation.
+  - `ui/*` (5) — drive the real Forge macro on Confluence (TOTP login → storageState): launcher empty state,
+    full upload→publish→preview, published-state, validation-ui, and **nested-upload** (folder upload preserving
+    `data/`+`assets/`, asserting the relative `fetch` resolves). Helpers in `tests/e2e/helpers`; env in
+    `tests/e2e/README.md`. Run: `npx playwright test [--project=api|ui]`.
+- **Storybook** — `forge-app` (`@storybook/html-vite`): 15 components / 34 stories of the Bold Editorial design
+  system (compiled Tailwind + self-hosted fonts, no CDN). `pnpm build:storybook` / `pnpm storybook`.
+- **Sample bundles** — `samples/release-dashboard/` (nested multi-file mini-site) for manual upload testing;
+  verified end-to-end (folder upload → live render).
+
 ## Live findings (verified against the purchased WfP account, 2026-06-17)
 
 - **Programmatic per-instance provisioning works.** The real `CloudflareWfpClient` uploaded `ms-test2` into

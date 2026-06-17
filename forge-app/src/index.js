@@ -23,6 +23,14 @@ const CONTROL_SECRET = process.env.CONTROL_SHARED_SECRET; // shared secret provi
 
 const authHeaders = () => ({ 'content-type': 'application/json', 'x-mini-sites-secret': CONTROL_SECRET ?? '' });
 
+// EAG-92 — paid-licensing gate. Forge injects `context.license` ONLY for PRODUCTION installs of a
+// Marketplace-listed app; it is `undefined` for free apps, unlisted apps, and dev/staging/custom envs
+// (there, simulate with `forge variables set -e <env> LICENSE_OVERRIDE active|inactive`). `license.active`
+// is true only for a valid paid/evaluation license. Policy (see docs/listing privacy addendum + DESIGN):
+// block NEW publishes when a license is present AND inactive; NEVER gate serving — getServeUrl stays open
+// so already-published embeds keep rendering for viewers even if the license lapses.
+const licenseInactive = (context) => context?.license != null && context.license.active === false;
+
 const resolver = new Resolver();
 
 /** Stable per-macro-instance id derived from the macro's localId (server-side context). Sanitised to a valid
@@ -42,11 +50,18 @@ resolver.define('getServeUrl', async (req) => {
   const res = await api.fetch(url, { method: 'POST', headers: authHeaders() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) return { ok: false, code: data.code ?? `HTTP_${res.status}`, instanceId };
-  return { ok: true, url: data.url, instanceId };
+  // Serving is never license-gated (live embeds must keep working); surface the state so the UI can show a
+  // non-blocking "license inactive — renew to keep editing" hint without breaking the view.
+  return { ok: true, url: data.url, instanceId, licenseActive: !licenseInactive(req.context) };
 });
 
 resolver.define('publish', async (req) => {
   const { instanceId } = await instanceIdFromContext(req.context);
+  // Gate the WRITE path: refuse new publishes on an inactive license and signal the UI to show an upgrade
+  // CTA (402 Payment Required). Existing embeds keep serving via getServeUrl — only new publishing is blocked.
+  if (licenseInactive(req.context)) {
+    return { ok: false, code: 'LICENSE_INACTIVE', httpStatus: 402, instanceId };
+  }
   const files = Array.isArray(req.payload?.files) ? req.payload.files : [];
   const res = await api.fetch(`${CONTROL_BASE}/publish?instanceId=${encodeURIComponent(instanceId)}`, {
     method: 'POST',

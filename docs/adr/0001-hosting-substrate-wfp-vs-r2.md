@@ -89,26 +89,35 @@ alternative substrate should server-side compute ever be required.
    immutable version for ≤ the grant TTL); rollback = point the instance at a prior hash (a pointer flip), no
    data copy. No reader ever sees a mixed/half-written bundle. Replace the misleading "atomic from a viewer's
    POV" comment on the in-place provider.
-3. **Cache correctness.** Verify the grant **before** any Cache API lookup. Key cached bytes by
-   `<cloudId>/<contentHash>/<path>` (content-addressed, never a mutable live path). Then delete/republish can
-   never serve stale: a deleted instance's grant no longer resolves (→404), and a republished instance resolves
-   a new hash (old cache entry simply unreferenced). Add an e2e: populate cache → delete/republish → old bytes
-   unreachable.
+3. **Cache correctness + liveness gate.** Verify the grant **before** any Cache API lookup, **then a per-request
+   instance liveness/tombstone check before cache/R2** — a content-bound grant is self-contained, so it cannot
+   self-revoke on delete; only a liveness check stops a pre-delete grant from replaying deleted content. Key
+   cached bytes by `<cloudId>/<contentHash>/<path>` (content-addressed, never a mutable live path), so a
+   republish resolves a new hash (old cache entry simply unreferenced — no stale serve).
 4. **Stream, don't buffer.** Serve via the R2 object's `body` (`ReadableStream`) and pass `Range`/`ETag`
    through — never `arrayBuffer()` the whole file into the shared Worker. Requires widening `BundleObjectStore`
    to return a stream.
 5. **Per-tenant blast-radius mitigations** (the WfP-isolation gap): keep the publish-time size/file caps
    (`validateBundle`: ≤25 MB/file, ≤2000 files), rely on Cloudflare platform DoS protection on the dispatch
    Worker, and add per-instance rate limiting + per-instance serve observability.
-6. **GC of orphaned versions.** Deleting an instance (or superseding a version) must remove the now-unreferenced
-   `b/<hash>/…` objects (a sweep), so storage doesn't grow unbounded and deleted content is truly gone.
+6. **Lifecycle invariants — republish ≠ delete (resolves the grant/GC race).**
+   - **Republish / rollback:** the instance stays live; only its current-version pointer changes. **Retain
+     prior version objects through a grace window of `max(grant TTL + cache TTL)`** so in-flight old grants keep
+     serving the old *immutable* version until they expire (no 404 mid-publish).
+   - **Delete:** write a **tombstone** for the instance (step 3's liveness check rejects every grant for it →
+     404 immediately, no replay), *then* the version objects become GC-eligible.
+   - **GC:** sweep a `b/<hash>/…` version only once it has **no live references AND the grace window has
+     elapsed** — never delete a hash a still-valid grant could reference (except a tombstoned instance, which is
+     already 404 via the liveness gate).
 
 ### Tests gating adoption
 
-- Atomic republish: a concurrent reader during `updateBundle` sees the old *or* new bundle, never a 404 or a
-  mix.
+- Atomic republish: a concurrent reader during `updateBundle` sees the old *or* new bundle, never a 404 or a mix.
+- **Old grant after republish** still serves the old version until its TTL (grace window honored).
+- **Old grant after delete** returns 404 immediately (tombstone/liveness gate — no replay of deleted content).
+- **GC** does not delete a version while a still-valid grant could reference it (grace window honored).
 - Failed write mid-publish leaves the previously-live version fully intact (no partial destruction).
-- Cache: populate → delete and → republish; the old bytes are unreachable.
+- Cache: populate → delete ⇒ unreachable; populate → republish ⇒ new bytes (old entry unreferenced).
 - Large file streams without buffering the whole object in the Worker.
 
 ## Consequences

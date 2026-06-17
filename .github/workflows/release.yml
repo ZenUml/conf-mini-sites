@@ -138,7 +138,9 @@ jobs:
       - name: Set CONTROL_SHARED_SECRET in Forge production
         if: steps.forge.outputs.ok == 'true' && steps.forge.outputs.has_secret == 'true'
         working-directory: forge-app
-        run: forge variables set CONTROL_SHARED_SECRET "$CONTROL_SHARED_SECRET" --encrypt -e production --non-interactive
+        # `forge variables set` takes no --non-interactive flag (unlike `forge deploy`); it's non-interactive
+        # by nature with all args supplied, and FORGE_DISABLE_ANALYTICS (job env) suppresses the analytics prompt.
+        run: forge variables set CONTROL_SHARED_SECRET "$CONTROL_SHARED_SECRET" --encrypt -e production
         env:
           FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
           FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}

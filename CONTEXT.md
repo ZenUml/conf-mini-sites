@@ -93,21 +93,36 @@ path). The broadened CSP `frame-ancestors` correctly allows the Forge Custom-UI 
 be **CommonJS** (no `type:module`) with default imports; (b) the precomputed instanceId matched, confirming
 Forge's `extension.localId` equals the ADF node `localId`.
 
-**Polish / follow-ups (non-blocking — the pipeline works):**
-1. **Macro height / fullscreen** — the inline Forge macro renders the mini-site compact (~150px). Setting the
-   Custom UI content height did NOT grow it and `@forge/bridge` exposes no resize API: Forge inline macros are
-   compact by design. The right pattern (as ZenUML's own macros do) is a **fullscreen modal** —
-   `custom-ui-fullscreen-modal-dialog` — with an "expand" button for the full mini-site; the inline view stays a
-   compact preview/launcher.
-2. **Upload UI path** — verified the resolver/serve path via a pre-published bundle; still exercise the actual
-   in-page folder upload (`Choose files` → `Publish`) end-to-end. Consider moving upload to the macro **config**
-   (edit-only) so viewers can't re-publish.
-3. **CSP tighten** — `EMBED_ANCESTORS` is broadened to Atlassian+Forge domains; tighten to the exact Forge
+## UI — faithfully implements the design (2026-06-17)
+
+The Custom UI now implements **`design/upload-ui/final.html`** (the fireworks-design "Bold Editorial" winner),
+not a bare-DOM placeholder. Built in `forge-app/`:
+- **Asset pipeline** (`build-ui.mjs` + `tailwind.config.js` + `ui-src/input.css`): compiles the design's
+  Tailwind config to a static CSS and self-hosts Inter / Fraunces (full opsz+wght) / JetBrains Mono variable
+  woff2 (`@fontsource-variable`). **No runtime CDN / external egress.**
+- **Inline launcher** (`static/view`, resource `view`): compact; published → live preview + Edit, else an "Add
+  mini-site" CTA. Opens the Publisher via `@forge/bridge` `Modal({resource:'publisher', size:'max'})`.
+- **Publisher modal** (`static/publisher`, resource `publisher`): the full two-state design wired to REAL data —
+  drop-zone picker → real file manifest (glyph + path + size) + validation/security checklist → striped progress
+  driven by `invoke('publish')` (SECRET_DETECTED → secret-stop state) → "It's live." preview with the **real
+  mini-site** in the browser-chrome frame (`getServeUrl`) + real bundle summary + Done/Replace/Copy.
+- **Verified live end-to-end via Playwright** (launcher → modal → pick folder → publish → progress → preview of
+  the real mini-site with its interactive counter running).
+- **Forge CSP gotcha (fixed):** Custom UI `style-src` has no `unsafe-inline`, so PARSED inline styles
+  (`style="…"` in HTML or innerHTML) are blocked; CSSOM (`el.style.x=`) is allowed. Inline styles were converted
+  to Tailwind classes / CSSOM. Also `[hidden]{display:none!important}` is needed so the attribute beats Tailwind
+  display utilities.
+
+**Polish / follow-ups (non-blocking — the pipeline + UI work end-to-end):**
+1. **Upload permission** — the Publisher (upload/replace) is reachable from the macro view; consider gating
+   upload to editors (macro **config**, or a Forge permission check) so viewers can only view.
+2. **CSP tighten** — `EMBED_ANCESTORS` is broadened to Atlassian+Forge domains; tighten to the exact Forge
    Custom-UI origin now that it's observable.
-4. **Auth hardening** — resolver→control uses a shared secret; upgrade to the Forge invocation token
+3. **Auth hardening** — resolver→control uses a shared secret; upgrade to the Forge invocation token
    (`forgeToken.ts` is built + tested) by adding `auth.appUserToken` + scopes to the `control` remote.
-5. **CF API token** — the control Worker's `WFP_API_TOKEN` is currently the wrangler OAuth token (expires);
+4. **CF API token** — the control Worker's `WFP_API_TOKEN` is currently the wrangler OAuth token (expires);
    mint a dedicated Cloudflare API token (Workers Scripts:Edit) for durable runtime provisioning.
+5. **Launcher debug line** — `view.js` has a tiny `#dbg` status line (aids modal-open debugging); drop it for production.
 
 ## Live findings (verified against the purchased WfP account, 2026-06-17)
 

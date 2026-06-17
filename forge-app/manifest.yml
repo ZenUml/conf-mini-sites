@@ -16,9 +16,17 @@ modules:
       resource: view
       resolver:
         function: resolver
+  # preUninstall fires when an admin uninstalls the app (UI or CLI), BEFORE teardown finalises — our window to
+  # tell the control Worker to schedule deletion of this site's Cloudflare-hosted bundles (30 days later, not
+  # indefinitely). See forge-app/src/index.js `preUninstall`.
+  preUninstall:
+    - key: mini-site-pre-uninstall
+      function: pre-uninstall
   function:
     - key: resolver
       handler: index.handler
+    - key: pre-uninstall
+      handler: index.preUninstall
 
 resources:
   - key: view

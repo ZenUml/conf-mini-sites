@@ -56,14 +56,16 @@ resolver.define('getServeUrl', async (req) => {
 });
 
 resolver.define('publish', async (req) => {
-  const { instanceId } = await instanceIdFromContext(req.context);
+  const { instanceId, cloudId } = await instanceIdFromContext(req.context);
   // Gate the WRITE path: refuse new publishes on an inactive license and signal the UI to show an upgrade
   // CTA (402 Payment Required). Existing embeds keep serving via getServeUrl — only new publishing is blocked.
   if (licenseInactive(req.context)) {
     return { ok: false, code: 'LICENSE_INACTIVE', httpStatus: 402, instanceId };
   }
   const files = Array.isArray(req.payload?.files) ? req.payload.files : [];
-  const res = await api.fetch(`${CONTROL_BASE}/publish?instanceId=${encodeURIComponent(instanceId)}`, {
+  // Pass cloudId so the control Worker records (instanceId → cloudId) for uninstall-driven GC: on uninstall it
+  // tombstones by cloudId, then deletes the bundle 30 days later (DESIGN: no indefinite post-uninstall retention).
+  const res = await api.fetch(`${CONTROL_BASE}/publish?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ files }),
@@ -73,3 +75,35 @@ resolver.define('publish', async (req) => {
 });
 
 export const handler = resolver.getDefinitions();
+
+/** Extract the bare Confluence site cloudId from a trigger context. Mirrors instanceIdFromContext's cloudId
+ *  source (context.cloudId), with a fallback to parsing the trailing segment of installContext
+ *  (ari:cloud:confluence::site/<cloudId>) since lifecycle-trigger contexts can carry the ARI instead. */
+function cloudIdFromContext(context) {
+  const direct = context?.cloudId ?? context?.extension?.cloudId;
+  if (direct) return direct;
+  const ari = context?.installContext ?? context?.contextToken ?? '';
+  const m = /\/([^/]+)$/.exec(String(ari)); // last path segment of the site ARI
+  return m ? m[1] : '';
+}
+
+// preUninstall — invoked when the app is uninstalled (manifest `preUninstall` module). Tell the control Worker
+// to tombstone every mini-site this site provisioned; the control Worker's scheduled sweep then deletes the
+// Cloudflare-hosted bundles 30 days later (no indefinite retention). Best-effort: if the site reinstalls and
+// re-views/republishes before the window elapses, the control Worker clears the tombstone (recordActive).
+export async function preUninstall(_payload, context) {
+  const cloudId = cloudIdFromContext(context);
+  if (!cloudId) {
+    console.warn('preUninstall: no cloudId in context; cannot schedule bundle deletion');
+    return;
+  }
+  try {
+    const res = await api.fetch(`${CONTROL_BASE}/uninstall?cloudId=${encodeURIComponent(cloudId)}`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    console.log(`preUninstall: control /uninstall for cloudId=${cloudId} → ${res.status}`);
+  } catch (e) {
+    console.error('preUninstall: failed to notify control Worker', e);
+  }
+}

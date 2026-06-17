@@ -18,6 +18,8 @@ import { verifyForgeToken, forgeJwks, extractBearer } from '../gateway/forgeToke
 import type { VerifyForgeResult } from '../gateway/forgeToken';
 import { mintGrant } from '../gateway/grant';
 import type { InstanceHandle } from '../hosting/HostingProvider';
+import { D1ProvisionedInstanceStore } from '../db/D1ProvisionedInstanceStore';
+import { runUninstallSweep } from '../lifecycle/uninstallGc';
 
 /** Serve-grant TTL — long enough for an iframe to load all of a bundle's assets at render, short enough to
  *  bound replay. Under Forge there is no permission-cache to couple to; this is purely the replay bound. */
@@ -41,6 +43,9 @@ export interface Env {
   CONTROL_SHARED_SECRET: string;
   /** Optional Forge JWKS URL override (tests/staging). */
   FORGE_JWKS_URL?: string;
+  /** D1 database for uninstall-driven GC bookkeeping (ProvisionedInstance). Optional: when unbound (dev not yet
+   *  provisioned), all GC bookkeeping is a graceful no-op and the Worker behaves exactly as before. */
+  DB?: D1Database;
   [binding: string]: unknown;
 }
 
@@ -76,6 +81,11 @@ function makeProvider(env: Env): CloudflareWfPProvider {
   return new CloudflareWfPProvider(makeClient(env));
 }
 
+/** The uninstall-GC store, or null when no D1 is bound (graceful no-op — see Env.DB). */
+function makeInstanceStore(env: Env): D1ProvisionedInstanceStore | null {
+  return env.DB ? new D1ProvisionedInstanceStore(env.DB) : null;
+}
+
 /** Constant-time string compare (avoids leaking the secret via timing). Unequal lengths → false. */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -106,7 +116,7 @@ async function authorize(request: Request, env: Env): Promise<AuthOk | { ok: fal
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
     if (url.pathname === '/healthz') return cors(json({ ok: true, service: 'conf-mini-sites-control' }));
@@ -137,6 +147,12 @@ export default {
       } catch (e) {
         return cors(json({ ok: false, code: 'PROVISION_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
       }
+      // Track the provisioned instance for uninstall-driven GC, clearing any prior tombstone (a publish proves
+      // the site is live). Best-effort + off the response path: provisioning already succeeded; failing to
+      // record only means this instance won't be auto-collected, never that publish fails.
+      const pubCloudId = url.searchParams.get('cloudId') ?? '';
+      const pubStore = makeInstanceStore(env);
+      if (pubStore && pubCloudId) ctx.waitUntil(pubStore.recordActive(instanceId, pubCloudId).catch(() => {}));
       return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));
     }
 
@@ -166,6 +182,10 @@ export default {
       // Audit-only grant fields (the dispatch Worker verifies i + exp + sig; cl/a/c are for logs). Prefer the
       // verified token context; fall back to values the resolver passes (shared-secret auth has no token).
       const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
+      // A live view proves the site is installed and in use → clear any uninstall tombstone so a reinstalled
+      // embed is never collected by the sweep. Best-effort + off the response path (never delays the render).
+      const serveStore = makeInstanceStore(env);
+      if (serveStore && cloudId) ctx.waitUntil(serveStore.recordActive(instanceId, cloudId).catch(() => {}));
       const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
       const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
       const grant = await mintGrant(
@@ -191,6 +211,38 @@ export default {
       return cors(json({ ok: true, instanceId, deleted: true }));
     }
 
+    // POST /uninstall?cloudId=ID → Forge preUninstall trigger: tombstone every still-active instance of this
+    // site. The scheduled() sweep then deletes their bundles RETENTION_MS (30 days) later. Idempotent: a repeat
+    // won't reset the clock (markUninstalledByCloudId only stamps NULL rows).
+    if (request.method === 'POST' && url.pathname === '/uninstall') {
+      const auth = await authorize(request, env);
+      if (!auth.ok) return auth.res;
+      const cloudId = url.searchParams.get('cloudId') ?? '';
+      if (!cloudId) return cors(json({ ok: false, code: 'BAD_CLOUD_ID' }, 400));
+      const store = makeInstanceStore(env);
+      if (!store) return cors(json({ ok: true, cloudId, tombstoned: 0, note: 'no DB bound' }));
+      try {
+        const tombstoned = await store.markUninstalledByCloudId(cloudId, new Date().toISOString());
+        return cors(json({ ok: true, cloudId, tombstoned }));
+      } catch (e) {
+        return cors(json({ ok: false, code: 'UNINSTALL_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+      }
+    }
+
     return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
+  },
+
+  // Cron sweep (wrangler [triggers] crons): delete the bundles of sites uninstalled more than RETENTION_MS ago.
+  // No-op when no D1 is bound. The per-instance Worker is torn down first, then the row — a failed Worker delete
+  // leaves the row for the next pass (runUninstallSweep), and the blast-radius cap bounds deletes per pass.
+  async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const store = makeInstanceStore(env);
+    if (!store) return;
+    const client = makeClient(env);
+    await runUninstallSweep({
+      store,
+      deleteWorker: (workerName) => client.deleteWorker(workerName),
+      nowMs: Date.now(),
+    });
   },
 };

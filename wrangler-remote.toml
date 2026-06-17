@@ -24,6 +24,24 @@ DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-dev.zenuml.workers.dev"
 #     npx wrangler secret put CONTROL_SHARED_SECRET --config wrangler-remote.toml
 
 # ─────────────────────────────────────────────────────────────────────────────
+# UNINSTALL-GC ACTIVATION — delete a site's mini-site bundles 30 days AFTER the app is uninstalled (instead of
+# retaining them indefinitely). The worker code is COMPLETE and guards on env.DB: with no DB bound and no cron,
+# the /uninstall endpoint and the scheduled() sweep are a graceful no-op and the worker behaves exactly as
+# before. To ACTIVATE (one-time, per env): provision a D1 DB, apply the migrations, uncomment the matching
+# binding + cron below (with the real database_id), then redeploy.
+#   npx wrangler d1 create mini-sites-dev          # copy the printed database_id into the binding below
+#   npx wrangler d1 migrations apply mini-sites-dev --config wrangler-remote.toml   # applies migrations/*.sql
+# Flow once active: Forge preUninstall → POST /uninstall (tombstone by cloudId) → this cron sweeps daily and
+# deletes ms-<instanceId> + the row once uninstalledAt is older than 30 days (republish/re-view clears it).
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "mini-sites-dev"
+# database_id = "<paste-dev-d1-id-here>"
+#
+# [triggers]
+# crons = ["0 3 * * *"]   # daily 03:00 UTC — granularity is irrelevant for a 30-day retention window
+# ─────────────────────────────────────────────────────────────────────────────
 # Named environments. The top-level config above stays the DEV worker (deployed
 # with a bare `wrangler deploy --config wrangler-remote.toml`, no --env). Each
 # named env gets a DISTINCT worker name so deploying staging/production can never
@@ -54,6 +72,17 @@ WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"
 WFP_NAMESPACE = "mini-sites-staging"
 DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-staging.zenuml.workers.dev"
 
+# Uninstall-GC activation for staging (see the top-level ACTIVATION block). Create with:
+#   npx wrangler d1 create mini-sites-staging
+#   npx wrangler d1 migrations apply mini-sites-staging --config wrangler-remote.toml --env staging
+# [[env.staging.d1_databases]]
+# binding = "DB"
+# database_name = "mini-sites-staging"
+# database_id = "<paste-staging-d1-id-here>"
+#
+# [env.staging.triggers]
+# crons = ["0 3 * * *"]
+
 [env.production]
 name = "conf-mini-sites-remote-production"
 
@@ -63,3 +92,14 @@ ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
 WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"
 WFP_NAMESPACE = "mini-sites-prod"
 DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-production.zenuml.workers.dev"
+
+# Uninstall-GC activation for production (see the top-level ACTIVATION block). Create with:
+#   npx wrangler d1 create mini-sites-prod
+#   npx wrangler d1 migrations apply mini-sites-prod --config wrangler-remote.toml --env production
+# [[env.production.d1_databases]]
+# binding = "DB"
+# database_name = "mini-sites-prod"
+# database_id = "<paste-prod-d1-id-here>"
+#
+# [env.production.triggers]
+# crons = ["0 3 * * *"]

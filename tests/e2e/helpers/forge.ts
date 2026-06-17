@@ -54,6 +54,20 @@ export async function selectFiles(page: Page, modal: Frame, filePaths: string[])
   if (!shown) throw new Error('publisher did not reach the "selected" state after setInputFiles');
 }
 
+/** Folder upload that PRESERVES nesting (data/x.json, assets/y.svg). Unlike selectFiles, this keeps the
+ *  webkitdirectory attribute and passes the DIRECTORY, so Playwright sets webkitRelativePath the same way the
+ *  real folder picker does. Use for nested bundles. Retries to absorb the modal-JS load race. */
+export async function selectFolder(page: Page, modal: Frame, dir: string): Promise<void> {
+  let shown = false;
+  for (let i = 0; i < 15 && !shown; i++) {
+    await modal.locator('#file-input').setInputFiles(dir);
+    await modal.locator('#file-input').dispatchEvent('change');
+    await page.waitForTimeout(700);
+    shown = await modal.evaluate(() => !document.getElementById('selected')!.hidden);
+  }
+  if (!shown) throw new Error('publisher did not reach the "selected" state after folder upload');
+}
+
 /** Click "Validate & publish" and wait for the "See it live" handoff (or the secret/error notice). */
 export async function publishAndAwait(modal: Frame, timeout = 45000): Promise<'handoff' | 'error'> {
   await modal.locator('#btn-publish').evaluate((el: HTMLElement) => el.click());

@@ -13,3 +13,6 @@ dist/
 # JetBrains IDE
 .idea/
 forge-app/ui-src/.app.compiled.css
+
+# Storybook build output
+forge-app/storybook-static/

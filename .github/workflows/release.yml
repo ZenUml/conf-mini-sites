@@ -114,6 +114,12 @@ jobs:
             echo "has_secret=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # The Forge CLI is not a project dependency (it's a global tool locally), so the runner has no `forge`
+      # on PATH. Install it globally before the deploy/variable steps. Only when Forge creds are present.
+      - name: Install Forge CLI
+        if: steps.forge.outputs.ok == 'true'
+        run: npm install -g @forge/cli
+
       - name: Deploy Forge app to production
         if: steps.forge.outputs.ok == 'true'
         working-directory: forge-app

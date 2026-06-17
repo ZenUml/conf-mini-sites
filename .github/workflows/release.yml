@@ -15,10 +15,10 @@
 #               until the prod secrets/vars exist.
 #
 # PREREQUISITES (everything below is a no-op until these exist):
-#   • Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (Worker deploys);
+#   • Repo secrets: CLOUDFLARE_API_TOKEN_DEPLOY, CLOUDFLARE_ACCOUNT_ID (Worker deploys);
 #     FORGE_EMAIL, FORGE_API_TOKEN (Forge deploy + variable set);
 #     CONTROL_SHARED_SECRET (the prod control-Worker shared secret, also fed to smoke + the Forge variable).
-#   • Per-env Worker secrets set out-of-band (K_GRANT in BOTH Workers; WFP_API_TOKEN + CONTROL_SHARED_SECRET
+#   • Per-env Worker secrets set out-of-band (K_GRANT in BOTH Workers; WFP_API_TOKEN_PROVISIONING + CONTROL_SHARED_SECRET
 #     in remote): `wrangler secret put NAME --config <toml> --env production`. INVARIANT: K_GRANT must be
 #     byte-identical across BOTH Workers for production or every serve grant fails closed with a 401.
 #   • A production Forge environment must exist (`forge environments create production` once).
@@ -68,7 +68,7 @@ jobs:
       - name: Check Cloudflare credentials
         id: cf
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
@@ -82,14 +82,14 @@ jobs:
         if: steps.cf.outputs.ok == 'true'
         run: npx wrangler deploy --config wrangler-dispatch.toml --env production
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy remote (control) Worker to production
         if: steps.cf.outputs.ok == 'true'
         run: npx wrangler deploy --config wrangler-remote.toml --env production
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # ── Forge deploy + variable set (gated on Forge creds; same guard-step pattern) ───────

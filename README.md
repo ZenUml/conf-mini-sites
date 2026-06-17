@@ -56,7 +56,7 @@ Worker via the WfP REST API, and mints serve grants. Set secrets with
 
 | Variable | Kind | Purpose |
 |----------|------|---------|
-| `WFP_API_TOKEN` | secret | Cloudflare API token with **Workers Scripts:Edit** — uploads/deletes per-instance Workers in the dispatch namespace. |
+| `WFP_API_TOKEN_PROVISIONING` | secret | Cloudflare API token with **Workers Scripts:Edit** — uploads/deletes per-instance Workers in the dispatch namespace. |
 | `K_GRANT` | secret | HMAC key used to **mint** the signed-path serve grant. **Byte-identical to the dispatch Worker's** `K_GRANT` (see callout). |
 | `CONTROL_SHARED_SECRET` | secret | The `x-mini-sites-secret` the Forge resolver must present to authorize `/serve-url` and `/publish`. Unset ⇒ provisioning fails closed (401). |
 | `ALLOWED_FORGE_APP_IDS` | `[vars]` | Comma-separated Forge app ids permitted to provision (last ARI segment). |

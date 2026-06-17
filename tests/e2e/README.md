@@ -2,7 +2,7 @@
 
 Playwright e2e for the deployed **dev** stack. Two projects:
 
-- **`api`** — hits the deployed control + dispatch Workers directly (shared-secret auth). No browser, no Atlassian login. Fast, deterministic (modulo the control Worker's `WFP_API_TOKEN` validity for provisioning).
+- **`api`** — hits the deployed control + dispatch Workers directly (shared-secret auth). No browser, no Atlassian login. Fast, deterministic (modulo the control Worker's `WFP_API_TOKEN_PROVISIONING` validity for provisioning).
 - **`ui`** — drives the Forge **Mini-Site** macro on a real Confluence page (lite-dev). Depends on the `setup` project, which logs in once (TOTP) and saves `tests/e2e/.auth/state.json`.
 
 ## Required env

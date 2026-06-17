@@ -31,7 +31,7 @@ export interface Env {
   /** Dispatch namespace name, e.g. "mini-sites-dev". */
   WFP_NAMESPACE: string;
   /** Cloudflare API token (Workers Scripts:Edit) — a Worker secret. Never logged. */
-  WFP_API_TOKEN: string;
+  WFP_API_TOKEN_PROVISIONING: string;
   /** K_grant raw key material — the HMAC key shared with the dispatch Worker, to MINT serve grants. Secret. */
   K_GRANT: string;
   /** Public base URL of the dispatch Worker, e.g. https://conf-mini-sites-dispatch-dev.zenuml.workers.dev */
@@ -69,7 +69,7 @@ const b64ToBytes = (b64: string): Uint8Array => {
 const INSTANCE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,55}$/;
 
 function makeClient(env: Env): CloudflareWfpClient {
-  return new CloudflareWfpClient({ accountId: env.WFP_ACCOUNT_ID, namespace: env.WFP_NAMESPACE, apiToken: env.WFP_API_TOKEN });
+  return new CloudflareWfpClient({ accountId: env.WFP_ACCOUNT_ID, namespace: env.WFP_NAMESPACE, apiToken: env.WFP_API_TOKEN_PROVISIONING });
 }
 
 function makeProvider(env: Env): CloudflareWfPProvider {

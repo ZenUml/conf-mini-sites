@@ -29,7 +29,7 @@ lsof -i :8787 -i :8788
 `wrangler dev` reads local secrets from a `.dev.vars` file next to the config (gitignored — `.dev.vars` is in `.gitignore`, so it does NOT exist in a fresh checkout/worktree). Each Worker needs its own values:
 
 - **dispatch** (`wrangler-dispatch.toml`) needs: `K_GRANT`
-- **remote** (`wrangler-remote.toml`) needs: `WFP_API_TOKEN`, `K_GRANT`, `CONTROL_SHARED_SECRET`
+- **remote** (`wrangler-remote.toml`) needs: `WFP_API_TOKEN_PROVISIONING`, `K_GRANT`, `CONTROL_SHARED_SECRET`
 
 > **INVARIANT — `K_GRANT` MUST be byte-identical in both Workers.** The remote Worker MINTS serve grants with `K_GRANT`; the dispatch Worker VERIFIES them with `K_GRANT`. A mismatch (or an unset `CONTROL_SHARED_SECRET`) fails closed with a 401 on every grant — the single most likely operational failure. Wrangler keeps a separate `.dev.vars` per config; copy the same `K_GRANT` value into both.
 
@@ -38,7 +38,7 @@ Wrangler picks up a single root `.dev.vars` by default. To keep the two Workers'
 ```bash
 # create the templates (NEVER write a real secret value — leave placeholders empty)
 printf 'K_GRANT=\n' > .dev.vars.dispatch
-printf 'WFP_API_TOKEN=\nK_GRANT=\nCONTROL_SHARED_SECRET=\n' > .dev.vars.remote
+printf 'WFP_API_TOKEN_PROVISIONING=\nK_GRANT=\nCONTROL_SHARED_SECRET=\n' > .dev.vars.remote
 ```
 
 Then pass the matching env file on each `wrangler dev` (`--env-file`). Fill in real values out-of-band (your shell, a password manager) — never commit them.
@@ -63,7 +63,7 @@ Leave both running. The remote Worker is the one the Forge resolver's `CONTROL_B
 
 > **The local dispatch Worker cannot reach real per-instance Workers without the dispatch namespace.** In production, per-instance Workers (`ms-<instanceId>`) live in the WfP dispatch namespace and are reachable ONLY via the `env.MINISITES.get(name).fetch()` binding (`[[dispatch_namespaces]]` in `wrangler-dispatch.toml`, binding `MINISITES`, namespace `mini-sites-dev`). They are not independently routable.
 >
-> `wrangler dev` does NOT run a local dispatch namespace, and you cannot provision real per-instance Workers into a remote namespace from local dev without the `WFP_API_TOKEN`-scoped REST path that the remote Worker uses. So:
+> `wrangler dev` does NOT run a local dispatch namespace, and you cannot provision real per-instance Workers into a remote namespace from local dev without the `WFP_API_TOKEN_PROVISIONING`-scoped REST path that the remote Worker uses. So:
 > - The HMAC grant mint/verify handshake between the two Workers (the K_GRANT path) DOES work locally end-to-end.
 > - But `env.MINISITES.get(...).fetch(...)` against a real per-instance Worker will not resolve locally — the dispatch Worker has no namespace to look in.
 >

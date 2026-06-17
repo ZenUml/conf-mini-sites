@@ -24,10 +24,10 @@
 K_GRANT=
 
 # ── remote/control Worker ONLY (wrangler-remote.toml) ───────────────────────────────────────────
-# WFP_API_TOKEN — Cloudflare API token with the "Workers Scripts:Edit" permission. The control
+# WFP_API_TOKEN_PROVISIONING — Cloudflare API token with the "Workers Scripts:Edit" permission. The control
 # Worker uses it against the WfP REST API to upload/delete the per-instance user Worker into the
 # dispatch namespace. Not needed by the dispatch Worker.
-WFP_API_TOKEN=
+WFP_API_TOKEN_PROVISIONING=
 
 # CONTROL_SHARED_SECRET — the shared secret the Forge resolver sends as the `x-mini-sites-secret`
 # header to authorize /serve-url and /publish. Must match the value set on the Forge side via

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { publish, serveUrl, deleteInstance, dispatchGet, freshInstanceId, sampleFiles } from '../helpers/workers';
 
 // Full provision → serve → delete via the deployed control + dispatch Workers (shared-secret auth, no browser).
-// NOTE: provisioning needs the control Worker's WFP_API_TOKEN to be valid. If publish/serve return
+// NOTE: provisioning needs the control Worker's WFP_API_TOKEN_PROVISIONING to be valid. If publish/serve return
 // PROVISION_FAILED / CHECK_FAILED, the dev token has expired (see tests/e2e/README.md) — the happy-path
 // assertions below are still the contract; refresh the token and re-run. Each test cleans up its instance.
 

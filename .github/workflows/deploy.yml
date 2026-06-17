@@ -6,11 +6,11 @@
 #                         release-gated via release.yml, never via a branch push).
 #
 # PREREQUISITES (this workflow is a harmless no-op until they exist):
-#   • Repo secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID. Every wrangler step is guarded behind
+#   • Repo secrets CLOUDFLARE_API_TOKEN_DEPLOY + CLOUDFLARE_ACCOUNT_ID. Every wrangler step is guarded behind
 #     both being non-empty — with neither set the deploy steps are skipped and the job goes green
 #     without touching Cloudflare. (Secrets can't be read in a step `if:`, so a guard step maps their
 #     presence into an output we gate on — see the `guard` step below.)
-#   • Per-env Worker secrets (K_GRANT in both Workers; WFP_API_TOKEN + CONTROL_SHARED_SECRET in remote)
+#   • Per-env Worker secrets (K_GRANT in both Workers; WFP_API_TOKEN_PROVISIONING + CONTROL_SHARED_SECRET in remote)
 #     set out-of-band via `wrangler secret put NAME --config <toml> --env <env>`. See the wrangler tomls.
 #     INVARIANT: K_GRANT must be byte-identical across BOTH Workers for the same env or every serve
 #     grant fails closed with a 401.
@@ -65,26 +65,26 @@ jobs:
       - name: Check Cloudflare credentials
         id: guard
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — skipping Worker deploys (no-op)."
+            echo "::notice::CLOUDFLARE_API_TOKEN_DEPLOY / CLOUDFLARE_ACCOUNT_ID not set — skipping Worker deploys (no-op)."
           fi
 
       - name: Deploy dispatch Worker
         if: steps.guard.outputs.ok == 'true'
         run: npx wrangler deploy --config wrangler-dispatch.toml --env "$TARGET_ENV"
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy remote (control) Worker
         if: steps.guard.outputs.ok == 'true'
         run: npx wrangler deploy --config wrangler-remote.toml --env "$TARGET_ENV"
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

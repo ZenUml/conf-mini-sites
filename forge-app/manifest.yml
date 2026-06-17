@@ -23,6 +23,9 @@ modules:
 resources:
   - key: view
     path: static/view
+  # The full "Bold Editorial" Publisher, opened in a fullscreen Forge modal from the inline launcher.
+  - key: publisher
+    path: static/publisher
 
 # The CONTROL Worker is a Forge remote (egress target for api.fetch). Auth is a shared secret the resolver
 # sends (x-mini-sites-secret) — no OAuth-token config, so no admin-consent scopes. (Upgrade path: add

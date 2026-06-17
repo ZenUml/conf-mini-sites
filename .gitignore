@@ -12,3 +12,4 @@ dist/
 
 # JetBrains IDE
 .idea/
+forge-app/ui-src/.app.compiled.css

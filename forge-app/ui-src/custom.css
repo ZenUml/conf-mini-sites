@@ -1,0 +1,167 @@
+:root { --ease: cubic-bezier(0.16, 1, 0.3, 1); --ease-ads: cubic-bezier(0.2, 0, 0, 1); }
+
+  
+  body {
+    font-family: 'Inter', sans-serif; color: #172B4D;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv05' 1;
+  }
+
+  /* drive Fraunces optical-size axis explicitly — opsz is pinned per size below.
+     font-optical-sizing:auto is intentionally NOT set: the explicit
+     font-variation-settings 'opsz' wins anyway, so leaving auto on just makes the
+     two mechanisms fight. one mechanism (explicit opsz, tuned to rendered px). */
+  .display    { font-family: 'Fraunces', Georgia, serif; }
+  .opsz-hero  { font-variation-settings: 'opsz' 144; }
+  /* "It's live." renders 44px mobile / 52px desktop — opsz 48 tracks the rendered
+     size far better than 64 (which over-contrasts at the 44px mobile size). */
+  .opsz-head  { font-variation-settings: 'opsz' 48; }
+  @media (min-width: 640px) { .opsz-head { font-variation-settings: 'opsz' 52; } }
+  .opsz-small { font-variation-settings: 'opsz' 22; }
+  .num-tab    { font-variant-numeric: tabular-nums; }
+
+  /* hero % numeral: Inter at heavy weight with tabular-nums so the live count-up
+     never reflows. tight negative tracking gives the same "big, confident, alive"
+     beat while reading as native ADS — the serif is reserved for one flourish. */
+  #pct-num {
+    font-family: 'Inter', sans-serif; font-weight: 800;
+    font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1;
+    letter-spacing: -0.04em;
+  }
+  @media (min-width: 640px) { #pct-num { letter-spacing: -0.05em; } }
+
+  /* editorial hairline kicker rule */
+  .kicker-rule::before {
+    content: ""; display: inline-block; width: 24px; height: 2px;
+    background: currentColor; vertical-align: middle; margin-right: 10px; opacity: .85;
+  }
+
+  /* corner registration marks — quiet Swiss device */
+  .reg-mark { position: absolute; width: 9px; height: 9px; pointer-events: none; opacity: .55; }
+  .reg-tl { top: -3px; left: -3px; border-top: 1px solid #626F86; border-left: 1px solid #626F86; }
+  .reg-tr { top: -3px; right: -3px; border-top: 1px solid #626F86; border-right: 1px solid #626F86; }
+  .reg-bl { bottom: -3px; left: -3px; border-bottom: 1px solid #626F86; border-left: 1px solid #626F86; }
+  .reg-br { bottom: -3px; right: -3px; border-bottom: 1px solid #626F86; border-right: 1px solid #626F86; }
+
+  /* segmented switcher */
+  .seg-thumb {
+    position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px);
+    background: #fff; border-radius: 6px; box-shadow: 0 1px 2px rgba(9,30,66,.16), 0 0 0 1px rgba(9,30,66,.04);
+    transition: transform .42s var(--ease);
+  }
+  .seg[data-on="2"] .seg-thumb { transform: translateX(100%); }
+
+  /* progress bar shimmer + stripe (motion = live streaming) */
+  .bar-fill { transition: width 1.05s var(--ease); }
+  .bar-shimmer {
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0) 35%, rgba(255,255,255,.55) 50%, rgba(255,255,255,0) 65%, transparent 100%);
+    background-size: 220% 100%; animation: shimmer 1.7s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 220% 0; } to { background-position: -120% 0; } }
+  .stripe {
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.20) 0 8px, rgba(255,255,255,0) 8px 16px);
+    animation: stripe-move 1s linear infinite;
+  }
+  @keyframes stripe-move { from { background-position: 0 0; } to { background-position: 32px 0; } }
+  /* terminal state: kill motion when done */
+  .bar-done .bar-shimmer, .bar-done .stripe { animation: none; background-image: none; }
+
+  /* spinner */
+  .spin { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* check pop */
+  .pop { animation: pop .42s var(--ease) both; }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+
+  /* row settle / lift */
+  .settle { animation: settle .45s var(--ease) both; }
+  @keyframes settle { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  .lift { animation: lift .65s var(--ease) both; }
+  @keyframes lift { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  /* live pulse pip */
+  .pulse::after {
+    content: ""; position: absolute; inset: 0; border-radius: 9999px;
+    box-shadow: 0 0 0 0 rgba(34,160,107,.5); animation: pulse 1.9s var(--ease) infinite;
+  }
+  @keyframes pulse { to { box-shadow: 0 0 0 8px rgba(34,160,107,0); } }
+
+  /* preview reveal + bloom-once glow, settling to a calm resting elevation */
+  .reveal-pane { animation: revealPane .8s var(--ease) both; }
+  @keyframes revealPane { 0% { opacity: 0; transform: translateY(16px) scale(.985); } 100% { opacity: 1; transform: none; } }
+  .glow-once { animation: glowOnce 1.6s var(--ease) both; }
+  @keyframes glowOnce {
+    0%   { box-shadow: 0 0 0 0 rgba(12,102,228,0), 0 0 0 1px rgba(223,225,230,1); }
+    30%  { box-shadow: 0 22px 52px -18px rgba(12,102,228,.50), 0 0 0 1px rgba(12,102,228,.40); }
+    100% { box-shadow: 0 16px 36px -20px rgba(12,102,228,.26), 0 0 0 1px rgba(223,225,230,1); }
+  }
+
+  /* light sweep across the browser chrome on reveal */
+  .chrome-sweep { position: relative; overflow: hidden; }
+  .chrome-sweep::before {
+    content: ""; position: absolute; top: 0; left: 0; height: 100%; width: 42%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+    transform: translateX(-180%);
+  }
+  .chrome-sweep.do-sweep::before { animation: sweep 1.25s var(--ease-ads) .25s; }
+  @keyframes sweep { to { transform: translateX(360%); } }
+
+  /* chart bars grow via a scaleY keyframe (resting state is the final height; the
+     grow only REVEALS it). the bar's natural transform is scaleY(1) = full height,
+     so the chart is correct whenever .gbar-grow is absent. the grow class is applied
+     to animate up from the baseline, then a JS timeout (renderChart) strips it once
+     the animation window has elapsed — including when a backgrounded tab pauses the
+     animation, since timers still fire while CSS animations are frozen. that timeout,
+     not the animation's own end, is what guarantees a starved frame never leaves a
+     blank chart pinned at scaleY(0). */
+  .gbar { transition: background-color .25s ease; will-change: transform; }
+  .gbar-grow { transform-origin: bottom; animation: barGrow .6s var(--ease) both; }
+  @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+  /* the morph beat: % numeral hands off to the "It's live." headline */
+  .morph-out { animation: morphOut .55s var(--ease-ads) both; }
+  @keyframes morphOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-10px) scale(.96); } }
+  .morph-in { animation: morphIn .6s var(--ease) .12s both; }
+  @keyframes morphIn { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+
+  /* the handoff cue under State 1 once it settles to 100% */
+  .settle-bar { animation: settleBar .5s var(--ease) both; }
+  @keyframes settleBar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* focus ring (ADS) */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible, input:focus-visible + .toggle-track {
+    outline: 2px solid #0C66E4; outline-offset: 2px; border-radius: 5px;
+  }
+
+  /* middle-ellipsis path */
+  .path-mid { display: inline-flex; min-width: 0; max-width: 100%; }
+  .path-mid .p-head { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .path-mid .p-tail { flex: none; white-space: nowrap; }
+
+  .scroll-thin::-webkit-scrollbar { width: 8px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #D5D9E0; border-radius: 9999px; border: 2px solid #fff; }
+  .scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+  .state-pane[hidden] { display: none; }
+
+  /* secondary action buttons */
+  .action-2 {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    height: 38px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid #DFE1E6; background: #fff; color: #44546F;
+    font-size: 13px; font-weight: 500; transition: background-color .18s, border-color .18s, color .18s;
+  }
+  .action-2:hover { background: #F1F2F4; border-color: #C1C7D0; color: #172B4D; }
+  .action-2:active { transform: scale(.99); }
+
+  /* filter chips */
+  .chip { border: 1px solid #DFE1E6; background: #fff; color: #44546F; }
+  .chip:hover { background: #F1F2F4; }
+  .chip.is-active { background: #E9F2FE; border-color: #0C66E4; color: #09326C; box-shadow: inset 0 0 0 1px #0C66E4; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .001ms !important; }
+    .bar-shimmer, .stripe, .chrome-sweep::before { display: none; }
+  }

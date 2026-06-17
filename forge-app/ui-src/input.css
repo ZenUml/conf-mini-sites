@@ -1,0 +1,36 @@
+/* Self-hosted variable fonts (woff2 copied from @fontsource-variable into ./fonts at build). Family names match
+   the design's raw CSS ('Fraunces' / 'Inter' / 'JetBrains Mono') so both the design styles and the Tailwind
+   font-* utilities resolve to these. Fraunces uses the FULL variant (opsz + wght axes) because the design drives
+   the optical-size axis explicitly (opsz 22/48/52/144). */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./fonts/fraunces.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('./fonts/inter.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url('./fonts/jetbrains-mono.woff2') format('woff2-variations');
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* The `hidden` attribute must beat Tailwind display utilities (e.g. an element with `flex` + the hidden
+   attribute would otherwise stay visible, since author `.flex` wins over the UA [hidden] rule). */
+[hidden] { display: none !important; }
+
+/* The design's bespoke CSS (custom.css — keyframes, helper classes) is appended to the compiled output by the
+   build script (the Tailwind CLI doesn't inline @import without postcss-import). */

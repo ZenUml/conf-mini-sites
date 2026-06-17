@@ -5,14 +5,18 @@
   "description": "Conf Mini-Sites — Forge app shell (macro + resolver + Custom UI). Backend Workers live at the repo root.",
   "comment": "CommonJS (no type:module) — required for Forge's bundler to resolve @forge/resolver's default export.",
   "scripts": {
-    "build:ui": "esbuild static/view/src/app.js --bundle --outfile=static/view/main.js --format=iife --minify"
+    "build:ui": "node build-ui.mjs"
   },
   "dependencies": {
     "@forge/api": "^7.2.2",
     "@forge/resolver": "^1.8.0"
   },
   "devDependencies": {
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@forge/bridge": "^5.17.0",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "tailwindcss": "^3.4.19"
   }
 }

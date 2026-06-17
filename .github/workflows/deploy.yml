@@ -1,0 +1,90 @@
+# Deploy the two Cloudflare Workers (dispatch serve-gateway + remote provisioner) to a named env.
+#
+# Triggers:
+#   • workflow_dispatch — pick staging | production from the Actions UI (manual gate for prod).
+#   • push to master    — auto-deploys ONLY staging (master is the dev-integration branch; prod is
+#                         release-gated via release.yml, never via a branch push).
+#
+# PREREQUISITES (this workflow is a harmless no-op until they exist):
+#   • Repo secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID. Every wrangler step is guarded behind
+#     both being non-empty — with neither set the deploy steps are skipped and the job goes green
+#     without touching Cloudflare. (Secrets can't be read in a step `if:`, so a guard step maps their
+#     presence into an output we gate on — see the `guard` step below.)
+#   • Per-env Worker secrets (K_GRANT in both Workers; WFP_API_TOKEN + CONTROL_SHARED_SECRET in remote)
+#     set out-of-band via `wrangler secret put NAME --config <toml> --env <env>`. See the wrangler tomls.
+#     INVARIANT: K_GRANT must be byte-identical across BOTH Workers for the same env or every serve
+#     grant fails closed with a 401.
+#   • No git remote is configured yet (repo slug placeholder ZenUml/conf-mini-sites). This workflow only
+#     runs once the repo is pushed to a GitHub remote — set the remote first.
+
+name: Deploy Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        type: choice
+        required: true
+        default: staging
+        options:
+          - staging
+          - production
+  push:
+    branches: [master]
+
+# Serialize deploys to a given env; never run two wrangler deploys at the same target concurrently.
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    env:
+      # A push to master always targets staging; workflow_dispatch uses the chosen input.
+      TARGET_ENV: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The `secrets` context is NOT available in step-level `if:`. Map the two Cloudflare credentials
+      # into env here and emit a boolean output; downstream wrangler steps gate on that output. Until
+      # both repo secrets exist this prints ok=false and every deploy step skips (job stays green).
+      - name: Check Cloudflare credentials
+        id: guard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — skipping Worker deploys (no-op)."
+          fi
+
+      - name: Deploy dispatch Worker
+        if: steps.guard.outputs.ok == 'true'
+        run: npx wrangler deploy --config wrangler-dispatch.toml --env "$TARGET_ENV"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy remote (control) Worker
+        if: steps.guard.outputs.ok == 'true'
+        run: npx wrangler deploy --config wrangler-remote.toml --env "$TARGET_ENV"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

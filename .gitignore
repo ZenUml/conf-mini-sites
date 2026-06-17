@@ -4,6 +4,8 @@ dist/
 .dev.vars
 .env
 .env.*
+# …but DO track the committed E2E template (names only, empty values) — it documents the suite's env.
+!tests/e2e/.env.example
 *.log
 .DS_Store
 

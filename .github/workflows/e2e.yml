@@ -1,0 +1,213 @@
+name: E2E
+
+# Playwright E2E for this SINGLE-VARIANT app. Two Playwright projects map to two
+# jobs here:
+#   • api — hits the deployed control + dispatch Workers with CONTROL_SHARED_SECRET.
+#           No browser, no Atlassian login. This is the DETERMINISTIC, always-on gate:
+#           it only needs one secret and runs in seconds, so it fronts every PR.
+#   • ui  — drives the Forge `mini-site` macro on a real Confluence page. Needs the
+#           full Atlassian login (email/token/user/pass/OTP) on top of the shared
+#           secret, so it is OPT-IN: it self-skips unless those secrets are configured.
+#
+# Deliberately simpler than conf-app's e2e-test.yml: ONE variant, so NO sharding,
+# NO per-shard auth-dedup, NO daily-session cache matrix. The api project is fast
+# and stateless; the ui project runs `setup` (login) + `ui` in a single job and the
+# Playwright config makes `ui` depend on `setup` automatically (no manual ordering).
+#
+# Three entry points:
+#   • workflow_call    — so smoke-test.yml and release.yml can reuse this exact gate.
+#   • workflow_dispatch — manual runs from the Actions tab.
+#   • pull_request     — the api job gates every PR (ui self-skips without secrets).
+#
+# NOTE: no git remote is configured yet (the GitHub repo slug is the placeholder
+# ZenUml/conf-mini-sites). This workflow only takes effect once the repo is pushed to
+# a GitHub remote — set the remote first.
+
+on:
+  # Reusable by smoke-test.yml / release.yml. Callers pass secrets explicitly and
+  # may override the deployed-stack URLs / target site via inputs.
+  workflow_call:
+    inputs:
+      control-url:
+        type: string
+        required: false
+        description: 'Override CONTROL_URL (the remote/control Worker base URL). Defaults to the dev Worker.'
+      dispatch-url:
+        type: string
+        required: false
+        description: 'Override DISPATCH_URL (the dispatch/serve Worker base URL). Defaults to the dev Worker.'
+      e2e-site:
+        type: string
+        required: false
+        description: 'Override E2E_SITE (Confluence host, no scheme). Defaults to lite-dev.atlassian.net.'
+    secrets:
+      # api gate needs ONLY this one.
+      CONTROL_SHARED_SECRET:
+        required: false
+        description: 'Shared secret for the control Worker. Required for the api gate; absence makes both jobs skip.'
+      # The rest are the Atlassian login the ui job needs; all optional so the
+      # reusable workflow degrades to api-only when they are not provided.
+      FORGE_EMAIL:
+        required: false
+      FORGE_API_TOKEN:
+        required: false
+      ZENUML_STAGE_USERNAME:
+        required: false
+      ZENUML_STAGE_PASSWORD:
+        required: false
+      ATLASSIAN_OTP:
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      control-url:
+        type: string
+        required: false
+        description: 'Override CONTROL_URL. Defaults to the dev Worker.'
+      dispatch-url:
+        type: string
+        required: false
+        description: 'Override DISPATCH_URL. Defaults to the dev Worker.'
+      e2e-site:
+        type: string
+        required: false
+        description: 'Override E2E_SITE. Defaults to lite-dev.atlassian.net.'
+
+  # On a PR the api job is the gate. When this workflow runs from `pull_request`
+  # (not from a caller), `secrets` reads resolve against the repo's own secrets;
+  # a fork PR has none, so the `if` guards below make the jobs skip gracefully.
+  pull_request:
+
+jobs:
+  # ── guard: read secret presence into job outputs ────────────────────────────
+  # The `secrets` context is NOT available in job/step `if:` conditions — gating a
+  # job on `secrets.X != ''` is a workflow startup error. So this job reads the
+  # secrets in a `run` step (where the secrets context IS available, via env) and
+  # exposes booleans the api/ui jobs gate on. A secretless context (fork PR, or a
+  # caller passing no secrets) yields has_api=false → downstream jobs skip, and a
+  # skipped required check is green, so PRs are never wedged.
+  guard:
+    name: guard (secret presence)
+    runs-on: ubuntu-latest
+    outputs:
+      has_api: ${{ steps.check.outputs.has_api }}
+      has_ui: ${{ steps.check.outputs.has_ui }}
+    steps:
+      - id: check
+        env:
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          ZENUML_STAGE_USERNAME: ${{ secrets.ZENUML_STAGE_USERNAME }}
+          ZENUML_STAGE_PASSWORD: ${{ secrets.ZENUML_STAGE_PASSWORD }}
+          ATLASSIAN_OTP: ${{ secrets.ATLASSIAN_OTP }}
+        run: |
+          if [ -n "$CONTROL_SHARED_SECRET" ]; then
+            echo "has_api=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_api=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CONTROL_SHARED_SECRET not set — skipping api + ui E2E (no-op)."
+          fi
+          if [ -n "$CONTROL_SHARED_SECRET" ] && [ -n "$FORGE_EMAIL" ] && [ -n "$FORGE_API_TOKEN" ] \
+             && [ -n "$ZENUML_STAGE_USERNAME" ] && [ -n "$ZENUML_STAGE_PASSWORD" ] && [ -n "$ATLASSIAN_OTP" ]; then
+            echo "has_ui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_ui=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── api: the deterministic, always-on gate ──────────────────────────────────
+  # Runs whenever CONTROL_SHARED_SECRET is present (see guard). A secretless
+  # context skips — a skipped required check is green, so PRs are never wedged.
+  api:
+    name: api (control + dispatch Workers)
+    needs: guard
+    if: ${{ needs.guard.outputs.has_api == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run api project
+        run: npx playwright test --project=api
+        env:
+          CI: 'true'
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+          # Non-secret overrides (blank → env helper falls back to its dev defaults).
+          CONTROL_URL: ${{ inputs.control-url }}
+          DISPATCH_URL: ${{ inputs.dispatch-url }}
+          E2E_SITE: ${{ inputs.e2e-site }}
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-api
+          path: playwright-report/
+          if-no-files-found: ignore
+
+  # ── ui: opt-in, runs only when the Confluence/Forge login secrets are all set ─
+  # needs the cheap api gate (fail fast before paying for an Atlassian login) plus
+  # guard, whose has_ui output is true only when every login secret is present —
+  # so a half-configured login skips cleanly instead of failing mid-login.
+  ui:
+    name: ui (Forge mini-site macro on Confluence)
+    needs: [guard, api]
+    if: ${{ needs.guard.outputs.has_ui == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run ui project (setup login runs first, via config dependency)
+        # The Playwright config makes `ui` depend on `setup`, so naming only `ui`
+        # still runs the login bootstrap that writes tests/e2e/.auth/state.json.
+        run: npx playwright test --project=ui
+        env:
+          CI: 'true'
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          ZENUML_STAGE_USERNAME: ${{ secrets.ZENUML_STAGE_USERNAME }}
+          ZENUML_STAGE_PASSWORD: ${{ secrets.ZENUML_STAGE_PASSWORD }}
+          ATLASSIAN_OTP: ${{ secrets.ATLASSIAN_OTP }}
+          CONTROL_URL: ${{ inputs.control-url }}
+          DISPATCH_URL: ${{ inputs.dispatch-url }}
+          E2E_SITE: ${{ inputs.e2e-site }}
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-ui
+          path: playwright-report/
+          if-no-files-found: ignore
+      - name: Upload auth storage state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-state-ui
+          path: tests/e2e/.auth/state.json
+          if-no-files-found: ignore
+      - name: Upload traces (failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-ui
+          path: test-results/**/trace.zip
+          if-no-files-found: ignore

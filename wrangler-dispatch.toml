@@ -22,3 +22,43 @@ EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*
 # Secret (set out-of-band, never committed):
 #   K_GRANT — the HMAC key shared with the Forge resolver. Set with:
 #     npx wrangler secret put K_GRANT --config wrangler-dispatch.toml
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Named environments. The top-level config above stays the DEV worker (deployed
+# with a bare `wrangler deploy --config wrangler-dispatch.toml`, no --env). Each
+# named env gets a DISTINCT worker name so deploying staging/production can never
+# clobber the dev worker, and its OWN dispatch namespace so per-instance Workers
+# don't cross environments.
+#
+# Secrets are NOT inherited from the top-level config — set them PER ENV:
+#   npx wrangler secret put K_GRANT --config wrangler-dispatch.toml --env staging
+#   npx wrangler secret put K_GRANT --config wrangler-dispatch.toml --env production
+#
+# INVARIANT (the single most likely operational failure): K_GRANT MUST be
+# BYTE-IDENTICAL between this dispatch Worker and the remote Worker FOR THE SAME
+# ENV (remote mints serve grants, dispatch verifies them). A mismatch — or an
+# unset value — fails CLOSED with a 401 on every grant. When you rotate K_GRANT,
+# set it in BOTH wrangler-dispatch.toml AND wrangler-remote.toml for that env.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[env.staging]
+name = "conf-mini-sites-dispatch-staging"
+
+[[env.staging.dispatch_namespaces]]
+binding = "MINISITES"
+namespace = "mini-sites-staging"
+
+[env.staging.vars]
+# Same CSP frame-ancestors policy as dev (see the top-level [vars] note above).
+EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*.atl-paas.net"
+
+[env.production]
+name = "conf-mini-sites-dispatch-production"
+
+[[env.production.dispatch_namespaces]]
+binding = "MINISITES"
+namespace = "mini-sites-prod"
+
+[env.production.vars]
+# Same CSP frame-ancestors policy as dev (see the top-level [vars] note above).
+EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*.atl-paas.net"

@@ -1,0 +1,102 @@
+# CI — the push + PR regression gate.
+#
+# WHY this file exists: this is the always-on safety net for conf-mini-sites.
+# It is NOT a deploy/release pipeline (Workers and the Forge app are shipped by
+# separate workflows / by hand). Its only job is to fail fast when a change
+# breaks the two things that are cheap to check and already exist in the repo:
+#   1. `pnpm typecheck` (tsc --noEmit) — a script unique to THIS repo. Both
+#      Workers (dispatch gateway + remote provisioner) share a single tsconfig,
+#      so one typecheck covers the whole TypeScript surface.
+#   2. `pnpm test` (vitest run) — the 20 unit tests that already live in the
+#      repo (grant minting/verification, etc.). These guard the K_GRANT
+#      sign/verify contract that, if broken, fail-closes every serve grant.
+# A third gate builds the Forge Custom UI so a broken UI bundle can't merge.
+#
+# Adapted from conf-app's build-test-deploy.yml — we kept ONLY the build job and
+# dropped every deploy/release/E2E job, because this is a single-variant app
+# (no lite/full/diagramly fan-out) and CI here must stay fast and side-effect free.
+#
+# NOTE: there is no git remote configured yet. A remote (e.g. ZenUml/conf-mini-sites)
+# must be set before GitHub Actions will run this — `git remote add origin <url>`.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    # Docs-only churn must not burn CI minutes. Markdown anywhere + the doc dirs.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'handbook/**'
+      - 'design/**'
+      - 'samples/**'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'handbook/**'
+      - 'design/**'
+      - 'samples/**'
+
+# Cancel superseded runs: a new push/PR-sync on the same ref kills the in-flight
+# run for that ref, so only the latest commit is ever gated. `head_ref` is the
+# source branch on pull_request; `ref` is the full ref on push — together they
+# dedupe a PR's push event against its synchronize event into one group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck and Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # --ignore-scripts: nothing in this repo needs post-install scripts, and
+      # skipping them keeps CI deterministic and a touch faster.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck (tsc --noEmit)
+        run: pnpm typecheck
+
+      - name: Unit tests (vitest run)
+        run: pnpm test
+
+  forge-ui:
+    # forge-app is a SEPARATE pnpm package (its own lockfile, no workspace link),
+    # so it needs its own install. Gating the Custom UI build here means a broken
+    # UI bundle fails CI before it can be deployed by the Forge release flow.
+    name: Build Forge Custom UI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install forge-app dependencies
+        run: pnpm -C forge-app install --frozen-lockfile
+
+      - name: Build Forge Custom UI
+        run: pnpm -C forge-app build:ui

@@ -7,8 +7,12 @@
   "scripts": {
     "build:ui": "node build-ui.mjs",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build:storybook": "storybook build -o storybook-static"
+    "build:storybook": "storybook build -o storybook-static",
+    "forge:deploy": "forge deploy",
+    "forge:deploy:prod": "forge deploy -e production",
+    "forge:install:prod": "forge install --upgrade -e production --site lite-dev.atlassian.net --product confluence"
   },
+  "scriptsComment": "forge:install:prod uses --upgrade (idempotent: installs on first run, upgrades thereafter) plus --site/--product so it runs NON-INTERACTIVELY in CI; change --site once a production Confluence site exists. forge:deploy:prod must run before forge:install:prod.",
   "dependencies": {
     "@forge/api": "^7.2.2",
     "@forge/resolver": "^1.8.0"

@@ -20,3 +20,46 @@ DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-dev.zenuml.workers.dev"
 #   K_GRANT — the HMAC key shared with the dispatch Worker (SAME value as the dispatch Worker's K_GRANT secret),
 #     used here to MINT serve grants:
 #     npx wrangler secret put K_GRANT --config wrangler-remote.toml
+#   CONTROL_SHARED_SECRET — the x-mini-sites-secret the Forge resolver sends to authorize provisioning:
+#     npx wrangler secret put CONTROL_SHARED_SECRET --config wrangler-remote.toml
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Named environments. The top-level config above stays the DEV worker (deployed
+# with a bare `wrangler deploy --config wrangler-remote.toml`, no --env). Each
+# named env gets a DISTINCT worker name so deploying staging/production can never
+# clobber the dev worker, its own WfP namespace, and a DISPATCH_BASE_URL pointing
+# at the matching dispatch Worker for that env.
+#
+# Secrets are NOT inherited from the top-level config — set ALL THREE per env:
+#   npx wrangler secret put WFP_API_TOKEN        --config wrangler-remote.toml --env staging
+#   npx wrangler secret put K_GRANT              --config wrangler-remote.toml --env staging
+#   npx wrangler secret put CONTROL_SHARED_SECRET --config wrangler-remote.toml --env staging
+#   (…and the same three with --env production)
+#
+# INVARIANT (the single most likely operational failure): K_GRANT MUST be
+# BYTE-IDENTICAL between this remote Worker and the dispatch Worker FOR THE SAME
+# ENV (this remote MINTS serve grants, the dispatch Worker VERIFIES them). A
+# mismatch — or an unset CONTROL_SHARED_SECRET — fails CLOSED with a 401 on every
+# grant. When you rotate K_GRANT, set it in BOTH wrangler-remote.toml AND
+# wrangler-dispatch.toml for that env.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[env.staging]
+name = "conf-mini-sites-remote-staging"
+
+[env.staging.vars]
+# Forge app ids + Cloudflare account unchanged across envs (same app, same account).
+ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
+WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"
+WFP_NAMESPACE = "mini-sites-staging"
+DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-staging.zenuml.workers.dev"
+
+[env.production]
+name = "conf-mini-sites-remote-production"
+
+[env.production.vars]
+# Forge app ids + Cloudflare account unchanged across envs (same app, same account).
+ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
+WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"
+WFP_NAMESPACE = "mini-sites-prod"
+DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-production.zenuml.workers.dev"

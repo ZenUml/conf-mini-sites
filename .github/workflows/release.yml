@@ -1,0 +1,154 @@
+# Production release for this SINGLE-VARIANT app, fired when a GitHub Release is published.
+#
+# This is the single-variant COLLAPSE of conf-app's release.yml. conf-app fans a release out across
+# lite/full/diagramly — parsing the variant out of the tag, running yq surgery on manifest.yml per
+# variant, deploying three Forge apps under three app ids, and sharding E2E per variant. conf-mini-sites
+# is ONE app (one Forge app id, one macro `mini-site`, two Workers), so ALL of that branching is gone:
+# there is exactly one build, one Forge deploy, and one smoke path.
+#
+# Two jobs:
+#   • release — build the root + Forge UI, deploy BOTH Workers to production, then forge deploy + set the
+#               CONTROL_SHARED_SECRET Forge variable. Cloudflare and Forge steps are independently gated on
+#               their credentials being present, so the job is a harmless no-op until those secrets exist.
+#   • smoke   — needs[release]; reuses ./.github/workflows/e2e.yml for a prod happy-path. That reusable
+#               workflow self-skips its jobs when the secrets it is handed are empty, so smoke is a no-op
+#               until the prod secrets/vars exist.
+#
+# PREREQUISITES (everything below is a no-op until these exist):
+#   • Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (Worker deploys);
+#     FORGE_EMAIL, FORGE_API_TOKEN (Forge deploy + variable set);
+#     CONTROL_SHARED_SECRET (the prod control-Worker shared secret, also fed to smoke + the Forge variable).
+#   • Per-env Worker secrets set out-of-band (K_GRANT in BOTH Workers; WFP_API_TOKEN + CONTROL_SHARED_SECRET
+#     in remote): `wrangler secret put NAME --config <toml> --env production`. INVARIANT: K_GRANT must be
+#     byte-identical across BOTH Workers for production or every serve grant fails closed with a 401.
+#   • A production Forge environment must exist (`forge environments create production` once).
+#   • No git remote is configured yet (repo slug placeholder ZenUml/conf-mini-sites). This workflow only runs
+#     once the repo is pushed to a GitHub remote — set the remote first.
+
+name: Release
+
+on:
+  release:
+    types: [published]
+
+# One production release at a time.
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: ${{ github.event.release.tag_name }} to production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch sources at the released tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Forge app is a SEPARATE pnpm package; install + build its Custom UI bundle.
+      - name: Install + build Forge UI
+        run: |
+          pnpm -C forge-app install --frozen-lockfile
+          pnpm -C forge-app build:ui
+
+      # ── Worker deploys (gated on Cloudflare creds; secrets aren't readable in a step `if:`,
+      #    so a guard step maps their presence into an output the deploy steps gate on) ──────
+      - name: Check Cloudflare credentials
+        id: cf
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CLOUDFLARE_* secrets not set — skipping Worker deploys (no-op)."
+          fi
+
+      - name: Deploy dispatch Worker to production
+        if: steps.cf.outputs.ok == 'true'
+        run: npx wrangler deploy --config wrangler-dispatch.toml --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy remote (control) Worker to production
+        if: steps.cf.outputs.ok == 'true'
+        run: npx wrangler deploy --config wrangler-remote.toml --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ── Forge deploy + variable set (gated on Forge creds; same guard-step pattern) ───────
+      - name: Check Forge credentials
+        id: forge
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+        run: |
+          if [ -n "$FORGE_EMAIL" ] && [ -n "$FORGE_API_TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::FORGE_EMAIL / FORGE_API_TOKEN not set — skipping Forge deploy (no-op)."
+          fi
+          # CONTROL_SHARED_SECRET presence is mapped here too: the `secrets` context
+          # is unavailable in `if:`, so the variable-set step gates on this output.
+          if [ -n "$CONTROL_SHARED_SECRET" ]; then
+            echo "has_secret=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy Forge app to production
+        if: steps.forge.outputs.ok == 'true'
+        working-directory: forge-app
+        run: pnpm forge:deploy:prod
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+
+      # Push the control-Worker shared secret into the Forge production environment so the resolver
+      # authorizes against the prod control Worker. --encrypt stores it as a Forge secret variable.
+      # Gated additionally on CONTROL_SHARED_SECRET being present (an empty value would clear it).
+      - name: Set CONTROL_SHARED_SECRET in Forge production
+        if: steps.forge.outputs.ok == 'true' && steps.forge.outputs.has_secret == 'true'
+        working-directory: forge-app
+        run: forge variables set CONTROL_SHARED_SECRET "$CONTROL_SHARED_SECRET" --encrypt -e production
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+
+  # Prod happy-path smoke. Reuses the single-variant E2E gate. The reusable workflow's jobs self-skip
+  # when the secrets handed to them are empty, so this is a harmless no-op until the prod secrets exist.
+  # Point the deployed-stack overrides at the PRODUCTION Workers so the api gate hits prod, not dev.
+  smoke:
+    name: Smoke (prod happy-path)
+    needs: [release]
+    uses: ./.github/workflows/e2e.yml
+    with:
+      control-url: https://conf-mini-sites-remote-production.zenuml.workers.dev
+      dispatch-url: https://conf-mini-sites-dispatch-production.zenuml.workers.dev
+    secrets:
+      # Empty until prod secrets are configured → e2e.yml's guard job skips api + ui (green no-op).
+      CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+      ZENUML_STAGE_USERNAME: ${{ secrets.ZENUML_STAGE_USERNAME }}
+      ZENUML_STAGE_PASSWORD: ${{ secrets.ZENUML_STAGE_PASSWORD }}
+      ATLASSIAN_OTP: ${{ secrets.ATLASSIAN_OTP }}

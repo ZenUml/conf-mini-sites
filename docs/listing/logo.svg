@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Mini Site for Confluence">
+  <!-- Mini Site for Confluence — Marketplace logo.
+       "Bold Editorial" identity: ink ground, warm parchment card, ink-blue accent.
+       A framed mini-site (browser window inside the page) = embed a live multi-file site on a page.
+       Export to PNG at 144x144 (and 512x512) for the Marketplace listing. -->
+  <defs>
+    <clipPath id="r"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <!-- Ink ground -->
+    <rect width="512" height="512" fill="#15233E"/>
+    <!-- The Confluence "page" -->
+    <rect x="96" y="86" width="320" height="340" rx="28" fill="#F4ECDD"/>
+    <!-- The embedded mini-site window -->
+    <rect x="140" y="150" width="232" height="212" rx="18" fill="#FFFFFF" stroke="#15233E" stroke-width="10"/>
+    <!-- Window title bar -->
+    <path d="M140 168 q0 -18 18 -18 h196 q18 0 18 18 v22 H140 Z" fill="#15233E"/>
+    <circle cx="166" cy="179" r="6" fill="#E8A13A"/>
+    <circle cx="188" cy="179" r="6" fill="#F4ECDD"/>
+    <circle cx="210" cy="179" r="6" fill="#F4ECDD"/>
+    <!-- Live content lines inside the mini-site -->
+    <rect x="166" y="216" width="124" height="16" rx="8" fill="#15233E"/>
+    <rect x="166" y="248" width="180" height="12" rx="6" fill="#C9D2E3"/>
+    <rect x="166" y="274" width="156" height="12" rx="6" fill="#C9D2E3"/>
+    <!-- Accent "it's live" pill -->
+    <rect x="166" y="306" width="86" height="30" rx="15" fill="#E8A13A"/>
+    <circle cx="184" cy="321" r="7" fill="#15233E"/>
+  </g>
+</svg>

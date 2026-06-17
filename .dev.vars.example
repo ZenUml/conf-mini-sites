@@ -1,0 +1,36 @@
+# .dev.vars.example — template for Cloudflare Workers SECRETS (local dev + a reference of what
+# `wrangler secret put` must set in each deployed env). Copy to .dev.vars and fill in values.
+# .dev.vars is gitignored — NEVER commit real values.
+#
+# IMPORTANT: .dev.vars is scoped PER wrangler config. There are TWO Workers at the repo root, each
+# with its own wrangler*.toml, and they need DIFFERENT subsets of these secrets. `wrangler dev`
+# loads the .dev.vars next to the config you pass, so run wrangler WITH AN EXPLICIT --config:
+#   npx wrangler dev    --config wrangler-dispatch.toml     # dispatch (serve gateway): needs K_GRANT
+#   npx wrangler dev    --config wrangler-remote.toml       # remote/control (provisioner): needs all 3
+# For deployed envs the secrets are set out-of-band (NOT from this file), per env:
+#   npx wrangler secret put <NAME> --config wrangler-<which>.toml [--env staging|production]
+#
+# Non-secret config (account id, namespace, dispatch base URL, allowed Forge app ids,
+# EMBED_ANCESTORS) lives in the wrangler tomls under [vars] — NOT here. FORGE_JWKS_URL is an
+# OPTIONAL [vars] override read by src/worker/index.ts; the default is hardcoded in
+# src/gateway/forgeToken.ts and you almost never set it. See README "Environment and secrets".
+
+# ── BOTH Workers ──────────────────────────────────────────────────────────────────────────────
+# K_GRANT — HMAC key for the signed-path serve grant. The remote/control Worker MINTS grants with
+# it; the dispatch Worker VERIFIES them with it. It MUST be BYTE-IDENTICAL in both Workers (and,
+# for named envs, within the SAME env). A mismatch — or an unset value — fails CLOSED with a 401
+# on EVERY grant. This is the single most likely operational failure; when you rotate it, set it in
+# BOTH wrangler-dispatch.toml AND wrangler-remote.toml for that env.
+K_GRANT=
+
+# ── remote/control Worker ONLY (wrangler-remote.toml) ───────────────────────────────────────────
+# WFP_API_TOKEN — Cloudflare API token with the "Workers Scripts:Edit" permission. The control
+# Worker uses it against the WfP REST API to upload/delete the per-instance user Worker into the
+# dispatch namespace. Not needed by the dispatch Worker.
+WFP_API_TOKEN=
+
+# CONTROL_SHARED_SECRET — the shared secret the Forge resolver sends as the `x-mini-sites-secret`
+# header to authorize /serve-url and /publish. Must match the value set on the Forge side via
+# `forge variables set CONTROL_SHARED_SECRET --encrypt`. If unset on the Worker, provisioning calls
+# fail closed (401). Not needed by the dispatch Worker.
+CONTROL_SHARED_SECRET=

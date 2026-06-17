@@ -1,0 +1,57 @@
+# Production smoke test — scheduled E2E against the PROD stack.
+#
+# DEFERRED / INERT (as of writing): there is no prod environment, no prod
+# Cloudflare Workers, and no prod Confluence E2E target yet. This workflow is
+# committed NOW, on purpose, so that the moment prod secrets are configured it
+# starts running on its own — no follow-up workflow edit required.
+#
+# How "inert until prod exists" actually works:
+#   The reusable ./.github/workflows/e2e.yml owns the secret guards. Every
+#   credential below is forwarded from `secrets.*`. An *unconfigured* repo/org
+#   secret expands to the empty string, so the reusable workflow's guard step
+#   sees blank login creds and SKIPS the browser/auth E2E (a clean no-op, green
+#   run). Once the ZENUML_PROD_* / ATLASSIAN_OTP / FORGE_* / CONTROL_SHARED_SECRET
+#   secrets are populated for a `production` environment, the same guard passes
+#   and the suite runs for real. Nothing here needs to change to flip it on.
+#
+# Single-variant app: conf-mini-sites ships ONE macro (`mini-site`). The
+# conf-app ancestor fanned this out across lite/full/diagramly profiles; there
+# is deliberately only ONE job here.
+
+name: Smoke Test in Production
+
+on:
+  # Daily at 02:00 UTC. Kept live even while inert: it self-activates the first
+  # night after prod secrets land, instead of waiting for someone to remember
+  # to re-enable a schedule.
+  schedule:
+    - cron: '0 2 * * *'
+  # Manual trigger for on-demand prod verification (e.g. right after a prod deploy).
+  workflow_dispatch:
+
+jobs:
+  prod-smoke:
+    name: Mini-Site Smoke Test (Prod)
+    # Reusable E2E workflow. It owns the secret guards that make a secretless
+    # run a no-op — see header. A remote must be configured before this slug
+    # resolves on GitHub: placeholder repo is ZenUml/conf-mini-sites.
+    uses: ./.github/workflows/e2e.yml
+    with:
+      # Target the PROD stack by overriding the deployed-Worker base URLs (the
+      # reusable workflow defaults these to the dev Workers). e2e.yml has NO
+      # `environment`/`suite` knob — api-vs-ui is decided purely by which secrets
+      # below are non-empty: the login-free api gate hits these URLs always, and
+      # the ui macro check joins in once the Atlassian login secrets are populated.
+      control-url: https://conf-mini-sites-remote-production.zenuml.workers.dev
+      dispatch-url: https://conf-mini-sites-dispatch-production.zenuml.workers.dev
+    secrets:
+      # Forwarded by name from secrets.*. Unset secret -> empty string -> the
+      # reusable workflow's guard no-ops. Names match tests/e2e/helpers/env.ts.
+      # ZENUML_PROD_* feed the Playwright login as ZENUML_STAGE_USERNAME/PASSWORD
+      # inside the reusable workflow (the env var names the suite reads).
+      CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+      ZENUML_STAGE_USERNAME: ${{ secrets.ZENUML_PROD_USERNAME }}
+      ZENUML_STAGE_PASSWORD: ${{ secrets.ZENUML_PROD_PASSWORD }}
+      ATLASSIAN_OTP: ${{ secrets.ATLASSIAN_OTP }}
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}

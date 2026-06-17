@@ -98,12 +98,20 @@ jobs:
         env:
           FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
           FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
         run: |
           if [ -n "$FORGE_EMAIL" ] && [ -n "$FORGE_API_TOKEN" ]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"
             echo "::notice::FORGE_EMAIL / FORGE_API_TOKEN not set — skipping Forge deploy (no-op)."
+          fi
+          # CONTROL_SHARED_SECRET presence is mapped here too: the `secrets` context
+          # is unavailable in `if:`, so the variable-set step gates on this output.
+          if [ -n "$CONTROL_SHARED_SECRET" ]; then
+            echo "has_secret=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy Forge app to production
@@ -118,7 +126,7 @@ jobs:
       # authorizes against the prod control Worker. --encrypt stores it as a Forge secret variable.
       # Gated additionally on CONTROL_SHARED_SECRET being present (an empty value would clear it).
       - name: Set CONTROL_SHARED_SECRET in Forge production
-        if: steps.forge.outputs.ok == 'true' && secrets.CONTROL_SHARED_SECRET != ''
+        if: steps.forge.outputs.ok == 'true' && steps.forge.outputs.has_secret == 'true'
         working-directory: forge-app
         run: forge variables set CONTROL_SHARED_SECRET "$CONTROL_SHARED_SECRET" --encrypt -e production
         env:
@@ -137,7 +145,7 @@ jobs:
       control-url: https://conf-mini-sites-remote-production.zenuml.workers.dev
       dispatch-url: https://conf-mini-sites-dispatch-production.zenuml.workers.dev
     secrets:
-      # Empty until prod secrets are configured → e2e.yml's job-level guards skip both jobs (green no-op).
+      # Empty until prod secrets are configured → e2e.yml's guard job skips api + ui (green no-op).
       CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
       FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
       FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}

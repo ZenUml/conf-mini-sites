@@ -1,0 +1,70 @@
+<!doctype html>
+<!--
+  Demo mini-site for the Marketplace listing screenshots (NOT a test fixture — kept separate from
+  tests/e2e/fixtures so it never affects the E2E suite). Publish this whole folder via the Mini-Site macro on
+  a clean Confluence page, then capture the live render at ~1840x900 for the listing Media tab.
+
+  Self-contained on purpose: no external fonts/CDNs/network (bundles are sandboxed and external fetch may be
+  CSP-blocked) — just index.html + style.css + app.js, exactly the "multi-file static bundle" the app showcases.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Team Dashboard — live mini-site</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="board">
+    <header class="board__head">
+      <div>
+        <p class="eyebrow">EMBEDDED · INTERACTIVE</p>
+        <h1>Platform Health</h1>
+      </div>
+      <div class="quarters" role="tablist" aria-label="Quarter">
+        <button class="q" data-q="Q1">Q1</button>
+        <button class="q" data-q="Q2">Q2</button>
+        <button class="q is-active" data-q="Q3" aria-selected="true">Q3</button>
+        <button class="q" data-q="Q4">Q4</button>
+      </div>
+    </header>
+
+    <section class="kpis" aria-label="Key metrics">
+      <article class="kpi">
+        <p class="kpi__label">Active sites</p>
+        <p class="kpi__value" data-kpi="sites">—</p>
+        <p class="kpi__delta" data-delta="sites"></p>
+      </article>
+      <article class="kpi">
+        <p class="kpi__label">Bundles served</p>
+        <p class="kpi__value" data-kpi="served">—</p>
+        <p class="kpi__delta" data-delta="served"></p>
+      </article>
+      <article class="kpi">
+        <p class="kpi__label">p95 latency</p>
+        <p class="kpi__value" data-kpi="latency">—</p>
+        <p class="kpi__delta" data-delta="latency"></p>
+      </article>
+      <article class="kpi">
+        <p class="kpi__label">Uptime</p>
+        <p class="kpi__value" data-kpi="uptime">—</p>
+        <p class="kpi__delta" data-delta="uptime"></p>
+      </article>
+    </section>
+
+    <section class="chart" aria-label="Requests per week">
+      <div class="chart__head">
+        <h2>Requests / week</h2>
+        <span class="legend"><i></i> millions</span>
+      </div>
+      <div class="bars" data-bars></div>
+    </section>
+
+    <footer class="board__foot">
+      <span class="live"><i></i> Live mini-site</span>
+      <span>Rendered inline on this Confluence page · click a quarter to update</span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

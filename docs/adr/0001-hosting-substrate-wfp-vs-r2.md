@@ -1,6 +1,6 @@
 # ADR 0001 — Hosting substrate for mini-site bundles: Workers-for-Platforms vs R2 binding
 
-- **Status:** Proposed (recommendation: **R2**). Supersedes the earlier "each macro = a paired Worker" directive *iff* accepted.
+- **Status:** Proposed. **Recommendation is conditional** (see Decision): **finish WfP** if a durable, scoped `WFP_API_TOKEN` is available; **R2** if not (or if R2's token-independent properties are required). Supersedes the earlier "each macro = a paired Worker" directive *iff* R2 is accepted.
 - **Date:** 2026-06-17
 - **Deciders:** project owner (final call) + implementer
 - **Context docs:** [CONTEXT.md](../../CONTEXT.md), [DESIGN.md](../../DESIGN.md)
@@ -18,9 +18,14 @@ same `HostingProvider` seam ([src/hosting/HostingProvider.ts](../../src/hosting/
   bundle's bytes in an **R2 bucket binding** (`env.BUNDLES.put/get`) and the dispatch Worker serves from it.
 
 The trigger for this ADR: the WfP path requires a Cloudflare **API token** (`WFP_API_TOKEN`) on the control
-Worker to provision per-instance Workers. The only token we can supply today is the rotating wrangler OAuth
-token, which **expires within hours → every publish then fails** (a production-breaking blocker). The question
-raised: *can Workers trust each other via bindings instead of a token?*
+Worker to provision per-instance Workers. The token *in use today* is the rotating wrangler OAuth token, which
+**expires within hours → every publish then fails**. This is **fixable, not fundamental** (revised): a
+dedicated, durable API token scoped to *Workers Scripts: Edit* on the dispatch namespace removes the expiry
+failure mode entirely — at the cost of a **standing high-privilege credential** to scope/rotate/protect (see
+Decision, Branch A). The original framing of this as a flat "production-breaking blocker" overstated it: it
+blocks WfP only *until a durable token is minted*. The question that prompted the ADR — *can Workers trust each
+other via bindings instead of a token?* — still has a hard answer (no, below); but token-free is **one** escape
+from the expiry problem, not the **only** one.
 
 ## The decisive technical constraint
 
@@ -44,7 +49,7 @@ external API tokens.
 
 ## Decision drivers
 
-1. Remove the production-breaking dependency on a rotating/externally-created API token.
+1. Remove the *rotating-token expiry* failure mode — either by minting a durable scoped token, or by going token-free.
 2. Operational simplicity (fewer moving parts, no per-account caps, deterministic deletes).
 3. Honest assessment of WfP's claimed benefits **for static bundles** (not in the abstract).
 4. Keep the door open for per-bundle **server-side compute** if it ever becomes a requirement.
@@ -53,7 +58,7 @@ external API tokens.
 
 | Claim | Verdict for our use case |
 |---|---|
-| **Free version control + rollback** | **Real, weak differentiator — but only vs. a *correctly-built* R2 path.** WfP creates an implicit version + deployment per upload and supports rollback (wrangler/dashboard/API). It's ops-level — an end-user "restore previous version" UX is build-it-ourselves either way, and triggering rollback still uses the WfP API (**token**). R2 *can* match it token-free, but **the currently-built `R2HostingProvider` does NOT**: it overwrites in place (`deletePrefix` then sequential `put`, [R2HostingProvider.ts:57-61](../../src/hosting/R2HostingProvider.ts)), so there is no pointer to roll back to and a republish is non-atomic. Pointer-based versioning is a **to-build requirement** (see "Required R2 design"). |
+| **Free version control + rollback** | **Real, weak differentiator — but only vs. a *correctly-built* R2 path.** WfP creates an implicit version + deployment per upload and supports rollback (wrangler/dashboard/API). It's ops-level — an end-user "restore previous version" UX is build-it-ourselves either way, and triggering rollback still uses the WfP API (**token**). R2 *can* match it token-free, but **the currently-built `R2HostingProvider` does NOT**: it overwrites in place (`deletePrefix` then sequential `put`, [R2HostingProvider.ts:57-61](../../src/hosting/R2HostingProvider.ts)), so there is no pointer to roll back to and a republish is non-atomic. Pointer-based versioning is a **to-build requirement** (see "Required R2 design"). **Sharpened by the rollback-feature analysis:** with a *durable token*, WfP's native ~100-version retention gives a future end-user rollback feature **byte-retention for free** (R2 must build keep-last-N + GC), while the *user-facing labeled list* (author/label/timestamp) needs a **D1 version index on either substrate** (native version IDs aren't user-meaningful and aren't listable from the invoke-only binding), so that part is a wash. Net: WfP rollback is a cheap native "activate prior version" call but **always token-gated**; R2 rollback is a token-free D1 pointer flip but **must build retention/GC**. |
 | **Better isolation** | **Real but bounded availability benefit — not purely theoretical (revised after review).** The browser sandbox + CSP + grant are the *security* boundary and are identical under R2. But WfP runs each tenant's byte-serving in its **own isolate**, whereas R2 funnels *all* tenants through the **one** dispatch Worker — which today even buffers each whole object into memory (`new Response(obj.bytes)`, [R2HostingProvider.ts:53](../../src/hosting/R2HostingProvider.ts) / `arrayBuffer()` in R2BundleObjectStore). So a tenant with large assets or abusive traffic stresses the *shared* serving path more directly under R2. WfP's per-tenant resource isolation + limits are a genuine availability edge. R2 mitigations are required (stream bodies, publish-time caps, rate limits — below). |
 | **Better performance** | **A wash *if the cache contract is content-addressed* (revised).** WfP: per-tenant isolate (~ms cold start) + in-isolate base64 decode per request. R2: one always-warm dispatch Worker (no per-tenant cold-start fan-out) + an R2 GET. The Cache API helps repeat-serve latency **but must be keyed by content hash, not the mutable live path** — otherwise it reintroduces exactly the stale-serving the ADR criticizes WfP for (R2 object delete does NOT purge Worker Cache API entries). No per-account script-count (~1000) or size caps, no $25/mo base. |
 
@@ -61,23 +66,49 @@ Additional WfP costs for us: the API token, provisioning complexity, and a measu
 (a deleted instance kept serving from the dispatch edge cache; see CONTEXT "Live findings") — so deletion is
 *not* a prompt revocation mechanism under WfP (the grant TTL is). R2 deletes are immediate.
 
-## The criterion that actually decides it
+## The criteria that actually decide it
 
-**Will a mini-site ever need server-side execution (per-bundle compute), or is it always static files?**
+Two questions, in order:
 
-- **Always static** (current design, DESIGN.md §0) → **R2**. WfP's three benefits are matchable token-free,
-  theoretical, or a wash; the token + provisioning + delete-lag are not bought back by real value.
-- **Future per-bundle server logic** → **WfP**. Its isolation + per-tenant limits + first-class versioning
-  then justify the token.
+**1. Is a durable, scoped `WFP_API_TOKEN` available?** WfP is already built, **deployed, and verified live**; R2
+is *not wired into any Worker* and has never run against a real bucket. So if a durable token can be minted, the
+lowest-effort path to a shipping product is to **finish WfP** — the token was the only thing between the
+as-built system and production. Token-free R2 is a from-the-seam-up build by comparison.
+
+**2. Will a mini-site ever need server-side execution (per-bundle compute), or is it always static files?**
+
+- **Always static** (current design, DESIGN.md §0) **and no durable token** → **R2**. WfP's three benefits are
+  matchable, bounded, or a wash; the rotating token + provisioning + delete-lag aren't bought back by real value.
+- **Durable token available, always static** → **finish WfP** *unless* its token-independent costs
+  (immediate-delete need, ~1000-script cap, portability, standing-secret risk) outweigh R2's migration cost.
+- **Future per-bundle server logic** → **WfP** regardless. Its isolation + per-tenant limits + first-class
+  versioning justify the standing token (R2 serves bytes, not code).
 
 ## Decision
 
-For the static-bundle product as specified: **adopt R2 as the hosting substrate — conditional on building the
-R2 design below.** This is *not* a drop-in swap to the current `R2HostingProvider`: that provider overwrites in
-place (non-atomic) and buffers whole objects, which (per the adversarial review) would reintroduce stale/mixed
-serving and shared-Worker memory pressure. The token-elimination + simplicity case for R2 holds **only with**
-the content-addressed, atomic, cache-correct design below. Retain `CloudflareWfPProvider` behind the seam as the
-alternative substrate should server-side compute ever be required.
+**Conditional, on token availability.**
+
+**Branch A — a durable, scoped `WFP_API_TOKEN` is available → finish WfP (the deployed, built path).** WfP is
+already provisioning, serving, and deleting per-instance Workers in production; R2 is unwired. A durable token
+scoped to *Workers Scripts: Edit* on the dispatch namespace removes the expiry failure mode that was the only
+real blocker, so the lowest-risk path to ship is to **complete WfP rather than build R2 from the seam up**.
+Accept the residual costs: a **standing high-privilege credential** (scope it narrowly, rotate it, never log
+it); the measured **>2-min edge-delete lag** (mitigate via the grant TTL — the real revocation mechanism under
+WfP, *not* deletion); and the **~1000-script per-account cap + ~$25/mo base** (revisit if instance count
+approaches the cap). Keep `R2HostingProvider` behind the seam as the fallback.
+
+**Branch B — no durable token, or R2's token-independent properties are required → adopt R2, conditional on
+building the Required R2 design below.** Choose R2 even when a token *could* be minted if any of: a hard
+requirement for **immediate delete/revocation** (DSAR, secret-leak takedown — R2 deletes are immediate, WfP's
+edge lag is >2 min); expected instance counts near the **~1000-script cap**; **avoiding a standing high-privilege
+secret** entirely; or **substrate portability** (R2 cutover is above the `HostingProvider` seam; WfP couples to
+Cloudflare). This is *not* a drop-in swap to the current `R2HostingProvider`: that provider overwrites in place
+(non-atomic) and buffers whole objects, which (per the adversarial review) would reintroduce stale/mixed serving
+and shared-Worker memory pressure. The simplicity case for R2 holds **only with** the content-addressed, atomic,
+cache-correct design below.
+
+**Either branch:** if mini-sites ever need per-bundle **server-side compute**, WfP is the only option (R2 serves
+bytes, not code) — keep `CloudflareWfPProvider` behind the seam regardless.
 
 ### Required R2 design (acceptance criteria — must ship with the swap)
 
@@ -130,21 +161,25 @@ alternative substrate should server-side compute ever be required.
 
 ## Consequences
 
-**Positive:** eliminates `WFP_API_TOKEN` entirely (resolves the production-breaking blocker — no durable token,
-no dashboard step); drops the WfP dependency + ~$25/mo base + the ~1000-script cap; immediate deletes; one
-always-warm serving Worker; grant/CSP/iframe unchanged.
+**Branch A (finish WfP) — positive:** ships the already-built, already-deployed path with **no migration**;
+first-class native versioning + ~100-version retention (a future rollback feature gets byte-retention for free);
+keeps the door open to per-bundle server-side compute. **Negative:** a **standing high-privilege `WFP_API_TOKEN`**
+to scope/rotate/protect; the measured **>2-min edge-delete lag** (deletion is not prompt revocation — the grant
+TTL is); **~$25/mo base + ~1000-script per-account cap**; more provisioning moving parts than serving bytes.
 
-**Negative / trade-offs:** reverses the earlier "each macro must have a paired Worker" decision and does not use
-the purchased WfP entitlement; forgoes WfP's **per-tenant serving-resource isolation** — a real availability
-edge (all tenants share one dispatch Worker), mitigated by streaming + publish caps + rate limits + platform
-DoS protection (Required R2 design §4–5); forgoes WfP's first-class versioning (mitigated: content-addressed
-versions + grant-bound hash give atomic publish + pointer rollback token-free, §1–2). **The current
-`R2HostingProvider` is not adoption-ready** — it overwrites in place and buffers whole objects; it must be
-reworked to the Required R2 design (atomic, content-addressed, streamed, cache-correct) *before* the swap. So
-"R2 is already built behind the seam" means the *seam + contract* are built, **not** a production-grade provider.
+**Branch B (R2) — positive:** **no standing control-plane token**; immediate deletes; no per-account script cap
+or $25/mo base; one always-warm serving Worker; **substrate portability** (cutover above the seam); grant/CSP/
+iframe unchanged. **Negative:** reverses the earlier "each macro = a paired Worker" decision and doesn't use the
+WfP entitlement; forgoes WfP's **per-tenant serving-resource isolation** (mitigated by streaming + publish caps
++ rate limits + platform DoS protection, Required R2 design §4–5); **the current `R2HostingProvider` is not
+adoption-ready** — it overwrites in place and buffers whole objects, and must be reworked to the Required R2
+design (atomic, content-addressed, streamed, cache-correct, retention/GC) *before* the swap. So "R2 is already
+built behind the seam" means the *seam + contract* are built, **not** a production-grade provider — R2 is
+currently **unwired and has never run against a real bucket**.
 
-**Revisit if:** mini-sites gain server-side execution, per-tenant resource isolation/limits become a
-requirement, or a security review specifically requires per-tenant compute isolation.
+**Revisit if:** a durable token becomes available/unavailable; mini-sites gain server-side execution; the
+delete-lag or ~1000-script cap starts to bite; or a security review weighs the standing-token risk against the
+immediate-delete benefit.
 
 ## References
 

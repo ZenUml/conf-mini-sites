@@ -24,12 +24,21 @@ const CONTROL_SECRET = process.env.CONTROL_SHARED_SECRET; // shared secret provi
 const authHeaders = () => ({ 'content-type': 'application/json', 'x-mini-sites-secret': CONTROL_SECRET ?? '' });
 
 // EAG-92 — paid-licensing gate. Forge injects `context.license` ONLY for PRODUCTION installs of a
-// Marketplace-listed app; it is `undefined` for free apps, unlisted apps, and dev/staging/custom envs
-// (there, simulate with `forge variables set -e <env> LICENSE_OVERRIDE active|inactive`). `license.active`
-// is true only for a valid paid/evaluation license. Policy (see docs/listing privacy addendum + DESIGN):
-// block NEW publishes when a license is present AND inactive; NEVER gate serving — getServeUrl stays open
-// so already-published embeds keep rendering for viewers even if the license lapses.
-const licenseInactive = (context) => context?.license != null && context.license.active === false;
+// Marketplace-listed app; it is `undefined` for free apps, unlisted apps, and dev/staging/custom envs. To
+// VERIFY the gate off-Marketplace (its acceptance criterion: active vs simulated-inactive on lite-dev), the
+// resolver honors a `LICENSE_OVERRIDE` Forge variable that wins over real context:
+//   forge variables set -e <env> LICENSE_OVERRIDE inactive   # force the blocked state (publish → 402)
+//   forge variables set -e <env> LICENSE_OVERRIDE active     # force the licensed state
+//   forge variables unset -e <env> LICENSE_OVERRIDE          # fall back to the real `context.license`
+// `license.active` is true only for a valid paid/evaluation license. Policy (see docs/listing privacy addendum
+// + DESIGN): block NEW publishes when the license is inactive; NEVER gate serving — getServeUrl stays open so
+// already-published embeds keep rendering for viewers even if the license lapses.
+const licenseInactive = (context) => {
+  const override = process.env.LICENSE_OVERRIDE; // operator/test knob; wins over context when set
+  if (override === 'inactive') return true;
+  if (override === 'active') return false;
+  return context?.license != null && context.license.active === false;
+};
 
 const resolver = new Resolver();
 

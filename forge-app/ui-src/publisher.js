@@ -210,7 +210,8 @@ function onPublishOk() {
   $('handoff').hidden = false;
 }
 function onPublishFail(res) {
-  const code = res.code || 'ERROR', msg = res.message || 'Publish failed.';
+  const code = res.code || 'ERROR';
+  let msg = res.message || 'Publish failed.';
   $('bar-root').classList.add('bar-done'); // kill shimmer/stripe
   $('bar-fill').classList.remove('bg-brand-blue'); $('bar-fill').classList.add('bg-stop-base');
   $('narr-spin').innerHTML = '<span class="inline-grid place-items-center w-3.5 h-3.5 rounded-full bg-stop-base"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>';
@@ -220,6 +221,11 @@ function onPublishFail(res) {
   if (code === 'SECRET_DETECTED') { setCheck('root', 'ok'); setCheck('rel', 'ok'); setCheck('caps', 'ok'); setCheck('secret', 'stop'); $('narrator').textContent = 'Stopped — secret detected'; }
   else if (code === 'BUNDLE_NO_INDEX' || code === 'BUNDLE_NOT_MULTIFILE') { setCheck('root', 'stop'); $('narrator').textContent = 'Stopped — bundle structure'; }
   else if (/SIZE|COUNT|LIMIT|TOO_/i.test(code)) { setCheck('root', 'ok'); setCheck('rel', 'ok'); setCheck('caps', 'stop'); $('narrator').textContent = 'Stopped — size/limits'; }
+  // EAG-92 — the license gate fires BEFORE validation, so no checklist row is "stopped"; show an upgrade prompt.
+  else if (code === 'LICENSE_INACTIVE') {
+    $('narrator').textContent = 'Stopped — subscription inactive';
+    msg = 'Your Mini Site for Confluence subscription is inactive or has expired. Renew it from the Atlassian Marketplace to publish new mini-sites — mini-sites you already published keep rendering.';
+  }
   else { $('narrator').textContent = 'Stopped — ' + code; }
   $('secret-msg').textContent = msg;
   $('secret-notice').hidden = false;

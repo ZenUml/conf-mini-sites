@@ -171,9 +171,10 @@ These erode the "~$25/mo, solo-buildable" premise — re-cost honestly.
 ## Blocking gates (no code until ALL pass)
 
 1. **Written** admin+security confirmation from the anchor team: GitLab Pages config (access-controlled / requires a GitLab account), whether the non-technical consumers actually lack GitLab accounts, and **residency-vs-access** — if they require *no external processor*, Cloudflare is disqualified.
-2. **Demand-to-pay:** ≥3 prospects **beyond the anchor team**, each with a real existing mini-site, a failed alternative, recurring publish frequency, a named approver **who approved the actual external-processor architecture** (residency + DPA + auth-gateway threat model), and a concrete commitment (paid pilot / LOI / install approval). Demand from a prospect whose security would veto the external host does not count.
-3. Pre-implementation lifecycle/security acceptance criteria signed off (ADR + threat model + the invariants above).
-4. EV comparison vs shipping the next ZenUML feature + a kill criterion stronger than "cheap to build."
+2. Pre-implementation lifecycle/security acceptance criteria signed off (ADR + threat model + the invariants above).
+3. EV comparison vs shipping the next ZenUML feature + a kill criterion stronger than "cheap to build."
+
+> **2026-06-17 — demand-to-pay gate REMOVED by decision.** The former gate 2 ("≥3 paying prospects beyond the anchor team who pre-approved the external-processor architecture") is **waived**. We are listing on the Marketplace as the demand-validation instrument itself (list-first, validate with real installs) rather than gating the listing on pre-secured paid commitments. Privacy / residency / DPA disclosures are still required *within* the listing, but they no longer block publishing.
 
 If the gates don't pass → ship the next ZenUML feature instead.
 

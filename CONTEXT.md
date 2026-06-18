@@ -93,6 +93,33 @@ path). The broadened CSP `frame-ancestors` correctly allows the Forge Custom-UI 
 be **CommonJS** (no `type:module`) with default imports; (b) the precomputed instanceId matched, confirming
 Forge's `extension.localId` equals the ADF node `localId`.
 
+## Releasing to production
+
+A **release promotes all three deployables to their production environments at once** — the Forge app AND both
+Cloudflare Workers:
+
+- **Forge app** → production env (`pnpm forge:deploy:prod` = `forge deploy -e production`) + `CONTROL_SHARED_SECRET`
+  set as an encrypted Forge prod variable.
+- **Control Worker** → `conf-mini-sites-remote-production` (`wrangler deploy --config wrangler-remote.toml --env production`).
+- **Dispatch Worker** → `conf-mini-sites-dispatch-production` (`wrangler deploy --config wrangler-dispatch.toml --env production`).
+
+This is automated by `.github/workflows/release.yml`, which fires when a **GitHub Release is published** (`release`
+job deploys all three + sets the Forge var; `smoke` job runs a prod happy-path via `e2e.yml` against the prod
+Workers). There is **no draft-creating workflow** (unlike conf-app) — you create the release manually:
+`gh release create vX.Y.Z` (tags are `vX.Y.Z`, no variant suffix; the tag is the version of record — `package.json`
+stays `0.0.0`).
+
+Every deploy step in `release.yml` is **gated on its prod secrets being present**, so a release with missing
+secrets goes green while deploying nothing — always confirm the run actually deployed (no `::notice:: … skipping`).
+Prerequisites (no-op until set): repo secrets `CLOUDFLARE_API_TOKEN_DEPLOY`, `CLOUDFLARE_ACCOUNT_ID`, `FORGE_EMAIL`,
+`FORGE_API_TOKEN`, `CONTROL_SHARED_SECRET`; per-env Worker secrets `K_GRANT` (byte-identical across BOTH Workers,
+else serve grants 401), `WFP_API_TOKEN_PROVISIONING`; a `production` Forge environment.
+
+**Use the `release-app` skill** (`.claude/skills/release-app/`) to run the full sequence: pre-flight → delta-derived
+release notes → publish the `vX.Y.Z` release → wait for `release.yml` → verify the live build (prod smoke +
+`check-version` + a targeted `spot-check` of the delta) → report. Releasing the pipeline is **separate** from making
+the Marketplace listing public; a paid app must enforce licensing (EAG-92) before Submit-for-review.
+
 ## UI — faithfully implements the design (2026-06-17)
 
 The Custom UI now implements **`design/upload-ui/final.html`** (the fireworks-design "Bold Editorial" winner),

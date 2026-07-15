@@ -28,15 +28,11 @@ demo-bundle/
 
 Keep the folder structure unchanged.
 
-![Unzipped sample folder contents](images/reviewer-step-02-unzip.png)
-
 *The sample contains `index.html` plus its relative CSS and JavaScript files.*
 
 ### Step 3 — Edit a Confluence page
 
 Open Confluence and edit any page, or create a new page.
-
-![Edit a Confluence page](images/reviewer-step-03-edit-page.png)
 
 *Start from the normal Confluence page editor.*
 
@@ -65,8 +61,6 @@ Select the unzipped `demo-bundle` folder — select the folder itself, not one o
 If you use a different folder, make sure it contains an `index.html` file at the **top level** of the
 folder. The app does not accept a folder where `index.html` is hidden inside another nested folder.
 
-![Select the folder containing index.html](images/reviewer-step-06-select-folder.png)
-
 *Select the unzipped folder itself. The operating-system folder picker is not part of the Confluence page.*
 
 ### Step 7 — Publish the mini-site
@@ -85,7 +79,7 @@ isolated sandbox.
 
 Click **Publish** in Confluence to save the page.
 
-![Publish the Confluence page](images/reviewer-step-08-publish-page.png)
+<img width="676" height="502" alt="image" src="https://github.com/user-attachments/assets/70dacbde-f3d8-485e-a89a-956361112aed" />
 
 *Save the page after the mini-site upload has completed.*
 

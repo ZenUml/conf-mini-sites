@@ -3,8 +3,13 @@
 Host a multi-file static bundle — an AI-generated interactive mini-site (clickable prototype, filterable
 dashboard, troubleshooting tool) — embedded live on a Confluence page.
 
-**Stack:** Atlassian Connect (JWT) + **Cloudflare Workers for Platforms** (one dispatch namespace; one
-non-routable user Worker per macro instance via Static Assets; the dispatch Worker is the auth gateway).
+**Stack:** **Atlassian Forge** (macro + resolver; Confluence permissions inherited) + **Cloudflare Workers for
+Platforms** (one dispatch namespace; one non-routable user Worker per macro instance; the dispatch Worker
+verifies the resolver-minted grant). *(The original Connect/JWT design was dropped for Forge on 2026-06-17 —
+see [`CONTEXT.md`](CONTEXT.md).)*
+
+**User documentation:** [`docs/listing/documentation.md`](docs/listing/documentation.md) — how the app works,
+features, setup, usage and verification steps. This README is developer-facing.
 
 **Status: GO — building for the Atlassian Marketplace** (decided 2026-06-16; see [`CONTEXT.md`](CONTEXT.md)).
 Shipping on Cloudflare, targeting the residency-agnostic segment, with paid installs as the demand signal.

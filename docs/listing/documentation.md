@@ -13,10 +13,6 @@ Follow these steps in order. You do not need to create a sample project: use the
 
 Download the [sample mini-site bundle](https://raw.githubusercontent.com/ZenUml/conf-mini-sites/master/docs/listing/demo-bundle.zip).
 
-![Download the sample bundle](images/reviewer-step-01-download.png)
-
-*Download the ZIP from the repository's listing folder.*
-
 ### Step 2 — Unzip the sample
 
 Unzip `demo-bundle.zip` on your computer. You should now have a folder called `demo-bundle`.

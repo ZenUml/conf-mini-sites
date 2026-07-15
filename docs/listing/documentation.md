@@ -86,12 +86,16 @@ viewers** — only publishing new bundles is blocked, so a lapsed licence never 
 
 ## 4. Usage
 
+### Download a ready-to-upload sample
+
+To try the app without creating files first, download the [sample mini-site bundle](https://raw.githubusercontent.com/ZenUml/conf-mini-sites/master/docs/listing/demo-bundle.zip), unzip it, and upload the resulting `demo-bundle` folder. It contains a multi-file interactive dashboard (`index.html`, `style.css`, and `app.js`).
+
 ### Publish a mini-site
 
 1. Edit any Confluence page.
 2. Type `/Mini-Site` (or choose **Mini-Site** in the macro browser) and insert the macro.
 3. The macro shows an empty launcher. Click **Upload** to open the publisher.
-4. Drag in a **folder** of static files containing `index.html`.
+4. Drag in the downloaded sample folder, or your own **folder** of static files containing `index.html`.
 5. Click **Publish**. The bundle is validated, scanned, and provisioned.
 6. Publish the page. The mini-site now renders live for anyone who can view that page.
 

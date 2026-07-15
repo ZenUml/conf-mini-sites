@@ -1,234 +1,167 @@
 # Mini Site for Confluence — Documentation
 
-Embed a **live, multi-file mini-site** — a clickable prototype, an interactive dashboard, or a small
-internal tool — directly on a Confluence page. Not a screenshot, not a link out: the real thing, running
-inline, for anyone who can view the page.
+Mini Site lets you upload a folder of HTML, CSS, JavaScript, and image files and run it live inside a
+Confluence page.
 
-- **App name:** Mini Site for Confluence
-- **App key:** `com.zenuml.confluence.minisite`
-- **Platform:** Atlassian Forge · Confluence Cloud
-- **Support:** support@zenuml.com
+**Support:** support@zenuml.com
 
----
+## Reviewer quick start
 
-## 1. How the app works
+Follow these steps in order. You do not need to create a sample project: use the downloadable sample.
 
-You build a static bundle (`index.html` plus its CSS, JS and assets) with any tool you like — a design-tool
-export, an AI-generated prototype, a hand-written dashboard. You drag that folder into the Mini-Site macro
-on a Confluence page. The app validates it, provisions it to an isolated sandbox, and renders it inline on
-the page.
+### Step 1 — Download the sample
 
+Download the [sample mini-site bundle](https://raw.githubusercontent.com/ZenUml/conf-mini-sites/master/docs/listing/demo-bundle.zip).
+
+![Download the sample bundle](images/reviewer-step-01-download.png)
+
+*Download the ZIP from the repository's listing folder.*
+
+### Step 2 — Unzip the sample
+
+Unzip `demo-bundle.zip` on your computer. You should now have a folder called `demo-bundle`.
+
+Inside that folder are:
+
+```text
+demo-bundle/
+├── index.html
+├── style.css
+└── app.js
 ```
-Confluence page
-  └─ Mini-Site macro (Custom UI)
-        │  1. You upload a folder of static files
-        ▼
-     Validation + security scan   ── rejects unsafe or oversized bundles
-        │  2. Provisioned to an isolated per-macro sandbox
-        ▼
-     Live render, inline on the page (interactive, for anyone who can view the page)
-```
 
-Three things worth knowing:
+Keep the folder structure unchanged.
 
-**Each macro instance is isolated.** Every Mini-Site macro gets its own sandbox. One page's bundle cannot
-read or reach another's.
+![Unzipped sample folder contents](images/reviewer-step-02-unzip.png)
 
-**Permissions are inherited from Confluence.** The app adds no permission model of its own. If a person can
-view the page, they can see the mini-site; if they cannot, they cannot. Nothing is publicly addressable —
-the sandboxes have no public URL, and each render is authorised individually and expires.
+*The sample contains `index.html` plus its relative CSS and JavaScript files.*
 
-**Bundle bytes are hosted outside Atlassian.** The app is a Forge app, but the static files you upload are
-stored and served from Cloudflare infrastructure operated by us. This is disclosed on the listing's
-Privacy & Security tab. No Confluence page content and no personal data is sent there — only the bundle you
-upload and the identifiers needed to serve it back to the right macro.
+### Step 3 — Edit a Confluence page
 
----
+Open Confluence and edit any page, or create a new page.
 
-## 2. See it in action
+![Edit a Confluence page](images/reviewer-step-03-edit-page.png)
 
-The screenshots below show the two steps a reviewer needs to confirm: the bundle is uploaded as a folder, then rendered live and interactively inline on the Confluence page.
+*Start from the normal Confluence page editor.*
 
-![Mini-Site rendered live inline on a Confluence page](images/live-render.png)
+### Step 4 — Insert the Mini-Site macro
 
-*Live render: the bundle runs inline inside the page, with its own live status and interactive controls.*
+Type `/Mini-Site` and select **Mini-Site** from the macro browser.
 
-![Mini-Site publisher upload screen](images/publisher-upload.png)
+The macro will appear on the page with an upload panel.
 
-*Publisher: upload a folder containing `index.html` and its relative CSS, JavaScript, and image assets.*
+![Insert the Mini-Site macro](images/reviewer-step-04-insert-macro.png)
 
-## 3. Key features
+*The page editor is ready for the Mini-Site macro.*
 
-| Feature | What it does |
-|---|---|
-| **Mini-Site macro** | Insert on any page. Renders your bundle live and interactive, inline. |
-| **Drag-and-drop publisher** | Drop a whole folder. Nested paths and relative `fetch()` / `src` references are preserved exactly as built. |
-| **Multi-file bundles** | Real projects, not single files: HTML + CSS + JS + images + data files. |
-| **Validation + secret scan** | Every upload is checked server-side before it can ever be served. |
-| **Inherited permissions** | Access follows Confluence page permissions. No separate sharing model to manage. |
-| **Isolated sandboxes** | One non-routable sandbox per macro instance. |
-| **No scopes requested** | The app requests no Confluence permission scopes and reads no page content. |
+### Step 5 — Open the folder picker
 
-### Limits
+Click **Upload**, then click **Browse files…**.
 
-| | |
-|---|---|
-| Files per bundle | 2,000 |
-| Per file | 25 MiB |
-| Per bundle (total) | 50 MiB |
-| Content | Static only — HTML/CSS/JS. No server-side runtime inside the bundle. |
-| Required | An `index.html` at the root of the folder. |
-| Paths | Relative only. Absolute paths and `../` traversal are rejected. |
+![Open the folder upload panel](images/reviewer-step-05-upload-folder.png)
 
----
+*The publisher asks for a folder containing `index.html`.*
 
-## 4. Setup
+### Step 6 — Select the unzipped folder
 
-**Prerequisites:** a Confluence Cloud site, and site-admin rights to install the app.
+Select the unzipped `demo-bundle` folder — select the folder itself, not one of the files inside it.
 
-1. Install **Mini Site for Confluence** from the Atlassian Marketplace onto your Confluence Cloud site.
-2. That's it — there is nothing to configure. No API keys, no accounts to create, no external service to
-   sign up for. The app is ready as soon as it is installed.
+If you use a different folder, make sure it contains an `index.html` file at the **top level** of the
+folder. The app does not accept a folder where `index.html` is hidden inside another nested folder.
 
-The app is paid via Atlassian and includes a free trial. While a licence is active you can publish new
-mini-sites and view existing ones. **If a licence lapses, already-published mini-sites keep rendering for
-viewers** — only publishing new bundles is blocked, so a lapsed licence never breaks a live page.
+![Select the folder containing index.html](images/reviewer-step-06-select-folder.png)
 
----
+*Select the unzipped folder itself. The operating-system folder picker is not part of the Confluence page.*
 
-## 5. Usage
+### Step 7 — Publish the mini-site
 
-### Download a ready-to-upload sample
+Wait for the files to appear in the upload panel. Confirm that `index.html`, `style.css`, and `app.js` are
+listed, then click **Publish**.
 
-To try the app without creating files first, download the [sample mini-site bundle](https://raw.githubusercontent.com/ZenUml/conf-mini-sites/master/docs/listing/demo-bundle.zip), unzip it, and upload the resulting `demo-bundle` folder. It contains a multi-file interactive dashboard (`index.html`, `style.css`, and `app.js`).
+The app validates the folder, checks it for accidentally included credentials, and provisions it in an
+isolated sandbox.
 
-### Publish a mini-site
+![Validate and publish the selected folder](images/reviewer-step-07-publish.png)
 
-1. Edit any Confluence page.
-2. Type `/Mini-Site` (or choose **Mini-Site** in the macro browser) and insert the macro.
-3. The macro shows an empty launcher. Click **Upload** to open the publisher.
-4. Drag in the downloaded sample folder, or your own **folder** of static files containing `index.html`.
-5. Click **Publish**. The bundle is validated, scanned, and provisioned.
-6. Publish the page. The mini-site now renders live for anyone who can view that page.
+*Use this publisher panel to confirm the folder requirement before publishing.*
 
-Each Mini-Site macro is independent: a page can carry several, and each holds its own bundle.
+### Step 8 — Publish the Confluence page
 
----
+Click **Publish** in Confluence to save the page.
 
-## 6. Testing — how to verify the app works
+![Publish the Confluence page](images/reviewer-step-08-publish-page.png)
 
-This section is a complete verification script. It takes about two minutes and needs no external tools or
-accounts.
+*Save the page after the mini-site upload has completed.*
 
-### Step 1 — Create a test bundle
+### Step 9 — Test the live mini-site
 
-Create a folder called `mini-site-test` with these three files.
+Open the published page. The sample should render inline as an interactive dashboard.
 
-`index.html`
+![Mini-Site rendered live inline on a Confluence page](images/reviewer-step-09-live-render.png)
+
+*The uploaded bundle runs live inside the Confluence page.*
+
+Confirm these two results:
+
+1. The page shows the sample interface, including its styling. This proves that `style.css` loaded.
+2. Interact with the sample controls. This proves that `app.js` loaded and the site is live, rather than a
+   screenshot or static preview.
+
+### If you use your own folder
+
+Your folder must contain a root-level `index.html`. CSS, JavaScript, images, and other files may be included
+as needed, but references must use relative paths, for example:
+
 ```html
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Mini-Site test</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <main>
-    <h1>🚀 Mini-Site is live</h1>
-    <p>If you can click the button and the number changes, the app works.</p>
-    <button id="btn">Clicked <span id="n">0</span> times</button>
-  </main>
-  <script src="app.js"></script>
-</body>
-</html>
+<link rel="stylesheet" href="style.css">
+<script src="app.js"></script>
+<img src="images/logo.png" alt="Logo">
 ```
 
-`style.css`
-```css
-body { font-family: system-ui, sans-serif; display: grid; place-items: center; min-height: 90vh; margin: 0;
-       background: linear-gradient(135deg, #2563eb, #7c3aed); }
-main { background: #fff; padding: 2rem 3rem; border-radius: 12px; text-align: center; }
-button { font-size: 1rem; padding: .6rem 1.2rem; border: 0; border-radius: 6px;
-         background: #2563eb; color: #fff; cursor: pointer; }
-```
+The upload is static only. Server-side code is not executed inside the bundle.
 
-`app.js`
-```js
-let n = 0;
-document.getElementById('btn').addEventListener('click', () => {
-  document.getElementById('n').textContent = ++n;
-});
-```
+## What the app demonstrates
 
-These three files prove the two things that matter: it is **multi-file** (the CSS and JS load via relative
-paths), and it is **live** (the JS runs and responds to clicks).
+- **Multi-file bundles:** HTML, CSS, JavaScript, images, and data files can be uploaded together.
+- **Live rendering:** the bundle runs interactively inside the Confluence page.
+- **Folder upload:** nested relative paths are preserved.
+- **Independent instances:** each Mini-Site macro has its own isolated sandbox.
+- **Confluence permissions:** access follows the page. Anyone who can view the page can view its mini-site.
+- **No Atlassian API scopes:** the app requests no Confluence permission scopes.
 
-### Step 2 — Publish it
+## Limits
 
-1. Create a new Confluence page.
-2. Insert the **Mini-Site** macro (`/Mini-Site`).
-3. Click **Upload**, drag in the whole `mini-site-test` folder, click **Publish**.
-4. Publish the page.
+| Limit | Value |
+|---|---:|
+| Files per bundle | 2,000 |
+| Maximum file size | 25 MiB |
+| Maximum bundle size | 50 MiB |
+| Required file | `index.html` at the folder root |
 
-**Expected:** the publisher lists all three files, reports validation passing, and finishes on a preview of
-the live mini-site.
+Absolute paths and `../` path traversal are rejected. External fonts, CDNs, and API calls are not available
+from the sandbox; bundle required assets locally.
 
-### Step 3 — Verify the live render
+## Troubleshooting
 
-Look at the published page.
-
-**Expected:**
-- The mini-site renders inline — a purple gradient card reading "🚀 Mini-Site is live".
-- `style.css` has applied (the gradient and card styling are present). This proves relative-path assets resolve.
-- Clicking the button increments the counter. This proves the bundle is **live and interactive**, not a screenshot.
-
-### Step 4 — Verify permission inheritance
-
-1. Restrict the test page (**⋯ → Restrictions**) so that another user cannot view it.
-2. Open the page as that user.
-
-**Expected:** they cannot see the page, and cannot see the mini-site. The mini-site is not reachable
-independently of the page — sandboxes have no public URL, and each render is individually authorised and
-short-lived.
-
-### Step 5 — Verify validation rejects a bad bundle
-
-Try publishing a folder with **no `index.html`** at its root.
-
-**Expected:** the publish is rejected with a clear error, and nothing is provisioned. Every bundle must pass
-validation — structure, path safety, size caps and a credential scan — before it can ever be served.
-
----
-
-## 7. Troubleshooting
-
-| Symptom | Cause / fix |
+| Problem | Fix |
 |---|---|
-| "No index.html" on publish | The folder must contain `index.html` **at its root**, not nested in a subfolder. Drag the folder that *contains* `index.html`. |
-| Assets (CSS/images) don't load | Use **relative** paths (`style.css`, `./img/logo.png`). Absolute paths (`/style.css`) are rejected. |
-| Bundle rejected as too large | Limits are 2,000 files, 25 MiB per file, 50 MiB per bundle. |
-| Publish blocked, viewing still works | The licence is inactive. Renew to publish again; existing mini-sites keep rendering. |
-| External fonts/CDN/API calls don't load | Bundles are sandboxed and blocked from calling third-party origins. Bundle your assets locally. |
-| Macro shows the upload panel instead of a site | Nothing has been published to that macro instance yet. |
+| `index.html` is not found | Select the folder that directly contains `index.html`, not its parent folder or a nested subfolder. |
+| CSS or JavaScript does not load | Use relative paths such as `style.css` and `app.js`. |
+| The upload is rejected as too large | Stay within the limits above. |
+| The upload panel remains visible | The bundle has not been published for this macro instance yet. |
+| Viewing works but publishing is blocked | The Atlassian licence is inactive; renew it to publish new bundles. Existing published mini-sites continue to render. |
 
----
+## Privacy and security
 
-## 8. Privacy & security
+- The app adds no separate sharing model; access follows Confluence page permissions.
+- Each macro instance is served from an isolated, non-routable sandbox with no public URL.
+- Uploaded files are validated and scanned for credentials before serving.
+- The bundle is served from Cloudflare infrastructure operated by us. No Confluence page content or personal
+  data is sent there; only the uploaded bundle and identifiers needed to serve it.
+- Served content is sandboxed and cannot call third-party origins.
 
-- Access is inherited from Confluence page permissions; the app runs no permission model of its own.
-- Each macro instance is served from its own non-routable sandbox with no public URL.
-- Every serve is individually authorised and short-lived; failures fail closed.
-- Every upload is validated (structure, path traversal, size caps) and scanned for credentials before it can
-  be served. The scan is a best-effort safety net, not a guarantee — do not put secrets in a bundle.
-- Served content is sandboxed by Content-Security-Policy and cannot call out to third-party origins.
-- Uploaded bundle bytes are hosted on Cloudflare infrastructure operated by us. No Confluence page content
-  and no personal data is sent there.
+Full detail is available on the listing's **Privacy & Security** tab.
 
-Full detail is on the listing's Privacy & Security tab.
-
----
-
-## 9. Support
+## Support
 
 **support@zenuml.com** — questions, issues, or bug reports.

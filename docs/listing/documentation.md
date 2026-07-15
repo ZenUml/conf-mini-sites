@@ -45,7 +45,19 @@ upload and the identifiers needed to serve it back to the right macro.
 
 ---
 
-## 2. Key features
+## 2. See it in action
+
+The screenshots below show the two steps a reviewer needs to confirm: the bundle is uploaded as a folder, then rendered live and interactively inline on the Confluence page.
+
+![Mini-Site rendered live inline on a Confluence page](images/live-render.png)
+
+*Live render: the bundle runs inline inside the page, with its own live status and interactive controls.*
+
+![Mini-Site publisher upload screen](images/publisher-upload.png)
+
+*Publisher: upload a folder containing `index.html` and its relative CSS, JavaScript, and image assets.*
+
+## 3. Key features
 
 | Feature | What it does |
 |---|---|
@@ -70,7 +82,7 @@ upload and the identifiers needed to serve it back to the right macro.
 
 ---
 
-## 3. Setup
+## 4. Setup
 
 **Prerequisites:** a Confluence Cloud site, and site-admin rights to install the app.
 
@@ -84,7 +96,7 @@ viewers** — only publishing new bundles is blocked, so a lapsed licence never 
 
 ---
 
-## 4. Usage
+## 5. Usage
 
 ### Download a ready-to-upload sample
 
@@ -103,7 +115,7 @@ Each Mini-Site macro is independent: a page can carry several, and each holds it
 
 ---
 
-## 5. Testing — how to verify the app works
+## 6. Testing — how to verify the app works
 
 This section is a complete verification script. It takes about two minutes and needs no external tools or
 accounts.
@@ -189,7 +201,7 @@ validation — structure, path safety, size caps and a credential scan — befor
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Cause / fix |
 |---|---|
@@ -202,7 +214,7 @@ validation — structure, path safety, size caps and a credential scan — befor
 
 ---
 
-## 7. Privacy & security
+## 8. Privacy & security
 
 - Access is inherited from Confluence page permissions; the app runs no permission model of its own.
 - Each macro instance is served from its own non-routable sandbox with no public URL.
@@ -217,6 +229,6 @@ Full detail is on the listing's Privacy & Security tab.
 
 ---
 
-## 8. Support
+## 9. Support
 
 **support@zenuml.com** — questions, issues, or bug reports.

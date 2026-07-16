@@ -25,7 +25,11 @@ import { invokeRemote } from '@forge/api';
 // The manifest declares one remote per control-Worker env (a remote's baseUrl is static), so the existing
 // per-env CONTROL_BASE_URL Forge variable stays the single source of truth and selects the remote KEY.
 const CONTROL_BASE = process.env.CONTROL_BASE_URL;
-const CONTROL_REMOTE = (CONTROL_BASE ?? '').includes('-production') ? 'control-prod' : 'control';
+const CONTROL_REMOTE = (CONTROL_BASE ?? '').includes('-production')
+  ? 'control-prod'
+  : (CONTROL_BASE ?? '').includes('-staging')
+    ? 'control-stg'
+    : 'control';
 const CONTROL_SECRET = process.env.CONTROL_SHARED_SECRET; // CI/E2E-twin secret, still sent; the FIT is primary
 
 const authHeaders = () => ({ 'content-type': 'application/json', 'x-mini-sites-secret': CONTROL_SECRET ?? '' });

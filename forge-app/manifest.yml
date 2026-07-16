@@ -48,6 +48,12 @@ remotes:
     operations:
       - fetch
       - compute
+  # Staging control Worker (the staging env's CONTROL_BASE_URL points here).
+  - key: control-stg
+    baseUrl: https://conf-mini-sites-remote-staging.zenuml.workers.dev
+    operations:
+      - fetch
+      - compute
   # Production control Worker (the prod env's CONTROL_BASE_URL points here).
   - key: control-prod
     baseUrl: https://conf-mini-sites-remote-production.zenuml.workers.dev
@@ -77,5 +83,7 @@ permissions:
         - address: https://conf-mini-sites-remote-production.zenuml.workers.dev
     frames:
       - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev
+        # Staging dispatch Worker — the nested mini-site iframe in the staging Custom UI.
+      - address: https://conf-mini-sites-dispatch-staging.zenuml.workers.dev
         # Production dispatch Worker — the nested mini-site iframe in the prod Custom UI.
       - address: https://conf-mini-sites-dispatch-production.zenuml.workers.dev

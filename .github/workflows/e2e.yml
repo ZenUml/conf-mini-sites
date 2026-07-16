@@ -136,6 +136,29 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
+      # Self-heal secret drift: the api project authenticates with the repo's CONTROL_SHARED_SECRET, and the
+      # dev control Worker must hold the SAME value. Worker secrets are write-only, so drift is invisible
+      # until every call 401s with bad-secret (it burned a CI cycle on 2026-07-16 — the dev Worker had
+      # drifted from the repo/prod value some time after 2026-06-17). When this run targets the default dev
+      # stack and the Cloudflare deploy token is available (PR/dispatch runs; workflow_call from smoke/release
+      # forwards no CF token, and fork PRs have no secrets), write the repo's value into the dev Worker before
+      # testing: same value → no-op, drifted value → healed. Never runs against an overridden (prod/staging)
+      # target.
+      - name: Sync dev control-Worker CONTROL_SHARED_SECRET (self-heal drift)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_DEPLOY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CONTROL_SHARED_SECRET: ${{ secrets.CONTROL_SHARED_SECRET }}
+          CONTROL_URL_OVERRIDE: ${{ inputs.control-url }}
+        run: |
+          if [ -n "$CONTROL_URL_OVERRIDE" ]; then
+            echo "::notice::control-url override set — not touching the dev Worker secret."
+          elif [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::No Cloudflare deploy token in this context — skipping dev secret sync."
+          else
+            printf '%s' "$CONTROL_SHARED_SECRET" | npx wrangler secret put CONTROL_SHARED_SECRET --config wrangler-remote.toml
+            echo "Dev control-Worker CONTROL_SHARED_SECRET synced from the repo secret."
+          fi
       - name: Run api project
         run: npx playwright test --project=api
         env:

@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { publish, serveUrl, deleteInstance, sampleFiles, freshInstanceId } from '../helpers/workers';
 
-// Shared-secret auth gate — the control Worker authorizes via x-mini-sites-secret (or a Forge token), and the
-// check runs BEFORE instance-id validation / provisioning (src/worker/index.ts authorize()). With no matching
-// secret and no Forge token, authorize() falls through to verifyForgeToken(null) → reason 'no-token' → 401
+// Shared-secret auth gate — the control Worker authorizes via the FIT (binding when a bearer is present) or
+// x-mini-sites-secret, and the check runs BEFORE instance-id validation / provisioning (gateway/authorize.ts).
+// These calls carry no bearer token, so a missing/wrong secret → reason 'no-credentials'/'bad-secret' → 401
 // UNAUTHORIZED. No real provisioning happens since auth fails first, so no teardown is needed.
 
 test('publish with an empty secret is rejected 401 UNAUTHORIZED (before any provisioning)', async () => {

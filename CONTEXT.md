@@ -13,10 +13,12 @@ Worker**; **Workers for Platforms is now purchased** (the earlier 10121 not-enti
   Forge inherits Confluence permissions**, so there is NO self-built Confluence ACL (the CVE-2021-26073 /
   CVSS-9.1 permission-gateway class evaporates). The Forge **resolver** runs server-side as the authorized
   viewer; it mints a short-lived **HMAC signed-path grant** and hands the Custom UI a serve URL. Publish goes
-  resolver → control Worker over a Forge **remote**, authenticated by the **Forge Invocation Token** (FIT) that
-  Forge attaches to every remote call — RS256/JWKS + `iss`/`aud` + app-id allowlist (`gateway/forgeToken.ts`),
-  BINDING whenever a bearer token is present (`gateway/authorize.ts`). The `x-mini-sites-secret` shared secret
-  (timing-safe compare) remains the credential for CI/E2E/smoke calls that don't transit Forge.
+  resolver → control Worker via **`invokeRemote()`** over the declared Forge **remote** (`compute` operation),
+  authenticated by the **Forge Invocation Token** (FIT) Forge attaches to remote invocations — RS256/JWKS +
+  `iss`/`aud` + app-id allowlist (`gateway/forgeToken.ts`), BINDING whenever a bearer token is present
+  (`gateway/authorize.ts`). Plain `api.fetch(url)` is external egress and carries NO token — that's why the
+  resolver must not use it for control calls (observed live 2026-07-16). The `x-mini-sites-secret` shared
+  secret (timing-safe compare) remains the credential for CI/E2E/smoke calls that don't transit Forge.
 - **Cloudflare WfP** owns hosting + serving: a **control Worker** (authenticates the caller, validates +
   secret-scans the bundle, provisions the per-instance Worker via the WfP script API) and a **dispatch Worker**
   (verifies the grant, routes to the per-instance Worker via the dispatch-namespace binding, injects `<base>` +
@@ -151,8 +153,10 @@ not a bare-DOM placeholder. Built in `forge-app/`:
 2. **CSP tighten** — `EMBED_ANCESTORS` is broadened to Atlassian+Forge domains; tighten to the exact Forge
    Custom-UI origin now that it's observable.
 3. **Auth hardening — DONE (2026-07-16, ECOHELP-145889):** the control Worker validates the FIT as primary,
-   binding auth (`iss`/`aud` enforced — `gateway/authorize.ts`). No `auth:` manifest block was needed: Forge
-   sends the FIT on every remote call unconditionally (`auth.appUserToken` only adds OAuth tokens).
+   binding auth (`iss`/`aud` enforced — `gateway/authorize.ts`), and the resolver routes control calls through
+   `invokeRemote()` so Forge actually attaches the FIT (plain `api.fetch` egress carries none). No `auth:`
+   manifest block was needed (`auth.appUserToken` only adds OAuth tokens); `compute` was added to the remotes'
+   `operations`.
 4. **CF API token** — the control Worker's `WFP_API_TOKEN` is currently the wrangler OAuth token (expires);
    mint a dedicated Cloudflare API token (Workers Scripts:Edit) for durable runtime provisioning.
 5. **Launcher debug line** — `view.js` has a tiny `#dbg` status line (aids modal-open debugging); drop it for production.

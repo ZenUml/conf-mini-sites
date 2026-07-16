@@ -7,8 +7,10 @@
 //   publish     — forward the uploaded multi-file bundle to the control Worker, which validates + secret-scans
 //     it and provisions the per-instance Worker.
 //
-// Auth: a shared secret (x-mini-sites-secret) proves the call is our app — no OAuth scopes (the control Worker
-// also accepts a verified Forge invocation token as an upgrade path). Confluence permissions are INHERITED:
+// Auth: Forge attaches a Forge Invocation Token (FIT) to every api.fetch call to a declared remote — no auth:
+// manifest block required. The control Worker validates it (RS256/JWKS + iss/aud) as the PRIMARY, binding
+// credential; the shared secret (x-mini-sites-secret) this resolver also sends is the CI/E2E credential for
+// calls that don't transit Forge. Confluence permissions are INHERITED:
 // Forge only invokes this resolver for a user it has already authorized for the macro, so there is no
 // permission check here (DESIGN §6 insight).
 

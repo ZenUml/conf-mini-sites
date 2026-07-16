@@ -35,9 +35,11 @@ resources:
   - key: publisher
     path: static/publisher
 
-# The CONTROL Worker is a Forge remote (egress target for api.fetch). Auth is a shared secret the resolver
-# sends (x-mini-sites-secret) — no OAuth-token config, so no admin-consent scopes. (Upgrade path: add
-# auth.appUserToken + scopes to have Forge attach a verifiable invocation token instead.)
+# The CONTROL Worker is a Forge remote (egress target for api.fetch). Forge attaches a Forge Invocation Token
+# (FIT) to EVERY remote call — no auth: block needed (auth.appUserToken/appSystemToken only add OAuth tokens
+# for calling Atlassian APIs, which we don't do, so no admin-consent scopes). The Worker validates the FIT as
+# the primary, binding credential (RS256/JWKS + iss/aud — src/gateway/authorize.ts); the x-mini-sites-secret
+# the resolver also sends remains the CI/E2E credential for calls that don't transit Forge (ECOHELP-145889).
 remotes:
   - key: control
     baseUrl: https://conf-mini-sites-remote-dev.zenuml.workers.dev

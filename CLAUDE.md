@@ -19,7 +19,7 @@ Confluence page (Mini-Site macro, Custom UI)
    │  getServeUrl / publish  (Forge resolver = forge-app/src/index.js)
    ▼
 Control Worker  (src/worker/index.ts · wrangler-remote.toml · conf-mini-sites-remote-*)
-   - verify Forge token OR x-mini-sites-secret → validate + secret-scan bundle
+   - verify FIT (binding when present) or x-mini-sites-secret (CI) → validate + secret-scan bundle
    - provision per-instance Worker via WfP REST  → /publish
    - mint short-lived HMAC signed-path grant      → /serve-url
    - tombstone on uninstall (D1)                  → /uninstall   (+ scheduled 30-day GC sweep)

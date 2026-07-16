@@ -23,12 +23,18 @@ beforeAll(async () => {
 async function sign(
   signer: jose.CryptoKey,
   payload: Record<string, unknown>,
-  opts: { exp?: string | number } = {},
+  opts: { exp?: string | number; iss?: string | null; aud?: string | null } = {},
 ): Promise<string> {
   const jwt = new jose.SignJWT(payload as jose.JWTPayload)
     .setProtectedHeader({ alg: 'RS256', kid: 'test-key-1' })
     .setIssuedAt();
   jwt.setExpirationTime(opts.exp ?? '5m');
+  // Real FITs always carry iss "forge/invocation-token" and aud = the app ARI. Valid by default so every
+  // fixture models a real token; pass null to omit a claim, a string to override.
+  const iss = opts.iss === undefined ? 'forge/invocation-token' : opts.iss;
+  const aud = opts.aud === undefined ? APP_ARI : opts.aud;
+  if (iss !== null) jwt.setIssuer(iss);
+  if (aud !== null) jwt.setAudience(aud);
   return jwt.sign(signer);
 }
 
@@ -81,6 +87,26 @@ describe('verifyForgeToken', () => {
   it('rejects a token with no app claim (app-mismatch)', async () => {
     const token = await sign(priv, { context: { cloudId: 'c' } });
     expect(await verifyForgeToken(token, opts())).toMatchObject({ ok: false, reason: 'app-mismatch' });
+  });
+
+  it('rejects a token with the wrong issuer (bad-token)', async () => {
+    const token = await sign(priv, { app: { id: APP_ARI } }, { iss: 'connect/session-token' });
+    expect(await verifyForgeToken(token, opts())).toMatchObject({ ok: false, reason: 'bad-token' });
+  });
+
+  it('rejects a token with no issuer (bad-token)', async () => {
+    const token = await sign(priv, { app: { id: APP_ARI } }, { iss: null });
+    expect(await verifyForgeToken(token, opts())).toMatchObject({ ok: false, reason: 'bad-token' });
+  });
+
+  it('rejects a token whose audience is another app (bad-token)', async () => {
+    const token = await sign(priv, { app: { id: APP_ARI } }, { aud: 'ari:cloud:ecosystem::app/some-other-app' });
+    expect(await verifyForgeToken(token, opts())).toMatchObject({ ok: false, reason: 'bad-token' });
+  });
+
+  it('rejects a token with no audience (bad-token)', async () => {
+    const token = await sign(priv, { app: { id: APP_ARI } }, { aud: null });
+    expect(await verifyForgeToken(token, opts())).toMatchObject({ ok: false, reason: 'bad-token' });
   });
 
   it('honours a multi-id allowlist', async () => {

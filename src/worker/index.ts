@@ -14,8 +14,9 @@ import { CloudflareWfpClient } from '../hosting/CloudflareWfpClient';
 import { validateBundle } from '../pipeline/bundleValidation';
 import type { RawBundleFile } from '../pipeline/bundleValidation';
 import { scanForSecrets } from '../pipeline/secretScan';
-import { verifyForgeToken, forgeJwks, extractBearer } from '../gateway/forgeToken';
-import type { VerifyForgeResult } from '../gateway/forgeToken';
+import { verifyForgeToken, forgeJwks } from '../gateway/forgeToken';
+import type { ForgeTokenContext } from '../gateway/forgeToken';
+import { authorizeControlCall } from '../gateway/authorize';
 import { mintGrant } from '../gateway/grant';
 import type { InstanceHandle } from '../hosting/HostingProvider';
 import { D1ProvisionedInstanceStore } from '../db/D1ProvisionedInstanceStore';
@@ -38,8 +39,8 @@ export interface Env {
   K_GRANT: string;
   /** Public base URL of the dispatch Worker, e.g. https://conf-mini-sites-dispatch-dev.zenuml.workers.dev */
   DISPATCH_BASE_URL: string;
-  /** Shared secret proving the caller is our Forge resolver (sent as x-mini-sites-secret). A Worker secret;
-   *  its twin is the Forge variable the resolver reads. The primary resolver→control auth (no OAuth scopes). */
+  /** Shared secret (x-mini-sites-secret) for callers that don't transit Forge — CI/E2E/smoke. A Worker secret;
+   *  its twin is the Forge variable the resolver reads. Forge-originated calls authenticate by FIT instead. */
   CONTROL_SHARED_SECRET: string;
   /** Optional Forge JWKS URL override (tests/staging). */
   FORGE_JWKS_URL?: string;
@@ -86,33 +87,34 @@ function makeInstanceStore(env: Env): D1ProvisionedInstanceStore | null {
   return env.DB ? new D1ProvisionedInstanceStore(env.DB) : null;
 }
 
-/** Constant-time string compare (avoids leaking the secret via timing). Unequal lengths → false. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+type AuthOk = { ok: true; context: ForgeTokenContext };
 
-type AuthCtx = Extract<VerifyForgeResult, { ok: true }>['context'];
-type AuthOk = { ok: true; context: AuthCtx };
-
-// Authorize a control call. PRIMARY: the shared secret our resolver sends (x-mini-sites-secret) — no OAuth
-// scopes, the secret lives only in the resolver's Forge variable + this Worker. FALLBACK/UPGRADE: a verified
-// Forge invocation token (when the remote is later configured with appUserToken + scopes — forgeToken.ts).
-// Both prove "this is our app"; either suffices.
+// Authorize a control call — decision logic (and its tests) in gateway/authorize.ts. PRIMARY: the Forge
+// invocation token Forge attaches to every resolver→control api.fetch call; when a bearer token is present
+// its verification is BINDING. FALLBACK (no bearer): the x-mini-sites-secret shared secret — the CI/E2E/smoke
+// credential. The log line is auth-path telemetry only — never token material (BACKEND_DESIGN logging ban).
 async function authorize(request: Request, env: Env): Promise<AuthOk | { ok: false; res: Response }> {
-  const provided = request.headers.get('x-mini-sites-secret');
-  if (env.CONTROL_SHARED_SECRET && provided && timingSafeEqual(provided, env.CONTROL_SHARED_SECRET)) {
-    return { ok: true, context: { appId: 'shared-secret', payload: {} } };
+  const decision = await authorizeControlCall(
+    {
+      authorization: request.headers.get('authorization'),
+      sharedSecret: request.headers.get('x-mini-sites-secret'),
+    },
+    {
+      sharedSecret: env.CONTROL_SHARED_SECRET,
+      verifyToken: (token) =>
+        verifyForgeToken(token, {
+          getKey: forgeJwks(env.FORGE_JWKS_URL),
+          allowedAppIds: (env.ALLOWED_FORGE_APP_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+        }),
+    },
+  );
+  const path = new URL(request.url).pathname;
+  if (!decision.ok) {
+    console.log(JSON.stringify({ evt: 'authorize', ok: false, reason: decision.reason, path }));
+    return { ok: false, res: cors(json({ ok: false, code: 'UNAUTHORIZED', reason: decision.reason }, 401)) };
   }
-  const token = extractBearer(request.headers.get('authorization'));
-  const result = await verifyForgeToken(token, {
-    getKey: forgeJwks(env.FORGE_JWKS_URL),
-    allowedAppIds: (env.ALLOWED_FORGE_APP_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-  });
-  if (!result.ok) return { ok: false, res: cors(json({ ok: false, code: 'UNAUTHORIZED', reason: result.reason }, 401)) };
-  return { ok: true, context: result.context };
+  console.log(JSON.stringify({ evt: 'authorize', ok: true, via: decision.via, path }));
+  return { ok: true, context: decision.context };
 }
 
 export default {

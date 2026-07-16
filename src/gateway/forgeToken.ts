@@ -15,9 +15,24 @@ import * as jose from 'jose';
 /** Atlassian's Forge invocation-token JWKS (same endpoint conf-app uses). */
 export const FORGE_JWKS_URL = 'https://forge.cdn.prod.atlassian-dev.net/.well-known/jwks.json';
 
-/** Build the production remote JWKS resolver. Cached internally by jose (honours Cache-Control). */
+/** The `iss` every FIT carries (Forge Remote security requirements). */
+export const FORGE_ISSUER = 'forge/invocation-token';
+
+/** A FIT's `aud` is the full app ARI, not the bare app id. */
+export const appAri = (appId: string): string => `ari:cloud:ecosystem::app/${appId}`;
+
+// FIT verification is on the hot path (every control call), so the remote JWKS resolver must be reused —
+// jose's key cache lives per createRemoteJWKSet instance; a fresh instance per request would refetch the JWKS.
+const remoteJwksCache = new Map<string, jose.JWTVerifyGetKey>();
+
+/** Build (once per isolate per URL) the remote JWKS resolver. jose caches keys, honouring Cache-Control. */
 export function forgeJwks(jwksUrl: string = FORGE_JWKS_URL): jose.JWTVerifyGetKey {
-  return jose.createRemoteJWKSet(new URL(jwksUrl));
+  let getKey = remoteJwksCache.get(jwksUrl);
+  if (!getKey) {
+    getKey = jose.createRemoteJWKSet(new URL(jwksUrl));
+    remoteJwksCache.set(jwksUrl, getKey);
+  }
+  return getKey;
 }
 
 export interface ForgeTokenContext {
@@ -58,16 +73,24 @@ export async function verifyForgeToken(
 ): Promise<VerifyForgeResult> {
   if (!token) return { ok: false, reason: 'no-token' };
 
+  const allowed = opts.allowedAppIds.map((a) => a.trim()).filter(Boolean);
+
   let payload: jose.JWTPayload;
   try {
-    ({ payload } = await jose.jwtVerify(token, opts.getKey));
+    // iss + aud are enforced here (Atlassian's stated FIT requirements): aud must be one of OUR app ARIs.
+    // exp/nbf are enforced by jose itself.
+    ({ payload } = await jose.jwtVerify(token, opts.getKey, {
+      issuer: FORGE_ISSUER,
+      audience: allowed.map(appAri),
+    }));
   } catch {
     return { ok: false, reason: 'bad-token' };
   }
 
-  const appAri = (payload as Record<string, any>)?.app?.id;
-  const appId = typeof appAri === 'string' ? appAri.split('/').pop() ?? '' : '';
-  if (!appId || !opts.allowedAppIds.map((a) => a.trim()).includes(appId)) {
+  // Belt-and-braces: aud already pins the app, but the payload's app.id must agree (it is also what we report).
+  const payloadAppAri = (payload as Record<string, any>)?.app?.id;
+  const appId = typeof payloadAppAri === 'string' ? payloadAppAri.split('/').pop() ?? '' : '';
+  if (!appId || !allowed.includes(appId)) {
     return { ok: false, reason: 'app-mismatch' };
   }
 

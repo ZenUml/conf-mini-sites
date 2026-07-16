@@ -7,8 +7,12 @@
 //   publish     — forward the uploaded multi-file bundle to the control Worker, which validates + secret-scans
 //     it and provisions the per-instance Worker.
 //
-// Auth: a shared secret (x-mini-sites-secret) proves the call is our app — no OAuth scopes (the control Worker
-// also accepts a verified Forge invocation token as an upgrade path). Confluence permissions are INHERITED:
+// Auth: Forge attaches a Forge Invocation Token (FIT) to invocations routed through a DECLARED REMOTE via
+// invokeRemote() — NOT to plain api.fetch(url), which is external egress and carries no token (observed live
+// 2026-07-16: the control Worker logged via:"shared-secret" until the switch). The control Worker validates
+// the FIT (RS256/JWKS + iss/aud) as the PRIMARY, binding credential; the shared secret (x-mini-sites-secret)
+// this resolver also sends is the CI/E2E credential for calls that don't transit Forge. Confluence
+// permissions are INHERITED:
 // Forge only invokes this resolver for a user it has already authorized for the macro, so there is no
 // permission check here (DESIGN §6 insight).
 
@@ -16,10 +20,13 @@
 // the app package to be CommonJS (no "type":"module" in package.json); with type:module Forge's bundler
 // mis-applies ESM interop and `new Resolver()` throws "not a constructor" (caught live on first render).
 import Resolver from '@forge/resolver';
-import api from '@forge/api';
+import { invokeRemote } from '@forge/api';
 
-const CONTROL_BASE = process.env.CONTROL_BASE_URL; // the control Worker origin (declared as the `control` remote)
-const CONTROL_SECRET = process.env.CONTROL_SHARED_SECRET; // shared secret proving this call is our app
+// The manifest declares one remote per control-Worker env (a remote's baseUrl is static), so the existing
+// per-env CONTROL_BASE_URL Forge variable stays the single source of truth and selects the remote KEY.
+const CONTROL_BASE = process.env.CONTROL_BASE_URL;
+const CONTROL_REMOTE = (CONTROL_BASE ?? '').includes('-production') ? 'control-prod' : 'control';
+const CONTROL_SECRET = process.env.CONTROL_SHARED_SECRET; // CI/E2E-twin secret, still sent; the FIT is primary
 
 const authHeaders = () => ({ 'content-type': 'application/json', 'x-mini-sites-secret': CONTROL_SECRET ?? '' });
 
@@ -55,8 +62,8 @@ async function instanceIdFromContext(context) {
 
 resolver.define('getServeUrl', async (req) => {
   const { instanceId, cloudId } = await instanceIdFromContext(req.context);
-  const url = `${CONTROL_BASE}/serve-url?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`;
-  const res = await api.fetch(url, { method: 'POST', headers: authHeaders() });
+  const path = `/serve-url?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`;
+  const res = await invokeRemote(CONTROL_REMOTE, { path, method: 'POST', headers: authHeaders() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) return { ok: false, code: data.code ?? `HTTP_${res.status}`, instanceId };
   // Serving is never license-gated (live embeds must keep working); surface the state so the UI can show a
@@ -74,7 +81,8 @@ resolver.define('publish', async (req) => {
   const files = Array.isArray(req.payload?.files) ? req.payload.files : [];
   // Pass cloudId so the control Worker records (instanceId → cloudId) for uninstall-driven GC: on uninstall it
   // tombstones by cloudId, then deletes the bundle 30 days later (DESIGN: no indefinite post-uninstall retention).
-  const res = await api.fetch(`${CONTROL_BASE}/publish?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`, {
+  const res = await invokeRemote(CONTROL_REMOTE, {
+    path: `/publish?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`,
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ files }),
@@ -107,7 +115,8 @@ export async function preUninstall(_payload, context) {
     return;
   }
   try {
-    const res = await api.fetch(`${CONTROL_BASE}/uninstall?cloudId=${encodeURIComponent(cloudId)}`, {
+    const res = await invokeRemote(CONTROL_REMOTE, {
+      path: `/uninstall?cloudId=${encodeURIComponent(cloudId)}`,
       method: 'POST',
       headers: authHeaders(),
     });

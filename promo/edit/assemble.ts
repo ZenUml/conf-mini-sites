@@ -194,12 +194,41 @@ export function shotArgs(shot: Shot, srcPath: string, inSeconds: number, outPath
 }
 
 // ── orchestration ───────────────────────────────────────────────────────────
+/**
+ * A shot whose out-point runs past the end of its capture does not fail — ffmpeg happily emits frozen
+ * frames to satisfy `-frames:v`, and the result looks like a stall nobody can explain. Checked up front
+ * so a short take is reported as a short take.
+ */
+export function checkFootage(
+  shot: Shot,
+  srcIn: number,
+  sourceDuration: number,
+  minSlack = 0.15,
+): string | null {
+  const out = srcIn + shot.dur * (shot.speed ?? 1);
+  const slack = sourceDuration - out;
+  return slack < minSlack
+    ? `shot ${shot.id} needs source up to ${out.toFixed(2)}s but ${shot.src} is only ${sourceDuration.toFixed(2)}s ` +
+      `(slack ${slack.toFixed(2)}s) — the capture's hold after that mark is too short, so this shot would freeze`
+    : null;
+}
+
 export interface AssembleOptions {
   capturesDir: string;
   outDir: string;
   audioDir: string;
   /** skip caption burn-in (produces the localisation master) */
   noCaptions?: boolean;
+}
+
+const durationCache = new Map<string, number>();
+async function mediaDuration(path: string): Promise<number> {
+  const hit = durationCache.get(path);
+  if (hit !== undefined) return hit;
+  const { stdout } = await exec(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', path]);
+  const d = parseFloat(stdout.trim());
+  durationCache.set(path, d);
+  return d;
 }
 
 async function ffprobeJson(path: string): Promise<any> {
@@ -249,6 +278,8 @@ export async function assemble(opts: AssembleOptions): Promise<{ final: string; 
       const map = markMaps.get(shot.src);
       if (!map) throw new Error(`shot ${shot.id} needs ${shot.src}.webm, which was not captured`);
       inS = markTime(map, shot);
+      const problem = checkFootage(shot, inS, await mediaDuration(src));
+      if (problem) throw new Error(problem);
     }
     await exec(FFMPEG, shotArgs(shot, src, inS, out, centre));
     rendered.push(out);

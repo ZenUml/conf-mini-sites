@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FILM_DURATION, SHOTS, requiredSources, validateShots, type Shot } from './shots';
 import { CUES_15, CUT15_DURATION, SHOTS_15 } from './cut15';
 import { validateCues } from './captions';
-import { FPS, buildMarkMap, focusCentre, frameCount, markTime, parseBlackdetect, shotArgs, shotFilters, zoomFilter } from './assemble';
+import { FPS, buildMarkMap, checkFootage, focusCentre, frameCount, markTime, parseBlackdetect, shotArgs, shotFilters, zoomFilter } from './assemble';
 
 const shot = (over: Partial<Shot> = {}): Shot => ({
   id: 'x', t: 0, dur: 1, src: 'act1', at: ['m', 0], evidence: 'proves something', ...over,
@@ -202,6 +202,24 @@ describe('measured framing', () => {
   it('ignores focus entirely for shots that authored no zoom', () => {
     const c = focusCentre({ id: 'p', t: 0, dur: 1, src: 'act3', at: ['a3_vote_click', 0], evidence: 'x'.repeat(9) }, entries);
     expect(c).toEqual({ cx: 0.5, cy: 0.5 });
+  });
+});
+
+describe('footage sufficiency', () => {
+  it('passes when the capture holds long enough past the mark', () => {
+    expect(checkFootage(shot({ dur: 1.3 }), 10.0, 15.0)).toBeNull();
+  });
+
+  it('catches a shot that would render frozen frames off the end of a short take', () => {
+    // ffmpeg pads to satisfy -frames:v rather than failing, so this must be caught before rendering
+    const problem = checkFootage(shot({ id: 'it-runs', dur: 1.3 }), 14.5, 15.0);
+    expect(problem).toMatch(/would freeze/);
+    expect(problem).toContain('it-runs');
+  });
+
+  it('accounts for speed — a 3x shot consumes three times the source', () => {
+    expect(checkFootage(shot({ dur: 0.55, speed: 3 }), 12.0, 15.0)).toBeNull();
+    expect(checkFootage(shot({ dur: 0.55, speed: 3 }), 14.0, 15.0)).toMatch(/would freeze/);
   });
 });
 

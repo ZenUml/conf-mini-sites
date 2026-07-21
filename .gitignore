@@ -31,3 +31,6 @@ playwright-report/
 demo-pipeline/.venv/
 demo-pipeline/.demo-cache/
 demo-pipeline/voice/__pycache__/
+
+# promo video render artifacts (large media; regenerate with pnpm promo:*)
+promo/out/

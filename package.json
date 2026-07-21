@@ -12,7 +12,10 @@
     "demo:test": "vitest run --config demo-pipeline/vitest.config.ts",
     "demo:typecheck": "tsc --noEmit -p demo-pipeline/tsconfig.json",
     "demo:video": "tsx demo-pipeline/src/cli.ts run",
-    "demo:render": "tsx demo-pipeline/src/cli.ts render"
+    "demo:render": "tsx demo-pipeline/src/cli.ts render",
+    "promo:test": "vitest run --config promo/vitest.config.ts",
+    "promo:typecheck": "tsc --noEmit -p promo/tsconfig.json",
+    "promo:audio": "tsx promo/edit/build-audio.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FILM_DURATION, SHOTS, requiredSources, validateShots, type Shot } from './shots';
-import { FPS, buildMarkMap, frameCount, markTime, parseBlackdetect, shotArgs, shotFilters, zoomFilter } from './assemble';
+import { FPS, buildMarkMap, focusCentre, frameCount, markTime, parseBlackdetect, shotArgs, shotFilters, zoomFilter } from './assemble';
 
 const shot = (over: Partial<Shot> = {}): Shot => ({
   id: 'x', t: 0, dur: 1, src: 'act1', at: ['m', 0], evidence: 'proves something', ...over,
@@ -126,12 +126,48 @@ describe('shot filters', () => {
 
   it('dims and desaturates together for the "Now what?" beat', () => {
     const f = shotFilters(shot({ dim: 0.55 }));
-    expect(f).toContain('eq=brightness=-0.275:saturation=0.752');
+    expect(f).toContain('eq=brightness=-0.413:saturation=0.615');
   });
 
   it('fades in only where the beat sheet asks for it', () => {
     expect(shotFilters(shot({ fadeIn: 0.35 })).some((x) => x.startsWith('fade='))).toBe(true);
     expect(shotFilters(shot()).some((x) => x.startsWith('fade='))).toBe(false);
+  });
+});
+
+describe('measured framing', () => {
+  const entries = [
+    { mark: 'a3_vote_click', t: 1000, box: { x: 760, y: 480, width: 100, height: 40 } },
+    { mark: 'a3_embed_box', t: 900, box: { x: 300, y: 200, width: 1200, height: 600 } },
+  ];
+
+  it('centres a close-up on the element the capture recorded clicking', () => {
+    const c = focusCentre({ id: 'r', t: 0, dur: 1, src: 'act3', at: ['a3_vote_click', 0], zoom: 2.6, focus: 'target', evidence: 'x'.repeat(9) }, entries);
+    expect(c.cx).toBeCloseTo(810 / 1920, 5);
+    expect(c.cy).toBeCloseTo(500 / 1080, 5);
+  });
+
+  it('centres on the macro rect for embed-focused shots, honouring fx/fy', () => {
+    const mid = focusCentre({ id: 'e', t: 0, dur: 1, src: 'act3', at: ['a3_vote_click', 0], zoom: 1.15, focus: 'embed', evidence: 'x'.repeat(9) }, entries);
+    expect(mid.cx).toBeCloseTo(900 / 1920, 5);
+    expect(mid.cy).toBeCloseTo(500 / 1080, 5);
+    const right = focusCentre({ id: 'e', t: 0, dur: 1, src: 'act3', at: ['a3_vote_click', 0], zoom: 2.2, focus: 'embed', fx: 0.8, fy: 0.45, evidence: 'x'.repeat(9) }, entries);
+    expect(right.cx).toBeCloseTo((300 + 1200 * 0.8) / 1920, 5);
+  });
+
+  it('can borrow another mark\'s geometry via focusMark', () => {
+    const c = focusCentre({ id: 'q', t: 0, dur: 1, src: 'act3', at: ['some_beat', 0], zoom: 1.7, focus: 'target', focusMark: 'a3_vote_click', evidence: 'x'.repeat(9) }, entries);
+    expect(c.cx).toBeCloseTo(810 / 1920, 5);
+  });
+
+  it('falls back to the authored centre when the capture recorded no box', () => {
+    const c = focusCentre({ id: 'r', t: 0, dur: 1, src: 'act3', at: ['nope', 0], zoom: 2, focus: 'target', cx: 0.25, cy: 0.75, evidence: 'x'.repeat(9) }, []);
+    expect(c).toEqual({ cx: 0.25, cy: 0.75 });
+  });
+
+  it('ignores focus entirely for shots that authored no zoom', () => {
+    const c = focusCentre({ id: 'p', t: 0, dur: 1, src: 'act3', at: ['a3_vote_click', 0], evidence: 'x'.repeat(9) }, entries);
+    expect(c).toEqual({ cx: 0.5, cy: 0.5 });
   });
 });
 

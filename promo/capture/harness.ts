@@ -131,7 +131,11 @@ export class Capture {
   ): Promise<void> {
     await this.moveToTarget(target, { duration: opts.duration });
     await cursorClickFeedback(this.page, opts.dwell ?? 260);
-    if (opts.markName) this.mark(opts.markName);
+    // Record WHAT was clicked, in main-frame pixels. The edit's close-ups then crop around measured
+    // coordinates instead of guessed ones — the first cut aimed a 2.2x zoom at hardcoded fractions and
+    // landed on body text instead of the button.
+    const clickedBox = await target.boundingBox().catch(() => null);
+    if (opts.markName) this.mark(opts.markName, clickedBox ? { box: clickedBox } : {});
     if ((opts.via ?? 'mouse') === 'dom') {
       await target.evaluate((el: HTMLElement) => el.click());
     } else {

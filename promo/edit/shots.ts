@@ -26,9 +26,20 @@ export interface Shot {
   speed?: number;
   /** push-in / pull-back. 1 = untouched, >1 zooms in, <1 shows more (letterboxed by scale-then-crop) */
   zoom?: number;
-  /** zoom centre as a fraction of frame (0..1). Defaults to the middle. */
+  /** zoom centre as a fraction of frame (0..1). Defaults to the middle. Ignored when `focus` is set. */
   cx?: number;
   cy?: number;
+  /**
+   * Aim the crop using geometry the CAPTURE measured, rather than hand-tuned fractions:
+   *  - 'target' centres on the element this shot's mark recorded clicking;
+   *  - 'embed'  centres on the macro iframe's recorded rect, optionally offset within it by fx/fy.
+   * Falls back to cx/cy if the capture recorded no box.
+   */
+  focus?: 'target' | 'embed';
+  /** take 'target' geometry from a DIFFERENT mark than the one this shot is timed on */
+  focusMark?: string;
+  fx?: number;
+  fy?: number;
   /** 0..1 darkening — the frame dips before "Now what?" */
   dim?: number;
   /** fade in from black at the very top of the film */
@@ -63,7 +74,7 @@ export const SHOTS: Shot[] = [
     evidence: 'The destination is a real Confluence PRD, where the decision actually gets made.' },
   { id: 'edit-page',     t: 9.40, dur: 0.95, src: 'act2', at: ['a2_edit_click', -0.35],
     evidence: 'A normal Confluence edit — no admin console, no separate tool.' },
-  { id: 'slash-mini',    t: 10.35, dur: 1.25, src: 'act2', at: ['a2_slash_typed', -0.70],
+  { id: 'slash-mini',    t: 10.35, dur: 1.25, src: 'act2', at: ['a2_slash_typed', -0.70], zoom: 1.7, focus: 'target', focusMark: 'a2_macro_picked', fy: 0.2,
     evidence: 'The product is reachable from the editor the way every other macro is: type /mini.' },
   { id: 'publisher',     t: 11.60, dur: 0.85, src: 'act2', at: ['a2_publisher_open', -0.50],
     evidence: 'One panel, no configuration screen.' },
@@ -83,17 +94,17 @@ export const SHOTS: Shot[] = [
   // ── Beat 4 · Magic — hold. do not click. ─────────────────────────────────
   { id: 'it-runs',       t: 19.00, dur: 1.30, src: 'act2', at: ['a2_live', -0.10],
     evidence: 'THE shot: the same site, running inside the Confluence page. Untouched for 1.3s so the viewer registers it before being told.' },
-  { id: 'push-in',       t: 20.30, dur: 1.15, src: 'act2', at: ['a2_live', 1.20], zoom: 1.22, cy: 0.45,
+  { id: 'push-in',       t: 20.30, dur: 1.15, src: 'act2', at: ['a2_live', 1.20], zoom: 1.22, focus: 'embed',
     evidence: 'Still inside Confluence — the surrounding page never leaves frame.' },
 
   // ── Beat 5 · Relief — the team can just use it ───────────────────────────
-  { id: 'vote-inside',   t: 21.45, dur: 1.05, src: 'act3', at: ['a3_vote_click', -0.35], zoom: 1.15, cy: 0.45,
+  { id: 'vote-inside',   t: 21.45, dur: 1.05, src: 'act3', at: ['a3_vote_click', -0.35], zoom: 1.15, focus: 'embed',
     evidence: 'Live interaction in the embed. This is not a recorded animation.' },
-  { id: 'chart-inside',  t: 22.50, dur: 1.05, src: 'act3', at: ['a3_vote_settled', -0.25], zoom: 1.15, cy: 0.45,
+  { id: 'chart-inside',  t: 22.50, dur: 1.05, src: 'act3', at: ['a3_vote_settled', -0.25], zoom: 1.15, focus: 'embed',
     evidence: 'Same state change as at 2.3s — the prototype kept all of its behaviour.' },
-  { id: 'effort-filter', t: 23.55, dur: 1.05, src: 'act3', at: ['a3_effort_click', -0.30], zoom: 1.15, cy: 0.45,
+  { id: 'effort-filter', t: 23.55, dur: 1.05, src: 'act3', at: ['a3_effort_click', -0.30], zoom: 1.15, focus: 'embed',
     evidence: 'Filtering works in the embed too. A screenshot could not do this.' },
-  { id: 'panel-inside',  t: 24.60, dur: 1.00, src: 'act3', at: ['a3_cardb_click', -0.30], zoom: 1.15, cy: 0.45,
+  { id: 'panel-inside',  t: 24.60, dur: 1.00, src: 'act3', at: ['a3_cardb_click', -0.30], zoom: 1.15, focus: 'embed',
     evidence: 'A teammate can explore it themselves, without a handover call.' },
   { id: 'pull-back',     t: 25.60, dur: 0.95, src: 'act3', at: ['a3_pullback', -0.20], zoom: 1.0,
     evidence: 'Pull-back (1.15 -> 1.0): it lives among the requirements and the decision notes — not on a separate link.' },
@@ -103,13 +114,13 @@ export const SHOTS: Shot[] = [
     evidence: 'A comment turns into an action on the prototype in one move.' },
 
   // ── Recap — three fast proofs, cut to the beat ───────────────────────────
-  { id: 'recap-vote',    t: 29.00, dur: 0.35, src: 'act3', at: ['a3_vote_click', 0.15], zoom: 2.2, cx: 0.30, cy: 0.45,
+  { id: 'recap-vote',    t: 29.00, dur: 0.35, src: 'act3', at: ['a3_vote_click', 0.15], zoom: 2.1, focus: 'embed', fx: 0.42, fy: 0.62,
     evidence: 'Recap 1/3 — one click changes the number. This is the whole product in a third of a second.' },
-  { id: 'recap-filter',  t: 29.35, dur: 0.35, src: 'act3', at: ['a3_effort_click', 0.10], zoom: 2.2, cx: 0.45, cy: 0.22,
+  { id: 'recap-filter',  t: 29.35, dur: 0.35, src: 'act3', at: ['a3_effort_click', 0.10], zoom: 2.1, focus: 'embed', fx: 0.74, fy: 0.12,
     evidence: 'Recap 2/3 — filtering re-ranks the list, live.' },
-  { id: 'recap-chart',   t: 29.70, dur: 0.35, src: 'act3', at: ['a3_vote_settled', 0.20], zoom: 2.2, cx: 0.76, cy: 0.45,
+  { id: 'recap-chart',   t: 29.70, dur: 0.35, src: 'act3', at: ['a3_vote_settled', 0.20], zoom: 2.1, focus: 'embed', fx: 0.80, fy: 0.55,
     evidence: 'Recap 3/3 — the chart follows the votes.' },
-  { id: 'recap-publish', t: 30.05, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.20], zoom: 1.75, cy: 0.55,
+  { id: 'recap-publish', t: 30.05, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.20], zoom: 1.9, focus: 'target',
     evidence: 'Step two, restated: publish the page.' },
   { id: 'last-run',      t: 31.05, dur: 1.30, src: 'act3', at: ['a3_final_filter', -0.30],
     evidence: 'Closing on the idea running, in the hands of someone who is not its author.' },

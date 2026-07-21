@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>End card</title>
+<!--
+  The closing brand card.
+
+  Deliberately carries NO copy. The three closing lines ("Bring AI-built interactive websites into
+  Confluence", "Available on the Atlassian Marketplace", "Install Mini Sites") are burned in as captions,
+  and printing them here as well would double every line on screen. So this is only the lockup, placed in
+  the upper half to leave the caption's centre band clear.
+
+  It also uses no Atlassian brand asset. We hold no licence to their logo, so the Marketplace is
+  referenced in words by the caption track and never by an imitation of their mark.
+
+  The backdrop is a real frame from Act 2 — the mini-site running inside the Confluence page — blurred
+  and desaturated. Ending on an out-of-focus echo of the product's own proof, rather than stock texture.
+-->
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#0e0b1a}
+  body{font:400 16px/1.4 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}
+  .stage{position:relative;height:100vh;width:100vw;display:flex;align-items:center;justify-content:center}
+  .bg{position:absolute;inset:-6%;background-size:cover;background-position:center 38%;
+      filter:blur(26px) saturate(.35) brightness(.42);transform:scale(var(--s,1));transition:none}
+  .veil{position:absolute;inset:0;
+        background:radial-gradient(ellipse at 50% 34%, rgba(124,58,237,.30), transparent 62%),
+                   linear-gradient(180deg, rgba(14,11,26,.72) 0%, rgba(14,11,26,.90) 62%, #0e0b1a 100%)}
+  .lockup{position:relative;display:flex;flex-direction:column;align-items:center;gap:26px;
+          transform:translateY(-16%)}
+  .mark{width:150px;height:150px;display:block;border-radius:30px;background:#fbf7ee;padding:0;
+        box-shadow:0 18px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10)}
+  .name{color:#fff;font-size:70px;font-weight:700;letter-spacing:-.022em;line-height:1}
+  .for{color:#c4b5fd;font-size:28px;font-weight:500;letter-spacing:.055em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" id="bg"></div>
+  <div class="veil"></div>
+  <div class="lockup">
+    <img class="mark" id="mark" alt="">
+    <div class="name">Mini Site</div>
+    <div class="for">for Confluence</div>
+  </div>
+</div>
+<script>
+  var q = new URLSearchParams(location.search);
+  document.getElementById('bg').style.backgroundImage = 'url(' + (q.get('bg') || 'backdrop.png') + ')';
+  // A slow push across the three stills so the ending breathes instead of freezing.
+  document.getElementById('bg').style.setProperty('--s', q.get('scale') || '1');
+  document.getElementById('mark').src = q.get('mark') || 'logo.svg';
+</script>
+</body>
+</html>

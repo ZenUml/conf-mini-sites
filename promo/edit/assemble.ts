@@ -43,21 +43,35 @@ export function parseBlackdetect(stderr: string): ClapWindow | null {
   return { start: parseFloat(m[1]), end: parseFloat(m[2]) };
 }
 
-export async function detectClap(videoPath: string): Promise<ClapWindow> {
-  // Only the first ~4s can contain the clap; limiting the scan keeps this fast and avoids matching a
-  // genuinely dark frame later in the film.
+/**
+ * `hintS` is when the action log says the clap fired (clap_on, in seconds). The scan is bounded to just
+ * past that instead of a fixed window: Act 2 opens on a Confluence page that can take 30s+ to settle, so
+ * a hardcoded 4s scan found nothing and the whole edit failed with "was clap() called?" — it had been.
+ * Bounding by the hint keeps the scan cheap AND stops a genuinely dark frame later in the take from
+ * being mistaken for the clap.
+ */
+export async function detectClap(videoPath: string, hintS = 0): Promise<ClapWindow> {
   const { stderr } = await exec(FFMPEG, [
-    '-hide_banner', '-nostats', '-t', '4', '-i', videoPath,
+    '-hide_banner', '-nostats', '-t', String(Math.max(6, hintS + 8)), '-i', videoPath,
     '-vf', 'blackdetect=d=0.05:pic_th=0.98:pix_th=0.10', '-an', '-f', 'null', '-',
   ]).catch((e: { stderr?: string }) => ({ stderr: e.stderr || '' }));
   const win = parseBlackdetect(stderr);
-  if (!win) throw new Error(`no clap found in ${basename(videoPath)} — was Capture.clap() called?`);
+  if (!win) {
+    throw new Error(
+      `no clap found in the first ${Math.max(6, hintS + 8).toFixed(0)}s of ${basename(videoPath)} — ` +
+      'was Capture.clap() called, and does the log\'s clap_on time look right?',
+    );
+  }
   return win;
 }
+
+export interface Box { x: number; y: number; width: number; height: number }
 
 export interface LogEntry {
   mark: string;
   t: number;
+  /** main-frame rect of whatever the mark concerns (the clicked element, or the macro iframe) */
+  box?: Box | null;
 }
 
 export function readLog(logPath: string): LogEntry[] {
@@ -92,6 +106,24 @@ export function markTime(map: Map<string, number>, shot: Shot): number {
   return Math.max(0, base + offset);
 }
 
+/**
+ * Where a shot should aim, as fractions of the frame. Prefers geometry the capture measured over the
+ * hand-authored cx/cy, and falls back to them when the capture recorded nothing.
+ */
+export function focusCentre(shot: Shot, entries: LogEntry[]): { cx: number; cy: number } {
+  const fallback = { cx: shot.cx ?? 0.5, cy: shot.cy ?? 0.5 };
+  if (!shot.focus) return fallback;
+  const boxOf = (mark: string): Box | null => entries.find((e) => e.mark === mark)?.box ?? null;
+  const box =
+    shot.focus === 'target'
+      ? boxOf(shot.focusMark ?? shot.at?.[0] ?? '')
+      : boxOf(`${shot.src === 'act2' ? 'a2' : 'a3'}_embed_box`);
+  if (!box || !box.width || !box.height) return fallback;
+  const fx = shot.fx ?? 0.5;
+  const fy = shot.fy ?? 0.5;
+  return { cx: (box.x + box.width * fx) / W, cy: (box.y + box.height * fy) / H };
+}
+
 // ── per-shot video filter ───────────────────────────────────────────────────
 /**
  * Zoom is scale-then-crop around a normalised centre, clamped so the crop window can never run off the
@@ -107,14 +139,14 @@ export function zoomFilter(zoom: number, cx = 0.5, cy = 0.5): string[] {
   return [`crop=${cw}:${ch}:${x}:${y}`, `scale=${W}:${H}:flags=lanczos`];
 }
 
-export function shotFilters(shot: Shot): string[] {
+export function shotFilters(shot: Shot, centre?: { cx: number; cy: number }): string[] {
   const f: string[] = [];
   const speed = shot.speed ?? 1;
   if (speed !== 1) f.push(`setpts=PTS/${speed}`);
-  f.push(...zoomFilter(shot.zoom ?? 1, shot.cx, shot.cy));
+  f.push(...zoomFilter(shot.zoom ?? 1, centre?.cx ?? shot.cx, centre?.cy ?? shot.cy));
   if (shot.dim) {
     // brightness down + a little desaturation: the frame "cools" rather than merely dimming
-    f.push(`eq=brightness=${(-0.5 * shot.dim).toFixed(3)}:saturation=${(1 - 0.45 * shot.dim).toFixed(3)}`);
+    f.push(`eq=brightness=${(-0.75 * shot.dim).toFixed(3)}:saturation=${(1 - 0.7 * shot.dim).toFixed(3)}`);
   }
   if (shot.fadeIn) f.push(`fade=t=in:st=0:d=${shot.fadeIn}`);
   f.push(`fps=${FPS}`, `scale=${W}:${H}`, 'setsar=1');
@@ -148,13 +180,13 @@ export function frameCount(shot: Shot): number {
 }
 
 /** argv for one shot. `-frames:v` (not -t) is what makes the concatenated total land exactly on 35.000s. */
-export function shotArgs(shot: Shot, srcPath: string, inSeconds: number, outPath: string): string[] {
+export function shotArgs(shot: Shot, srcPath: string, inSeconds: number, outPath: string, centre?: { cx: number; cy: number }): string[] {
   const isStill = shot.src === 'endcard';
   const pre = isStill ? ['-loop', '1', '-i', srcPath] : ['-ss', inSeconds.toFixed(3), '-i', srcPath];
   return [
     '-hide_banner', '-nostats', '-y',
     ...pre,
-    '-vf', shotFilters(shot).join(','),
+    '-vf', shotFilters(shot, centre).join(','),
     '-frames:v', String(frameCount(shot)),
     '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', '-pix_fmt', 'yuv420p',
     outPath,
@@ -190,12 +222,16 @@ export async function assemble(opts: AssembleOptions): Promise<{ final: string; 
 
   // resolve every act's marks once
   const markMaps = new Map<string, Map<string, number>>();
+  const logEntries = new Map<string, LogEntry[]>();
   for (const act of ['act1', 'act2', 'act3']) {
     const video = join(captures, `${act}.webm`);
     const log = join(captures, `${act}.actions.jsonl`);
     if (!existsSync(video) || !existsSync(log)) continue;
-    const clap = await detectClap(video);
-    markMaps.set(act, buildMarkMap(readLog(log), clap));
+    const entries = readLog(log);
+    const clapOn = entries.find((e) => e.mark === 'clap_on');
+    const clap = await detectClap(video, (clapOn?.t ?? 0) / 1000);
+    markMaps.set(act, buildMarkMap(entries, clap));
+    logEntries.set(act, entries);
   }
 
   const rendered: string[] = [];
@@ -204,6 +240,7 @@ export async function assemble(opts: AssembleOptions): Promise<{ final: string; 
     const out = join(shotsDir, `${String(i).padStart(2, '0')}-${shot.id}.mp4`);
     let src: string;
     let inS = 0;
+    const centre = focusCentre(shot, logEntries.get(shot.src) ?? []);
     if (shot.src === 'endcard') {
       src = join(captures, `${shot.at![0]}.png`);
       if (!existsSync(src)) throw new Error(`end card still missing: ${src}`);
@@ -213,9 +250,14 @@ export async function assemble(opts: AssembleOptions): Promise<{ final: string; 
       if (!map) throw new Error(`shot ${shot.id} needs ${shot.src}.webm, which was not captured`);
       inS = markTime(map, shot);
     }
-    await exec(FFMPEG, shotArgs(shot, src, inS, out));
+    await exec(FFMPEG, shotArgs(shot, src, inS, out, centre));
     rendered.push(out);
-    shotReport.push({ id: shot.id, t: shot.t, dur: shot.dur, src: shot.src, srcIn: +inS.toFixed(3), frames: frameCount(shot), evidence: shot.evidence });
+    shotReport.push({
+      id: shot.id, t: shot.t, dur: shot.dur, src: shot.src, srcIn: +inS.toFixed(3),
+      frames: frameCount(shot), zoom: shot.zoom ?? 1,
+      centre: shot.zoom && shot.zoom !== 1 ? { cx: +centre.cx.toFixed(3), cy: +centre.cy.toFixed(3), from: shot.focus ?? 'authored' } : undefined,
+      evidence: shot.evidence,
+    });
   }
 
   // concat (stream copy — no generation loss beyond the per-shot encode)

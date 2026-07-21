@@ -15,7 +15,8 @@
     "demo:render": "tsx demo-pipeline/src/cli.ts render",
     "promo:test": "vitest run --config promo/vitest.config.ts",
     "promo:typecheck": "tsc --noEmit -p promo/tsconfig.json",
-    "promo:audio": "tsx promo/edit/build-audio.ts"
+    "promo:audio": "tsx promo/edit/build-audio.ts",
+    "promo:assemble": "tsx promo/edit/assemble.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",

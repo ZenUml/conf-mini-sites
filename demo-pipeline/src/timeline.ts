@@ -127,12 +127,15 @@ export class ActionEventTimelineWriter {
   }
 
   /** Flush every appended event to `outputPath` as newline-delimited canonical JSON and mark the writer
-   *  closed. Idempotent: a second call is a no-op rather than re-writing the file or throwing, so callers
-   *  don't need to track whether they already closed it (e.g. a `finally` block after an earlier explicit
-   *  close on the success path). */
+   *  closed. Idempotent ONLY on success: a repeated call after a *successful* close is a no-op rather than
+   *  re-writing the file or throwing, so callers don't need to track whether they already closed it (e.g. a
+   *  `finally` block after an earlier explicit close on the success path). If the write or rename throws
+   *  (disk full, permission error, output directory doesn't exist yet), the writer is NOT marked closed — the
+   *  exception propagates, the buffered events are retained, and a caller that retries `close()` re-attempts
+   *  the write rather than silently no-op'ing. This matches the design doc's own invariant for this module:
+   *  "A phase writes its manifest atomically only after success." */
   close(): void {
     if (this.closed) return;
-    this.closed = true;
 
     const contents = this.events.map((event) => canonicalJSONStringify(event)).join('\n') + (this.events.length > 0 ? '\n' : '');
     // Suffixed with a random UUID (not a timestamp) so concurrent runs targeting the same output directory
@@ -140,5 +143,8 @@ export class ActionEventTimelineWriter {
     const tempPath = `${this.outputPath}.tmp-${randomUUID()}`;
     writeFileSync(tempPath, contents, 'utf-8');
     renameSync(tempPath, this.outputPath);
+
+    // Only reached once the write+rename have both actually succeeded — see the doc comment above.
+    this.closed = true;
   }
 }

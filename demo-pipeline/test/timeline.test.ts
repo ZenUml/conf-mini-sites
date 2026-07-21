@@ -3,7 +3,7 @@
 // (start, success, failure), and non-secret metadata"). The writer's clock is injected — never `Date.now()`
 // called directly inside `timeline.ts` — so these tests use fully deterministic fake clocks and never depend
 // on real time.
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -187,6 +187,48 @@ describe('ActionEventTimelineWriter: append-only, atomic close', () => {
     writer.close();
     expect(() => writer.close()).not.toThrow();
     expect(readEvents(outputPath)).toHaveLength(1);
+  });
+});
+
+describe('ActionEventTimelineWriter: a failed close() is not silently swallowed', () => {
+  // Regression test for a review finding: close() used to set `this.closed = true` BEFORE attempting the
+  // write. If the write/rename then threw, the exception propagated correctly, but the writer was already
+  // marked closed — so a caller that caught the error and retried close() got a silent no-op (the
+  // `if (this.closed) return;` guard fired), losing the buffered events permanently with no error and no
+  // file. The fix only sets `this.closed` after `renameSync` actually succeeds.
+  it('throws on a write into a non-existent directory, and a retried close() re-attempts the write rather than silently no-op-ing', () => {
+    const missingDir = join(workDir, 'does-not-exist-yet');
+    const outputPath = join(missingDir, 'events.jsonl');
+    const writer = new ActionEventTimelineWriter(outputPath, () => 1);
+    writer.append('scene', 'op', 'start', {});
+
+    // (a) close() throws: the parent directory doesn't exist, so writeFileSync fails with ENOENT.
+    expect(() => writer.close()).toThrow();
+    expect(existsSync(outputPath)).toBe(false);
+
+    // (b) a retried close() actually re-attempts the write — not a silent no-op. Proven by fixing the
+    // underlying problem (creating the directory) and observing the retry now succeeds and produces the
+    // buffered event, rather than close() having already discarded it as "closed" on the first failure.
+    mkdirSync(missingDir, { recursive: true });
+    expect(() => writer.close()).not.toThrow();
+    expect(existsSync(outputPath)).toBe(true);
+    expect(readEvents(outputPath)).toHaveLength(1);
+    expect(readEvents(outputPath)[0].sceneId).toBe('scene');
+
+    // A further close() after the successful retry is now a true no-op (writer is genuinely closed).
+    expect(() => writer.close()).not.toThrow();
+    expect(readEvents(outputPath)).toHaveLength(1);
+  });
+
+  it('(c) a normal close() against a valid path from the start still succeeds exactly as before', () => {
+    const outputPath = join(workDir, 'events.jsonl');
+    const writer = new ActionEventTimelineWriter(outputPath, () => 42);
+    writer.append('scene', 'op', 'success', { ok: true });
+
+    expect(() => writer.close()).not.toThrow();
+    expect(readEvents(outputPath)).toEqual([
+      { schemaVersion: 1, timestampMs: 42, sceneId: 'scene', operation: 'op', lifecycle: 'success', metadata: { ok: true } },
+    ]);
   });
 });
 

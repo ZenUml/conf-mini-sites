@@ -23,6 +23,7 @@ import { compileDemoPlan, type DemoPlan, type NarrationDurationsMs } from '../sr
 import { loadStory, repoRoot, type ResolvedEvidence } from '../src/story';
 import { ActionEventTimelineWriter, type ActionEvent } from '../src/timeline';
 import {
+  assertCleanupDeletesConfirmed,
   buildCaptureManifest,
   CAPTURE_HEIGHT,
   CAPTURE_MANIFEST_SCHEMA_VERSION,
@@ -386,6 +387,71 @@ describe('runSession: a cleanup failure never hides the primary error', () => {
     expect(error.primaryError).toBeUndefined();
     expect(String(error.cleanupError)).toContain('CLEANUP_BOOM');
     expect(String(error.message)).toMatch(/orphan/i);
+  });
+});
+
+// -------------------------------------------------------------------------------------------------------
+// Cleanup resource-teardown verification — a FAILED page delete (not just a failed instance delete) must
+// become a cleanupError, never a silently-orphaned page. assertCleanupDeletesConfirmed is the pure decision
+// the real cleanup hands its observed page + instance DELETE responses to.
+// -------------------------------------------------------------------------------------------------------
+
+describe('assertCleanupDeletesConfirmed: both page and instance deletes must be confirmed', () => {
+  it('passes when the page delete is 204 and the instance delete is 200 { ok: true }', () => {
+    expect(() =>
+      assertCleanupDeletesConfirmed([
+        { kind: 'page', id: 'PAGE-1', status: 204 },
+        { kind: 'instance', id: 'iInstance1', status: 200, bodyOk: true },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('treats a 404 page delete as confirmed (idempotent — the page is already gone)', () => {
+    expect(() => assertCleanupDeletesConfirmed([{ kind: 'page', id: 'PAGE-1', status: 404 }])).not.toThrow();
+  });
+
+  it('throws ConfluenceRunnerError naming the page when its delete returns a non-2xx/non-404 status (e.g. 401 auth)', () => {
+    expect(() => assertCleanupDeletesConfirmed([{ kind: 'page', id: 'PAGE-1', status: 401 }])).toThrow(ConfluenceRunnerError);
+    expect(() => assertCleanupDeletesConfirmed([{ kind: 'page', id: 'PAGE-1', status: 401 }])).toThrow(/page "PAGE-1"/);
+  });
+
+  it('throws when a page delete never completed (network failure reported as status 0)', () => {
+    expect(() => assertCleanupDeletesConfirmed([{ kind: 'page', id: 'PAGE-1', status: 0 }])).toThrow(/page "PAGE-1"/);
+  });
+
+  it('throws when the instance delete is 2xx but body.ok is not true (the same guard, now for the instance side)', () => {
+    expect(() => assertCleanupDeletesConfirmed([{ kind: 'instance', id: 'iInstance1', status: 200, bodyOk: false }])).toThrow(ConfluenceRunnerError);
+  });
+
+  it('reports EVERY failed delete, not just the first (page AND instance both named)', () => {
+    let message = '';
+    try {
+      assertCleanupDeletesConfirmed([
+        { kind: 'page', id: 'PAGE-1', status: 500 },
+        { kind: 'instance', id: 'iInstance1', status: 502 },
+      ]);
+    } catch (error) {
+      message = (error as ConfluenceRunnerError).message;
+    }
+    expect(message).toContain('page "PAGE-1"');
+    expect(message).toContain('instance "iInstance1"');
+  });
+});
+
+describe('runSession: a failed page delete surfaces as a cleanupError (fake-session harness)', () => {
+  it('on an otherwise-successful run, a page-orphan cleanup error is surfaced without masking anything', async () => {
+    const { plan, evidence } = loadRealPlan();
+    // The real cleanup builds this exact error via assertCleanupDeletesConfirmed on a failed page delete; the
+    // fake session throws the same shape so runSession's cleanupError plumbing is exercised end to end.
+    const cleanup = vi.fn(async () => {
+      throw new ConfluenceRunnerError('cleanup could not confirm teardown of: page "PAGE-1" (status 401) — the resource(s) may be orphaned');
+    });
+    const { session } = makeFakeSession({ cleanup });
+    const error = await expectRejection(runSession({ mode: 'rehearse', plan, evidence, session, helpers: makeFakeHelpers(), clock: makeFakeClock(), runDir: workDir }));
+    expect(error).toBeInstanceOf(ConfluenceRunnerError);
+    expect(error.primaryError).toBeUndefined();
+    expect(String(error.cleanupError)).toContain('page "PAGE-1"');
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });
 

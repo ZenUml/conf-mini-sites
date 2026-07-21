@@ -32,10 +32,10 @@ import { ActionEventTimelineWriter, type MonotonicClock } from './timeline';
 // tests/e2e/helpers/*"). These are values imported at runtime; forge.ts's own only external import is a
 // type-only `@playwright/test` import (erased), and confluence/workers/env import no test runtime, so pulling
 // these in does NOT load the Playwright test runner into a vitest process.
-import { createMacroPage, deletePage, type MacroPage } from '../../tests/e2e/helpers/confluence';
+import { createMacroPage, type MacroPage } from '../../tests/e2e/helpers/confluence';
 import { openMacro, openPublisher, selectFiles, selectFolder, publishAndAwait, gotoPreview } from '../../tests/e2e/helpers/forge';
 import { deleteInstance } from '../../tests/e2e/helpers/workers';
-import { AUTH_STATE } from '../../tests/e2e/helpers/env';
+import { AUTH_STATE, E2E } from '../../tests/e2e/helpers/env';
 
 /** Raised for every runner-level failure: an operation prerequisite missing (out-of-order plan), an
  *  unresolved evidence id, a publish that did not reach the "handoff" outcome, a missing preview frame for the
@@ -419,6 +419,49 @@ export interface RunSessionResult {
   readonly diagnostics?: CaptureDiagnostics;
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// Resource-teardown verification (pure). Both product-side deletes a cleanup performs — the Confluence page
+// and the per-instance Worker — must be CONFIRMED, not fire-and-forget: a swallowed delete failure would
+// silently orphan a real page on lite-dev / a real Worker instance on Cloudflare (the exact blast radius this
+// module exists to guard against). The real cleanup issues each delete, observes its HTTP response, and hands
+// the outcomes here; this pure decision function turns any unconfirmed delete into a thrown error that
+// `runSession` records as a `cleanupError` — so it is unit-testable without a browser or network.
+// ---------------------------------------------------------------------------------------------------------
+
+/** One resource-teardown outcome, as observed from its delete call's HTTP response. `status` is the HTTP
+ *  status, or `0` when the request never completed (network error) — treated as a failure. `bodyOk` is the
+ *  control Worker's `body.ok` for an instance delete (the Worker returns `{ ok: true }` only on real success);
+ *  it is undefined for a page delete, which returns no JSON body. */
+export interface ResourceDeleteOutcome {
+  readonly kind: 'page' | 'instance';
+  readonly id: string;
+  readonly status: number;
+  readonly bodyOk?: boolean;
+}
+
+/** Whether a single delete outcome counts as a CONFIRMED teardown. A Confluence page `DELETE /wiki/api/v2/
+ *  pages/{id}` returns 204 (2xx) on success and 404 when the page is already gone — 404 is idempotent success
+ *  (the page is not there, which is the goal); anything else (401/403 auth, 5xx server, or a status-0 network
+ *  failure) is a real failure. A control-Worker instance `DELETE /instance` returns 2xx with `{ ok: true }`
+ *  on success (src/worker/index.ts) — both must hold. */
+function isDeleteConfirmed(outcome: ResourceDeleteOutcome): boolean {
+  const twoXX = outcome.status >= 200 && outcome.status < 300;
+  if (outcome.kind === 'page') return twoXX || outcome.status === 404;
+  return twoXX && outcome.bodyOk === true;
+}
+
+/** Throw a `ConfluenceRunnerError` naming EVERY resource whose delete could not be confirmed (not just the
+ *  first), or return cleanly when all were confirmed. Pure — it takes the already-collected outcomes so the
+ *  real cleanup can ATTEMPT every delete (never short-circuiting on the first failure) and this only decides
+ *  pass/fail. The thrown error becomes `runSession`'s `cleanupError`, which is surfaced without ever masking a
+ *  primary error. */
+export function assertCleanupDeletesConfirmed(outcomes: readonly ResourceDeleteOutcome[]): void {
+  const failures = outcomes.filter((outcome) => !isDeleteConfirmed(outcome));
+  if (failures.length === 0) return;
+  const detail = failures.map((f) => `${f.kind} "${f.id}" (status ${f.status})`).join('; ');
+  throw new ConfluenceRunnerError(`cleanup could not confirm teardown of: ${detail} — the resource(s) may be orphaned`);
+}
+
 /** Execute a provided `session` through the whole plan and always clean it up. The distinction between
  *  rehearsal and capture is exactly: capture records an ActionEvent timeline, starts/stops a Screencast (via
  *  the session), and builds+persists a CaptureManifest; rehearsal does none of that — it only proves every
@@ -561,6 +604,36 @@ function detectPlaywrightVersion(): string {
   }
 }
 
+/** Basic auth header identical to `tests/e2e/helpers/confluence.ts`'s own (module-private) `auth()` — the
+ *  same Forge email + API token, base64-encoded — reconstructed from env.ts's exported `E2E` config so this
+ *  module can issue an OBSERVED page delete without modifying the shared helper. */
+function confluenceBasicAuth(): string {
+  return 'Basic ' + Buffer.from(`${E2E.forgeEmail}:${E2E.forgeApiToken}`).toString('base64');
+}
+
+/** Issue `DELETE /wiki/api/v2/pages/{id}` (the exact endpoint + auth confluence.ts's `deletePage` uses) and
+ *  report the observed HTTP status — never throwing, so cleanup can attempt both deletes and decide afterward.
+ *  A request that never completes (network error) is reported as `status: 0` (an unconfirmed teardown). */
+async function deletePageObserved(pageId: string): Promise<ResourceDeleteOutcome> {
+  try {
+    const res = await fetch(`${E2E.baseUrl()}/wiki/api/v2/pages/${pageId}`, { method: 'DELETE', headers: { authorization: confluenceBasicAuth() } });
+    return { kind: 'page', id: pageId, status: res.status };
+  } catch {
+    return { kind: 'page', id: pageId, status: 0 };
+  }
+}
+
+/** Call the existing `deleteInstance` helper and report the observed status + the control Worker's `body.ok`,
+ *  never throwing (a network error → `status: 0`). */
+async function deleteInstanceObserved(instanceId: string): Promise<ResourceDeleteOutcome> {
+  try {
+    const res = await deleteInstance(instanceId);
+    return { kind: 'instance', id: instanceId, status: res.status, bodyOk: res.body?.ok === true };
+  } catch {
+    return { kind: 'instance', id: instanceId, status: 0 };
+  }
+}
+
 /** The real `RunnerHelpers`: the six forge.ts operations wired straight through (their signatures already
  *  match the seam), plus an `assertObservable` that reproduces full-flow.spec.ts's own body-text assertion via
  *  Playwright's web-first `expect` (dynamically imported so this module never loads the test runtime unless a
@@ -659,22 +732,20 @@ async function createRealSession(mode: 'rehearse' | 'capture', options: CreateRe
         // Product-side teardown FIRST (delete the page + Worker instance), then the browser — a browser-close
         // failure must not prevent the external resource cleanup.
         try {
-          // deletePage is best-effort by the helper's OWN contract (confluence.ts swallows every error so a
-          // spec's `finally` can't fail on it). A page-delete failure is therefore not detectable here without
-          // changing that shared helper (which full-flow.spec.ts's `finally` relies on not throwing), so it is
-          // deliberately left best-effort — the Confluence page lives in a dedicated test space and costs
-          // nothing. deleteInstance, by contrast, DOES return its HTTP result, and the Worker instance is a
-          // real provisioned Cloudflare resource: the control Worker returns 200 { ok: true } on a
-          // successful/idempotent delete (src/worker/index.ts DELETE /instance) and a non-2xx on failure
-          // (401 auth, 400 bad id, 502 DELETE_FAILED). We surface any non-success as a thrown error so
-          // runSession records it as a `cleanupError` rather than silently orphaning the instance.
-          await deletePage(macroPage.pageId);
-          const del = await deleteInstance(macroPage.instanceId);
-          if (del.status < 200 || del.status >= 300 || del.body?.ok !== true) {
-            throw new ConfluenceRunnerError(
-              `deleteInstance did not confirm teardown of instance "${macroPage.instanceId}" (status ${del.status}) — the Worker instance may be orphaned`,
-            );
-          }
+          // BOTH product-side deletes are CONFIRMED, not fire-and-forget. We deliberately do NOT route the page
+          // delete through confluence.ts's `deletePage` helper: that helper swallows every error by its own
+          // contract (full-flow.spec.ts's `finally` relies on it not throwing), which would silently orphan a
+          // real page on lite-dev. Instead this module issues the same `DELETE /wiki/api/v2/pages/{id}` with the
+          // same Basic auth `deletePage` uses internally (reconstructed from env.ts's exported `E2E`, so no
+          // change to the shared helper) and OBSERVES the response — mirroring how the Worker-instance delete
+          // is already checked. Both outcomes are attempted (never short-circuiting on the first failure) and
+          // handed to `assertCleanupDeletesConfirmed`, whose thrown error `runSession` records as a
+          // `cleanupError` without masking any primary error.
+          const outcomes = [
+            await deletePageObserved(macroPage.pageId),
+            await deleteInstanceObserved(macroPage.instanceId),
+          ];
+          assertCleanupDeletesConfirmed(outcomes);
         } finally {
           await context.close().catch(() => {});
           await browser.close().catch(() => {});

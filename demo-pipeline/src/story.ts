@@ -6,10 +6,10 @@
 // and hashes evidence file contents. Evidence existence is verified here, synchronously, before the caller
 // gets a loaded story back — so a missing file fails BEFORE any browser/external operation would run (design
 // doc, "Runtime validation rejects ... missing evidence ... before browser execution").
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, resolve, sep } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sha256Hex, StorySpecSchema, type EvidenceReference, type StorySpec } from './contracts';
+import { canonicalJSONStringify, sha256Hex, StorySpecSchema, type EvidenceReference, type StorySpec } from './contracts';
 
 /** Raised for every story-loading failure: schema violations (formatted from the underlying ZodError),
  *  path-traversal attempts, and missing evidence files. One error type keeps `story.test.ts` assertions
@@ -21,10 +21,12 @@ export class StoryValidationError extends Error {
   }
 }
 
-/** An evidence reference resolved against the repository root, with its file bytes hashed. */
+/** An evidence reference resolved against the repository root, with its content hashed — a single file's
+ *  bytes for `kind: 'file'`, or a deterministic hash over every file inside the tree for `kind: 'directory'`. */
 export interface ResolvedEvidence {
   readonly id: string;
   readonly description: string;
+  readonly kind: 'file' | 'directory';
   readonly relativePath: string;
   readonly absolutePath: string;
   readonly sha256: string;
@@ -70,22 +72,64 @@ function resolveWithinRoot(root: string, relativePath: string): string {
   return resolved;
 }
 
-/** Resolve every evidence reference against `root`, verifying each file exists on disk and hashing its
- *  contents. Throws `StoryValidationError` on the first missing file or traversal attempt — evidence is fully
- *  verified before the caller can go on to plan or run anything against the product. */
+/** List every regular file inside `absoluteDir`, recursively, as paths relative to `absoluteDir` using `/` as
+ *  the separator (not `path.sep`) so the listing — and therefore the hash built from it — is identical on
+ *  every OS. Symlinks are skipped rather than followed, so evidence hashing can never escape the directory or
+ *  loop forever on a cyclic link. Sorted so hashing is independent of directory-listing order. */
+function listFilesRecursive(absoluteDir: string, relativeDir = ''): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(join(absoluteDir, relativeDir), { withFileTypes: true })) {
+    const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...listFilesRecursive(absoluteDir, relativePath));
+    } else if (entry.isFile()) {
+      files.push(relativePath);
+    }
+  }
+  return files.sort();
+}
+
+/** A stable content hash for a directory: every contained file's relative path paired with its own SHA-256,
+ *  sorted by path, then hashed as one canonical JSON value. Two directories hash the same only if they contain
+ *  the same files with the same contents at the same relative paths — renaming, adding, removing, or editing
+ *  any file inside changes the hash. This is deliberately a hash of file CONTENT, not directory metadata
+ *  (mtimes, inode numbers, raw listing order) — metadata varies across checkouts/CI runners for reasons
+ *  unrelated to what a file actually contains, which would make the hash both spuriously unstable (same
+ *  content, different mtime) and spuriously stable (touched content, coincidentally same directory listing). */
+function hashDirectory(absoluteDir: string): string {
+  const manifest = listFilesRecursive(absoluteDir).map((relativePath) => [relativePath, sha256Hex(readFileSync(join(absoluteDir, relativePath)))] as const);
+  return sha256Hex(canonicalJSONStringify(manifest));
+}
+
+/** Resolve every evidence reference against `root`, verifying it exists on disk as the declared `kind` and
+ *  hashing its content. Throws `StoryValidationError` on the first missing/traversing/kind-mismatched entry —
+ *  evidence is fully verified before the caller can go on to plan or run anything against the product. */
 export function resolveEvidence(story: StorySpec, root: string = repoRoot()): ResolvedEvidence[] {
   return story.evidence.map((ref: EvidenceReference) => {
     const absolutePath = resolveWithinRoot(root, ref.path);
-    if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
-      throw new StoryValidationError(`evidence file not found: ${ref.path} (evidence id: ${ref.id})`);
+    if (!existsSync(absolutePath)) {
+      throw new StoryValidationError(`evidence ${ref.kind} not found: ${ref.path} (evidence id: ${ref.id})`);
     }
-    const bytes = readFileSync(absolutePath);
+    const stats = statSync(absolutePath);
+    const sha256 = (() => {
+      if (ref.kind === 'file') {
+        if (!stats.isFile()) {
+          throw new StoryValidationError(`evidence id "${ref.id}" declares kind "file" but ${ref.path} is not a file`);
+        }
+        return sha256Hex(readFileSync(absolutePath));
+      }
+      if (!stats.isDirectory()) {
+        throw new StoryValidationError(`evidence id "${ref.id}" declares kind "directory" but ${ref.path} is not a directory`);
+      }
+      return hashDirectory(absolutePath);
+    })();
     return {
       id: ref.id,
       description: ref.description,
+      kind: ref.kind,
       relativePath: ref.path,
       absolutePath,
-      sha256: sha256Hex(bytes),
+      sha256,
     };
   });
 }

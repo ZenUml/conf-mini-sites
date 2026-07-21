@@ -122,6 +122,83 @@ describe('evidence resolution', () => {
   });
 });
 
+describe('directory evidence', () => {
+  /** A copy of the base fixture with one directory-kind evidence entry added — `samples/release-dashboard/`,
+   *  the real nested bundle `tests/e2e/ui/nested-upload.spec.ts` uploads via `selectFolder` — referenced by a
+   *  `selectFolder` operation appended to scene-2 so the story stays internally consistent (the kind-
+   *  consistency check below requires every `selectFolder` op to reference `'directory'`-kind evidence). */
+  function directoryFixture() {
+    const fixture = validStoryFixture() as {
+      evidence: { id: string; description: string; path: string; kind?: string }[];
+      scenes: { id: string; title: string; operations: { type: string; evidenceIds?: string[]; evidenceId?: string }[] }[];
+    };
+    fixture.evidence.push({
+      id: 'release-dashboard-dir',
+      description: 'the real nested sample bundle, uploaded as a directory (tests/e2e/ui/nested-upload.spec.ts)',
+      path: 'samples/release-dashboard',
+      kind: 'directory',
+    });
+    fixture.scenes[1].operations.push({ type: 'selectFolder', evidenceId: 'release-dashboard-dir' });
+    return fixture;
+  }
+
+  it('resolves a real directory and hashes its contents', () => {
+    const story = parseStory(directoryFixture());
+    const resolved = resolveEvidence(story);
+    const dirEntry = resolved.find((e) => e.id === 'release-dashboard-dir');
+    expect(dirEntry).toBeDefined();
+    expect(dirEntry?.kind).toBe('directory');
+    expect(dirEntry?.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('produces a stable hash across two computations', () => {
+    const story = parseStory(directoryFixture());
+    const first = resolveEvidence(story).find((e) => e.id === 'release-dashboard-dir');
+    const second = resolveEvidence(story).find((e) => e.id === 'release-dashboard-dir');
+    expect(first?.sha256).toBe(second?.sha256);
+  });
+
+  it('rejects kind "directory" declared against a real file', () => {
+    const fixture = validStoryFixture() as { evidence: { id: string; description: string; path: string; kind?: string }[] };
+    // Added as an extra, unreferenced evidence entry (rather than mutating `sample-index` in place) so this
+    // only exercises resolveEvidence's on-disk kind check, not the schema-level operation/evidence kind check
+    // above — sample-index stays file-kind and matches its selectFiles reference.
+    fixture.evidence.push({
+      id: 'index-mislabeled-as-directory',
+      description: 'wrong on purpose: a real file mislabeled as directory evidence',
+      path: 'tests/e2e/fixtures/sample-bundle/index.html',
+      kind: 'directory',
+    });
+    const story = parseStory(fixture);
+    expect(() => resolveEvidence(story)).toThrow(/declares kind "directory" but .* is not a directory/);
+  });
+
+  it('rejects kind "file" (the default) declared against a real directory', () => {
+    const fixture = validStoryFixture() as { evidence: { id: string; description: string; path: string; kind?: string }[] };
+    fixture.evidence.push({
+      id: 'release-dashboard-as-file',
+      description: 'wrong on purpose: a directory referenced without kind: "directory"',
+      path: 'samples/release-dashboard',
+      // kind omitted -> defaults to 'file'
+    });
+    const story = parseStory(fixture);
+    expect(() => resolveEvidence(story)).toThrow(/declares kind "file" but .* is not a file/);
+  });
+
+  it('rejects a selectFolder operation referencing file-kind evidence', () => {
+    const fixture = validStoryFixture() as { scenes: { operations: { type: string; evidenceId?: string }[] }[] };
+    fixture.scenes[1].operations.push({ type: 'selectFolder', evidenceId: 'sample-index' }); // sample-index is file-kind
+    expect(() => parseStory(fixture)).toThrow(/requires "directory" evidence/);
+  });
+
+  it('rejects a selectFiles operation referencing directory-kind evidence', () => {
+    const fixture = directoryFixture();
+    const selectFilesOp = fixture.scenes[1].operations.find((op) => op.type === 'selectFiles');
+    selectFilesOp?.evidenceIds?.push('release-dashboard-dir');
+    expect(() => parseStory(fixture)).toThrow(/requires "file" evidence/);
+  });
+});
+
 describe('the fixed PoC story on disk', () => {
   it('loads and validates demo-pipeline/stories/mini-site-launch.story.json', () => {
     const storyPath = `${repoRoot()}/demo-pipeline/stories/mini-site-launch.story.json`;

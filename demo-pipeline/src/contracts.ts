@@ -86,13 +86,17 @@ export type SceneOperation = z.infer<typeof SceneOperationSchema>;
 // Evidence, scenes, narration, and the overall StorySpec.
 // ---------------------------------------------------------------------------------------------------------
 
-/** A reference to a real file (or directory, for `selectFolder`) in this repository. `path` is relative to the
- *  repository root; `story.ts` is the only place that touches the filesystem to resolve/hash it. */
+/** A reference to a real file or directory in this repository. `path` is relative to the repository root;
+ *  `story.ts` is the only place that touches the filesystem to resolve/hash it. `kind` distinguishes the two:
+ *  a `selectFiles` operation must reference `'file'` evidence, a `selectFolder` operation must reference a
+ *  single `'directory'` evidence entry (checked in `StorySpecSchema`'s `superRefine` below). Defaults to
+ *  `'file'` so every evidence entry written before this field existed keeps parsing unchanged. */
 export const EvidenceReferenceSchema = z
   .object({
     id: z.string().min(1),
     description: z.string().min(1),
     path: z.string().min(1),
+    kind: z.enum(['file', 'directory']).default('file'),
   })
   .strict();
 
@@ -161,6 +165,7 @@ export const StorySpecSchema = z
       ctx.addIssue({ code: 'custom', message: `duplicate evidence id: ${dup}`, path: ['evidence'] });
     }
     const evidenceIdSet = new Set(evidenceIds);
+    const evidenceById = new Map(story.evidence.map((e) => [e.id, e]));
 
     // Narration/scene correspondence: every scene has exactly one narration entry, and every narration entry
     // refers to a real scene (design doc, "Runtime validation rejects ... narration/scene mismatches").
@@ -180,15 +185,31 @@ export const StorySpecSchema = z
       }
     }
 
-    // Every evidenceId referenced by a selectFiles/selectFolder operation must be declared in `evidence`.
+    // Every evidenceId referenced by a selectFiles/selectFolder operation must be declared in `evidence`, and
+    // its `kind` must match what the operation can actually do with it: selectFiles uploads individual files
+    // (setInputFiles with a file list), selectFolder uploads one directory (setInputFiles with a directory) —
+    // see tests/e2e/helpers/forge.ts. A selectFolder pointed at file-kind evidence (or vice versa) would
+    // resolve without error but fail at runtime, so it is rejected here instead.
     for (const [sceneIndex, scene] of story.scenes.entries()) {
       for (const [opIndex, op] of scene.operations.entries()) {
-        const referenced = op.type === 'selectFiles' ? op.evidenceIds : op.type === 'selectFolder' ? [op.evidenceId] : [];
-        for (const evidenceId of referenced) {
-          if (!evidenceIdSet.has(evidenceId)) {
+        const referenced: { evidenceId: string; expectedKind: 'file' | 'directory' }[] =
+          op.type === 'selectFiles'
+            ? op.evidenceIds.map((evidenceId) => ({ evidenceId, expectedKind: 'file' as const }))
+            : op.type === 'selectFolder'
+              ? [{ evidenceId: op.evidenceId, expectedKind: 'directory' as const }]
+              : [];
+        for (const { evidenceId, expectedKind } of referenced) {
+          const entry = evidenceById.get(evidenceId);
+          if (!entry) {
             ctx.addIssue({
               code: 'custom',
               message: `scene "${scene.id}" operation ${opIndex} references unknown evidence id: ${evidenceId}`,
+              path: ['scenes', sceneIndex, 'operations', opIndex],
+            });
+          } else if (entry.kind !== expectedKind) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `scene "${scene.id}" operation ${opIndex} (${op.type}) requires "${expectedKind}" evidence but "${evidenceId}" is kind "${entry.kind}"`,
               path: ['scenes', sceneIndex, 'operations', opIndex],
             });
           }

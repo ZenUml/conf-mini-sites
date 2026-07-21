@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FILM_DURATION, SHOTS, requiredSources, validateShots, type Shot } from './shots';
+import { CUES_15, CUT15_DURATION, SHOTS_15 } from './cut15';
+import { validateCues } from './captions';
 import { FPS, buildMarkMap, focusCentre, frameCount, markTime, parseBlackdetect, shotArgs, shotFilters, zoomFilter } from './assemble';
 
 const shot = (over: Partial<Shot> = {}): Shot => ({
@@ -57,6 +59,38 @@ describe('beat sheet', () => {
   it('rejects a shot with no evidence claim', () => {
     const problems = validateShots([shot({ id: 'a', t: 0, dur: 1, evidence: '' })], 1);
     expect(problems.some((p) => p.problem.includes('evidence'))).toBe(true);
+  });
+});
+
+ describe('the :15 cut', () => {
+  it('is a valid, gapless beat sheet of exactly 15 seconds', () => {
+    expect(validateShots(SHOTS_15, CUT15_DURATION, { magic: 1.0, nowWhat: 1.0 })).toEqual([]);
+    expect(SHOTS_15.reduce((n, s) => n + s.dur, 0)).toBeCloseTo(CUT15_DURATION, 6);
+  });
+
+  it('lands on a whole number of frames', () => {
+    expect(SHOTS_15.reduce((n, s) => n + frameCount(s), 0)).toBe(Math.round(CUT15_DURATION * FPS));
+  });
+
+  it('still refuses a :15 that trims the magic beat below one second', () => {
+    const trimmed = SHOTS_15.map((s) => (s.id === 'it-runs' ? { ...s, dur: 0.6 } : s));
+    const problems = validateShots(trimmed, CUT15_DURATION - 0.7, { magic: 1.0, nowWhat: 1.0 });
+    expect(problems.some((p) => p.id === 'it-runs')).toBe(true);
+  });
+
+  it('keeps the magic hold at >= 1.0s even at a third of the runtime', () => {
+    const magic = SHOTS_15.find((s) => s.id === 'it-runs')!;
+    expect(magic.dur).toBeGreaterThanOrEqual(1.0);
+    expect(magic.at![0]).toBe('a2_live');
+  });
+
+  it('still obeys the caption rules', () => {
+    expect(validateCues(CUES_15, CUT15_DURATION)).toEqual([]);
+  });
+
+  it('reuses the same captures — it introduces no new source', () => {
+    const sources = new Set(SHOTS_15.map((s) => s.src));
+    for (const src of sources) expect(['act1', 'act2', 'act3', 'endcard']).toContain(src);
   });
 });
 

@@ -197,6 +197,30 @@ const PROG = [
 ];
 
 /**
+ * A score is DATA, so a second cut of the film does not mean a second synthesizer.
+ *
+ * Everything time-dependent — the master envelope, the silence window, where the bloom starts, when the
+ * riser and the arrival stab land, and every SFX hit — lives in a ScorePlan. The 35s film uses PLAN_35;
+ * the :15 cut uses PLAN_15 with the same instrument.
+ */
+export interface ScorePlan {
+  duration: number;
+  /** master gain keyframes: [seconds, gain] */
+  env: Array<[number, number]>;
+  /** the hard-silence window (the "Now what?" hold) */
+  silence: [number, number];
+  /** from this time the arp gains its octave-up sparkle */
+  bright: [number, number];
+  /** the tonic downbeat where the product appears */
+  magicAt: number;
+  /** riser start (it runs for 0.9s into the magic beat) */
+  riserAt: number;
+  /** where the closing chord is struck */
+  resolveAt: number;
+  sfx: Array<{ t: number; kind: SfxKind; why: string }>;
+}
+
+/**
  * Master dynamics, straight from the director's notes:
  *  - enters simply, ducks from 5.2s,
  *  - **hard silence 6.35–8.40** for "Now what?" (the single most important instruction in the script),
@@ -210,11 +234,10 @@ export const MUSIC_ENV: Array<[number, number]> = [
   [31.4, 0.62], [32.4, 0.5], [34.2, 0.42], [35.0, 0.0],
 ];
 
-const isSilent = (t: number): boolean => t >= 6.3 && t < 8.42;
-/** The magic beat and after: add the octave-up arp sparkle. */
-const isBright = (t: number): boolean => t >= 19.0 && t < 25.1;
-
-export function renderMusic(seconds = DURATION_S): Buf {
+export function renderMusic(plan: ScorePlan = PLAN_35): Buf {
+  const seconds = plan.duration;
+  const isSilent = (t: number): boolean => t >= plan.silence[0] && t < plan.silence[1];
+  const isBright = (t: number): boolean => t >= plan.bright[0] && t < plan.bright[1];
   const buf = new Buf(seconds);
   const rng = makeRng(0xa11ce);
 
@@ -248,9 +271,9 @@ export function renderMusic(seconds = DURATION_S): Buf {
   // The arrival itself: a tonic stab + an inverted-cymbal swell that peaks exactly on 19.0. Without a
   // musical event here the gain jump alone does not read as release.
   for (const [k, f] of [N.A3, N.E4, N.A4, N.C5, N.E5].entries()) {
-    tone(buf, { freq: f, start: 19.0, dur: 1.6, gain: 0.085, attack: 0.006, decay: 2.4, wave: 'triangle', detune: k % 2 ? 5 : -5, pan: (k - 2) * 0.16 });
+    tone(buf, { freq: f, start: plan.magicAt, dur: 1.6, gain: 0.085, attack: 0.006, decay: 2.4, wave: 'triangle', detune: k % 2 ? 5 : -5, pan: (k - 2) * 0.16 });
   }
-  noise(buf, { start: 18.98, dur: 0.9, gain: 0.06, decay: 5.5, hp: 0.9, rng });
+  noise(buf, { start: plan.magicAt - 0.02, dur: 0.9, gain: 0.06, decay: 5.5, hp: 0.9, rng });
 
   // the riser under Publish -> the magic beat
   for (let i = 0; i < Math.ceil(0.9 * SAMPLE_RATE); i++) {
@@ -258,19 +281,19 @@ export function renderMusic(seconds = DURATION_S): Buf {
     const p = t / 0.9;
     const f = 220 + 900 * p * p;
     const s = Math.sin(2 * Math.PI * f * t) * 0.11 * p;
-    buf.addAt(18.1 + t, s, 0);
+    buf.addAt(plan.riserAt + t, s, 0);
   }
-  noise(buf, { start: 18.35, dur: 0.65, gain: 0.09, decay: 2.0, hp: 0.86, rng });
+  noise(buf, { start: plan.riserAt + 0.25, dur: 0.65, gain: 0.09, decay: 2.0, hp: 0.86, rng });
 
   // final resolve: sustained Am, arp already thinned by the envelope
   for (const [k, f] of [N.A3, N.C4, N.E4, N.A4].entries()) {
-    tone(buf, { freq: f, start: 32.45, dur: 2.35, gain: 0.09, attack: 0.12, release: 0.9, wave: 'triangle', detune: k % 2 ? 6 : -6, pan: (k - 1.5) * 0.22 });
+    tone(buf, { freq: f, start: plan.resolveAt, dur: Math.max(0.6, seconds - plan.resolveAt - 0.2), gain: 0.09, attack: 0.12, release: 0.9, wave: 'triangle', detune: k % 2 ? 6 : -6, pan: (k - 1.5) * 0.22 });
   }
 
   // apply master dynamics
   for (let i = 0; i < buf.length; i++) {
     const t = i / buf.rate;
-    const g = envelopeAt(MUSIC_ENV, t);
+    const g = envelopeAt(plan.env, t);
     buf.left[i] *= g;
     buf.right[i] *= g;
   }
@@ -388,10 +411,62 @@ export const SFX_CUES: Array<{ t: number; kind: SfxKind; why: string }> = [
   { t: 34.45, kind: 'confirm', why: 'CTA — install' },
 ];
 
-export function renderSfx(seconds = DURATION_S): Buf {
-  const buf = new Buf(seconds);
+export const PLAN_35: ScorePlan = {
+  duration: DURATION_S,
+  env: MUSIC_ENV,
+  silence: [6.3, 8.42],
+  bright: [19.0, 25.1],
+  magicAt: 19.0,
+  riserAt: 18.1,
+  resolveAt: 32.45,
+  sfx: SFX_CUES,
+};
+
+/**
+ * The :15 cut. Same story, same instrument, a third of the runtime: the pause is shorter (0.9s rather
+ * than 2s — at this length a 2s hold is an eighth of the film), and the bloom lands at 9.6s, still on a
+ * bar line of the same offset grid.
+ */
+export const SFX_CUES_15: Array<{ t: number; kind: SfxKind; why: string }> = [
+  { t: 0.10, kind: 'startup', why: 'film opens' },
+  { t: 1.30, kind: 'click', why: 'Vote' },
+  { t: 2.45, kind: 'tick', why: '4 -> 5, bar grows' },
+  // 4.05-5.15: the hold. nothing sounds.
+  { t: 5.30, kind: 'click', why: 'into Confluence' },
+  { t: 6.25, kind: 'type', why: 'typing /mini' },
+  { t: 7.20, kind: 'drop', why: 'the folder goes in' },
+  { t: 8.15, kind: 'clickHeavy', why: 'PUBLISH' },
+  { t: 8.55, kind: 'sweep', why: 'rise into the reveal' },
+  { t: 10.45, kind: 'click', why: 'Vote, inside Confluence' },
+  { t: 11.10, kind: 'tick', why: 'it changed — same tick as at 2.45s' },
+  { t: 11.55, kind: 'clickSoft', why: 'filter' },
+  { t: 12.55, kind: 'chime', why: 'brand' },
+  { t: 14.35, kind: 'confirm', why: 'CTA' },
+];
+
+export const MUSIC_ENV_15: Array<[number, number]> = [
+  [0.0, 0.0], [0.45, 0.52], [3.3, 0.52], [4.0, 0.0], [5.16, 0.0], [5.45, 0.5],
+  [8.0, 0.66], [8.9, 0.52], [9.02, 0.88], [12.3, 0.78], [12.5, 0.6], [14.9, 0.42], [15.0, 0.0],
+];
+
+export const PLAN_15: ScorePlan = {
+  duration: 15,
+  env: MUSIC_ENV_15,
+  silence: [4.02, 5.17],
+  // 9.0, not 9.6: the bar grid starts at 1.0 and steps every 2s, so only an ODD second is a downbeat.
+  // A test caught the first draft placing the bloom at 9.6 — mid-bar, exactly the defect the 35s cut's
+  // one-second grid offset exists to prevent.
+  bright: [9.0, 12.4],
+  magicAt: 9.0,
+  riserAt: 8.1,
+  resolveAt: 12.45,
+  sfx: SFX_CUES_15,
+};
+
+export function renderSfx(plan: ScorePlan = PLAN_35): Buf {
+  const buf = new Buf(plan.duration);
   const rng = makeRng(0xf00d);
-  for (const cue of SFX_CUES) sfx(buf, cue.kind, cue.t, rng);
+  for (const cue of plan.sfx) sfx(buf, cue.kind, cue.t, rng);
   return buf;
 }
 
@@ -441,10 +516,10 @@ export function toWav(buf: Buf): Buffer {
 }
 
 /** music + sfx, gain-staged so SFX read clearly over the bed without ducking it. */
-export function renderMaster(seconds = DURATION_S): { master: Buf; music: Buf; sfxBuf: Buf } {
-  const music = renderMusic(seconds);
-  const sfxBuf = renderSfx(seconds);
-  const master = new Buf(seconds);
+export function renderMaster(plan: ScorePlan = PLAN_35): { master: Buf; music: Buf; sfxBuf: Buf } {
+  const music = renderMusic(plan);
+  const sfxBuf = renderSfx(plan);
+  const master = new Buf(plan.duration);
   master.mixIn(music, 0.82);
   master.mixIn(sfxBuf, 1.0);
   master.normalize(0.89);

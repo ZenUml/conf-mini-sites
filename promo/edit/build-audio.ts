@@ -3,12 +3,14 @@
 //   pnpm promo:audio [outDir]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { DURATION_S, renderMaster, rmsDb, silenceHoldIsClean, toWav } from './audio';
+import { DURATION_S, PLAN_15, PLAN_35, renderMaster, rmsDb, silenceHoldIsClean, toWav, type ScorePlan } from './audio';
 
 const outDir = resolve(process.argv[2] || 'promo/out/audio');
 mkdirSync(join(outDir, 'stems'), { recursive: true });
 
-const { master, music, sfxBuf } = renderMaster(DURATION_S);
+// `pnpm promo:audio [outDir] [15]` renders the :15 cut's score instead.
+const plan: ScorePlan = process.argv[3] === '15' ? PLAN_15 : PLAN_35;
+const { master, music, sfxBuf } = renderMaster(plan);
 
 writeFileSync(join(outDir, 'master.wav'), toWav(master));
 writeFileSync(join(outDir, 'stems', 'music.wav'), toWav(music));
@@ -21,16 +23,16 @@ const db = (from: number, to: number): number | string => {
   return Number.isFinite(v) ? +v.toFixed(2) : 'digital silence (-inf dBFS)';
 };
 
-const hold = rmsDb(master, 6.6, 8.25);
-const magic = rmsDb(master, 19.0, 21.0);
+const hold = rmsDb(master, plan.silence[0] + 0.3, plan.silence[1] - 0.15);
+const magic = rmsDb(master, plan.magicAt, plan.magicAt + 2);
 const report = {
-  durationS: DURATION_S,
+  durationS: plan.duration,
   silenceHoldClean: silenceHoldIsClean(music),
   rmsDb: {
-    'now-what hold 6.6-8.25': db(6.6, 8.25),
-    'magic beat 19.0-21.0': db(19.0, 21.0),
-    'opening 1.0-3.0': db(1.0, 3.0),
-    'end card 33.0-35.0': db(33.0, 35.0),
+    'now-what hold': db(plan.silence[0] + 0.3, plan.silence[1] - 0.15),
+    'magic beat': db(plan.magicAt, plan.magicAt + 2),
+    'opening': db(1.0, 3.0),
+    'end card': db(plan.resolveAt, plan.duration),
   },
   contrastDb: Number.isFinite(hold) ? +(magic - hold).toFixed(2) : 'infinite (hold is true silence)',
 };

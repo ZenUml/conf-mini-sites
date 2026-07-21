@@ -141,7 +141,18 @@ export interface ShotProblem {
  * failure mode ("the magic beat got trimmed to 0.6s during a re-time") is invisible until someone
  * watches the export and can't say why it feels wrong.
  */
-export function validateShots(shots: Shot[] = SHOTS, duration = FILM_DURATION): ShotProblem[] {
+export interface HoldMinimums {
+  /** the magic beat must never be trimmed below this, at any runtime */
+  magic: number;
+  /** the "Now what?" pause — scales with the cut, because 2s of stillness in a :15 is a seventh of it */
+  nowWhat: number;
+}
+
+export function validateShots(
+  shots: Shot[] = SHOTS,
+  duration = FILM_DURATION,
+  holds: HoldMinimums = { magic: 1.0, nowWhat: 1.5 },
+): ShotProblem[] {
   const problems: ShotProblem[] = [];
   let expected = 0;
   for (const s of shots) {
@@ -159,9 +170,9 @@ export function validateShots(shots: Shot[] = SHOTS, duration = FILM_DURATION): 
 
   const byId = (id: string) => shots.find((s) => s.id === id);
   const magic = byId('it-runs');
-  if (!magic || magic.dur < 1.0) problems.push({ id: 'it-runs', problem: 'the magic beat must hold >= 1.0s untouched' });
+  if (!magic || magic.dur < holds.magic) problems.push({ id: 'it-runs', problem: `the magic beat must hold >= ${holds.magic}s untouched` });
   const nowWhat = byId('now-what');
-  if (!nowWhat || nowWhat.dur < 1.5) problems.push({ id: 'now-what', problem: 'the "Now what?" hold must be >= 1.5s' });
+  if (!nowWhat || nowWhat.dur < holds.nowWhat) problems.push({ id: 'now-what', problem: `the "Now what?" hold must be >= ${holds.nowWhat}s` });
   if (nowWhat && !nowWhat.dim) problems.push({ id: 'now-what', problem: 'the "Now what?" beat must dim the frame' });
   return problems;
 }

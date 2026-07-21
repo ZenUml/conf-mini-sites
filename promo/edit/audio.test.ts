@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DURATION_S, SAMPLE_RATE, SFX_CUES, envelopeAt, makeRng, renderMaster, renderMusic, renderSfx,
-  rmsDb, silenceHoldIsClean, toWav,
+  DURATION_S, PLAN_15, PLAN_35, SAMPLE_RATE, SFX_CUES, envelopeAt, makeRng, renderMaster, renderMusic,
+  renderSfx, rmsDb, silenceHoldIsClean, toWav,
 } from './audio';
+
+const short = (seconds: number) => ({ ...PLAN_35, duration: seconds });
 import { CUES, cueStory, toAss, validateCues, assTime } from './captions';
 
 describe('score', () => {
   it('is deterministic — two renders are byte-identical (a re-render must not change the film)', () => {
-    expect(toWav(renderSfx(2)).equals(toWav(renderSfx(2)))).toBe(true);
+    expect(toWav(renderSfx(short(2))).equals(toWav(renderSfx(short(2))))).toBe(true);
   });
 
   it('makeRng is seeded and repeatable', () => {
@@ -56,13 +58,29 @@ describe('score', () => {
   });
 
   it('emits a well-formed 48k stereo 16-bit WAV of the right length', () => {
-    const wav = toWav(renderSfx(1));
+    const wav = toWav(renderSfx(short(1)));
     expect(wav.subarray(0, 4).toString()).toBe('RIFF');
     expect(wav.subarray(8, 12).toString()).toBe('WAVE');
     expect(wav.readUInt16LE(22)).toBe(2);
     expect(wav.readUInt32LE(24)).toBe(SAMPLE_RATE);
     expect(wav.readUInt16LE(34)).toBe(16);
     expect(wav.readUInt32LE(40)).toBe(SAMPLE_RATE * 2 * 2);
+  });
+
+  it('the :15 cut keeps the shape: silence, then a bloom on a downbeat', () => {
+    const music = renderMusic(PLAN_15);
+    expect(silenceHoldIsClean(music, PLAN_15.silence[0] + 0.15, PLAN_15.silence[1] - 0.05)).toBe(true);
+    // the bloom bar beats every other bar-length window in the cut
+    const magic = rmsDb(music, PLAN_15.magicAt, PLAN_15.magicAt + 2);
+    for (const from of [1, 5.5, 12.5]) expect(magic).toBeGreaterThan(rmsDb(music, from, from + 2));
+    expect(PLAN_15.sfx.every((c) => c.t < PLAN_15.duration)).toBe(true);
+    // nothing may sound inside the :15 hold either
+    expect(PLAN_15.sfx.filter((c) => c.t >= PLAN_15.silence[0] && c.t < PLAN_15.silence[1])).toEqual([]);
+  });
+
+  it('the :15 bloom lands on the same offset bar grid as the 35s cut', () => {
+    // bars start at 1.0 + k*2.0, so a downbeat is any odd second
+    for (const plan of [PLAN_35, PLAN_15]) expect((plan.magicAt - 1.0) % 2).toBeCloseTo(0, 6);
   });
 
   it('every SFX cue lands inside the film', () => {

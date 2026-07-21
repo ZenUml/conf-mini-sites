@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "name": "Mini Site for Confluence",
+    "build": "dev"
+  },
+  "objective": "Show a Confluence editor turning an empty Mini-Site macro into a live, multi-file static site without leaving Confluence or configuring separate hosting.",
+  "audience": "Confluence admins and Marketplace evaluators deciding whether Mini Site for Confluence solves 'host a small site without leaving Confluence'.",
+  "evidence": [
+    {
+      "id": "full-flow-e2e-spec",
+      "description": "The proven end-to-end Playwright spec this story's flow mirrors: create page, open macro, publish a bundle, assert the live preview.",
+      "path": "tests/e2e/ui/full-flow.spec.ts"
+    },
+    {
+      "id": "sample-bundle-index",
+      "description": "Sample bundle entry point (index.html). Its own body literally reads 'Mini-Site is live' — the exact text the final scene proves is being served.",
+      "path": "tests/e2e/fixtures/sample-bundle/index.html"
+    },
+    {
+      "id": "sample-bundle-app",
+      "description": "Sample bundle script, uploaded alongside index.html to make the bundle genuinely multi-file.",
+      "path": "tests/e2e/fixtures/sample-bundle/app.js"
+    },
+    {
+      "id": "sample-bundle-style",
+      "description": "Sample bundle stylesheet, uploaded alongside index.html to make the bundle genuinely multi-file.",
+      "path": "tests/e2e/fixtures/sample-bundle/style.css"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "start-in-confluence",
+      "title": "Start in Confluence",
+      "operations": [
+        { "type": "openMacro" }
+      ]
+    },
+    {
+      "id": "upload-and-publish",
+      "title": "Upload and publish",
+      "operations": [
+        { "type": "openPublisher" },
+        {
+          "type": "selectFiles",
+          "evidenceIds": ["sample-bundle-index", "sample-bundle-app", "sample-bundle-style"]
+        },
+        { "type": "publishAndAwait" }
+      ]
+    },
+    {
+      "id": "prove-the-outcome",
+      "title": "Prove the outcome",
+      "operations": [
+        { "type": "gotoPreview" }
+      ]
+    }
+  ],
+  "narration": [
+    {
+      "sceneId": "start-in-confluence",
+      "script": "Here's a normal Confluence page with an empty Mini Site macro — nothing published yet."
+    },
+    {
+      "sceneId": "upload-and-publish",
+      "script": "Open the publisher, select a multi-file bundle, and publish it — no build step, no separate hosting to configure."
+    },
+    {
+      "sceneId": "prove-the-outcome",
+      "script": "And the mini-site is live, served straight out of the page it was published from."
+    }
+  ],
+  "observableClaim": {
+    "text": "Mini-Site is live"
+  }
+}

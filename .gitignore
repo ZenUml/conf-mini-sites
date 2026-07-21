@@ -24,7 +24,10 @@ tests/e2e/.auth/
 test-results/
 playwright-report/
 
-# demo-pipeline (agent-first demo video PoC) — generated run artifacts and the
-# project-local Python venv for the pinned Kokoro TTS adapter. Never committed.
+# demo-pipeline (agent-first demo video PoC) — generated run artifacts, the project-local Python venv for
+# the pinned Kokoro TTS adapter, and the cross-run narration cache (WAV files + sidecar manifests, keyed by a
+# hash of provider/model/voice/text — see demo-pipeline/src/narration.ts). None of these are committed.
 .demo-runs/
 demo-pipeline/.venv/
+demo-pipeline/.demo-cache/
+demo-pipeline/voice/__pycache__/

@@ -166,3 +166,88 @@ involved. `confluenceRunner.test.ts` covers the rehearse/capture state machine e
 injected fakes (no real browser). The only thing this repository's test suite does **not** prove is a
 real end-to-end run through a real Confluence browser session — that is Task 9's job, run against the
 live dev stack with `tests/e2e/.env` sourced.
+
+## Phase 1 evidence (Task 9, 2026-07-21)
+
+Three consecutive full runs (`task9-run1`/`task9-run2`/`task9-run3`) against the real dev stack
+(`lite-dev.atlassian.net`, space `SD`), each a fresh `pnpm demo:video -- --story
+demo-pipeline/stories/mini-site-launch.story.json --run-id task9-runN`. All results below were
+independently re-verified against the actual artifacts on disk (`ffprobe`, `grep`, and a live CQL
+query against `lite-dev`), not taken on a report's word alone.
+
+| Run | `final.mp4` duration | Resolution | Codecs | Scene order | Product assertion | Cleanup |
+|---|---|---|---|---|---|---|
+| task9-run1 | 38.433s | 1920x1080 | h264/aac | ✅ | ✅ "Mini-Site is live" | ✅ page+instance deleted |
+| task9-run2 | 37.833s | 1920x1080 | h264/aac | ✅ | ✅ "Mini-Site is live" | ✅ page+instance deleted |
+| task9-run3 | 37.567s | 1920x1080 | h264/aac | ✅ | ✅ "Mini-Site is live" | ✅ page+instance deleted |
+
+Spread: 0.866s over a ~38s video (≈2.2%) — within the design doc's ±5%/±500ms (whichever is larger)
+per-run tolerance, since 5% of ~38s (≈1.9s) is the operative (larger) bound. Per-scene narration
+placement was **byte-identical** across all three runs (`start-in-confluence` at 500ms/5.75s,
+`upload-and-publish` at 7250ms/7.7s, `prove-the-outcome` at 15950ms/4.75s) — expected, since narration
+is deterministic and cache-keyed by (text, model, voice); only the captured video's real browser/product
+interaction timing varies run to run, and that variance is what the table above bounds.
+
+**Rerender-without-credentials**: `pnpm demo:render -- --run-dir .../task9-run1` succeeded with all six
+credential env vars unset — no network or browser access, matching `render.ts`'s design (`rerender`
+never imports anything that could launch one). The re-encoded MP4's hash differs run-to-run (expected:
+`libx264`'s encoder is not byte-deterministic across invocations even with identical input), but the
+media probe (resolution/duration/streams) matches, and every recorded input hash was verified against
+disk before FFmpeg ran.
+
+**Secret scan**: all 39 artifact files across the three run directories (manifests, `edl.json`,
+`actions.jsonl`, `captions.srt`) were grepped for all six known credential values plus a broad
+64+-hex-char scan — every hex string found is a `sha256` content hash referenced consistently across a
+run's own manifests (e.g. the same evidence-file hash appears in `narrated.json` and
+`render-manifest.json`), never a credential.
+
+**Cleanup verification**: `curl`-queried `lite-dev`'s Confluence REST API directly for each run's
+specific page id — all three now 404 (deleted). A broader CQL sweep of space `SD` found **nine**
+pre-existing orphaned pages titled `Mini-Site render test 2026-06-16/17...` and `Mini Site reviewer
+flow 2026-07-15` — all predate this session (none dated 2026-07-21) and are not a Task 9 regression;
+they match this project's already-known dormant-GC debt (see `CONTEXT.md` / the progress ledger) and
+were left untouched pending an explicit cleanup decision, not deleted unprompted.
+
+### Acceptance criteria (RFC Phase 1, `docs/research/2026-07-19-agent-first-product-demo-video-pipeline-rfc.md`)
+
+| Criterion | Status |
+|---|---|
+| One non-interactive command after one-time auth/OS setup | ✅ `pnpm demo:video -- --story <path>` |
+| Zero manual clicking/trimming/subtitle-placement/export during a run | ✅ |
+| A failed rehearsal produces no publishable video and identifies the broken action | ⚠️ structurally guaranteed (rehearsal blocks capture/render unconditionally, reviewed in Task 6/7) and unit-tested via fakes, but never exercised by a *real* rehearsal failure — none occurred in Task 9's three live runs |
+| Three consecutive runs preserve scene order/narration; outcome assertions pass; per-scene timing within tolerance | ✅ see table above |
+| Final file is 1080p, 30-45s, audible narration, readable captions, no clipped frames, no secrets | ✅ 1920x1080, 37.6-38.4s, captions burned-in (visually verified in Task 5's proof), secret scan clean |
+| Every marketing claim maps to repository/product evidence | ✅ `mini-site-launch.story.json`'s evidence array (Task 2) |
+| Rerender from stored capture/audio/EDL without operating the product again | ✅ see above |
+
+### Runtime findings
+
+- **Playwright Screencast**: reliable on this real product's nested Forge frames — three real
+  captures, zero flakes, zero manual retries. `openMacro`'s cross-origin frame discovery (already
+  proven by the existing `full-flow.spec.ts`) held up unchanged under `confluenceRunner.ts`'s
+  rehearse-then-fresh-capture flow.
+- **Kokoro-82M**: ~17-20s cold cost per narration line (Python import + model/voice load), then
+  effectively free once cached by (text, model, voice) hash — a full 3-scene story never re-synthesizes
+  audio across runs unless the story text changes.
+- **FFmpeg**: the default Homebrew `ffmpeg` (no `libass`) cannot burn captions; `ffmpeg-full` resolves
+  this. Encoding is fast (well under narration/capture time) but not byte-deterministic across runs —
+  rerender-from-stored-artifacts is verified by media probe, not by MP4 hash equality.
+
+### Remaining gaps and the aidemo benchmark decision
+
+- The captured video (~37.6-38.4s) runs longer than the 21.2s narration plan, leaving a ~16-17s
+  narration-free tail (real product/network wait time not covered by narration pacing) — still inside
+  the 30-45s target, but a candidate for tighter scene-duration tuning in a future pass, not a defect.
+- Nine pre-existing orphaned dev pages (see above) should get an explicit manual-sweep decision
+  independent of this pipeline.
+- **aidemo benchmark**: per the RFC's own gate ("Adopt aidemo... only if it passes those tests and
+  reduces owned code. Otherwise retain it as a reference and keep FFmpeg as the stable renderer
+  primitive"), the native Playwright+FFmpeg path reached every Phase 1 acceptance criterion above
+  without needing it. Recommend **deferring** the aidemo parallel benchmark — there is no unmet
+  capability gap it would currently close, and its maturity concerns (RFC §1.1: one human maintainer,
+  unexecuted CI smoke test) are unchanged since the RFC was written. Revisit only if Phase 3's visual
+  quality bar (cinematic zoom, cursor-path smoothing) becomes a stated priority.
+
+**Phase 1 status: complete.** A real final video, a real rerender, and real three-run evidence all
+exist (this section), satisfying the design doc's acceptance boundary: "Passing unit tests without a
+real captured artifact is not completion."

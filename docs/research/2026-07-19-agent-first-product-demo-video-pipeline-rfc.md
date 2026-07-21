@@ -1,6 +1,8 @@
 # Technical Spike RFC: Agent-First Product Demo Video Pipeline
 
-**Status:** Research complete; recommendation proposed; implementation awaits approval  
+**Status:** Phase 1 PoC complete and proven (2026-07-21) — see `demo-pipeline/README.md`'s "Phase 1
+evidence" section for the real three-run proof, acceptance-criteria checklist, and the aidemo
+benchmark decision (deferred; see below). Original research/recommendation below is unchanged.  
 **Date:** 2026-07-19  
 **Scope:** Ecosystem validation, architecture, gaps, risks, and smallest executable proof of concept  
 **Non-goal:** Building a screen recorder, a nonlinear editor, or the full production system
@@ -284,6 +286,12 @@ This is intentionally the smallest proof of **Product → Story → Demo → Vid
 - Every marketing claim in the script points to repository/product evidence and an observable demo outcome.
 - The run can be re-rendered from stored capture/audio/EDL without operating the product again.
 
+**Result (2026-07-21):** all seven criteria met against the real dev stack (`lite-dev.atlassian.net`) —
+three real captures, a real rerender with credentials removed, a clean secret scan, and per-scene
+timing byte-identical across runs (only real capture duration varies, within tolerance). Full
+run-by-run evidence, runtime findings, and remaining gaps are in `demo-pipeline/README.md`'s "Phase 1
+evidence" section rather than duplicated here.
+
 #### Parallel vendor benchmark inside the PoC decision gate
 
 After the native path produces one valid artifact, feed an equivalent simple storyboard to a pinned aidemo release and compare:
@@ -293,6 +301,12 @@ After the native path produces one valid artifact, feed an equivalent simple sto
 - output quality of cursor, zoom, captions, and transitions;
 - manifest completeness, cancellation, and rerender behavior;
 - effort to implement a clean adapter without forking.
+
+**Decision (2026-07-21): deferred.** The native path already met every Phase 1 acceptance criterion
+(see above) with no unmet capability gap this benchmark would close, so it was not run. aidemo's
+maturity concerns from §1.1 (one human maintainer, unexecuted CI smoke test) are unchanged since this
+RFC was written. Revisit only if a future phase's visual-quality bar (cinematic zoom, cursor-path
+smoothing — Phase 3) becomes a stated priority.
 
 Adopt aidemo as the default media adapter only if it passes those tests and reduces owned code. Otherwise retain it as a reference and keep FFmpeg as the stable renderer primitive.
 

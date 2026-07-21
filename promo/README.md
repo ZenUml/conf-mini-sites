@@ -17,6 +17,8 @@ npx tsx promo/capture/act2.ts    promo/out/captures   # Confluence: insert -> pu
 npx tsx promo/capture/act3.ts    promo/out/captures   # the teammate using it       (~55s)
 npx tsx promo/capture/endcard.ts promo/out/captures   # three closing stills
 pnpm promo:assemble                                    # -> promo/out/final.mp4
+pnpm promo:variants                                    # -> final_square.mp4, final_vertical.mp4
+pnpm promo:cut15                                       # -> final_15s.mp4
 ```
 
 `promo/out/` is gitignored; every artifact is reproducible from the commands above.
@@ -36,6 +38,8 @@ pnpm promo:assemble                                    # -> promo/out/final.mp4
 | `edit/captions.ts` | 19 cues → ASS, with the director's rules asserted in code |
 | `edit/audio.ts` | the score, synthesized from oscillators in JS |
 | `edit/assemble.ts` | marks + beat sheet → per-shot clips → concat → captions + audio |
+| `edit/cut15.ts` | the :15 cut — its own beat sheet, cue list and score plan, same captures |
+| `edit/variants.ts` | 1:1 and 9:16, letterboxed with captions re-burned for the canvas |
 | `verify-site.mjs` | standalone check that the prototype really is interactive |
 
 ## Five things here that are not obvious
@@ -106,6 +110,20 @@ musical event under it, which read as a volume change rather than an arrival.
 
 To use a licensed track instead: `final_nomusic.mp4` (SFX only) and `out/audio/stems/*.wav` exist so the
 swap is one ffmpeg command, not a re-edit.
+
+## The :15 cut
+
+`pnpm promo:cut15` → `promo/out/final_15s.mp4` (15.000s, 450 frames). It is not a trim: the five beats
+survive with one shot each, and the pause shortens to 1.1s because two seconds of stillness in a :15 is
+a seventh of the film. Two rules are enforced across both runtimes by `validateShots(..., holds)`:
+
+- the **magic hold never scales down** — 1.0s minimum at any runtime;
+- the **bloom must land on a bar line**. The bar grid starts at 1.0s and steps every 2s, so only an odd
+  second is a downbeat. A test caught the first draft placing the :15 bloom at 9.6s — mid-bar, which is
+  exactly the defect the 35s cut's grid offset exists to prevent. It is at 9.0s.
+
+The score is a `ScorePlan` (envelope, silence window, bloom window, riser, resolve, SFX cues), so a new
+runtime reuses the instrument instead of duplicating it: `PLAN_35` and `PLAN_15`.
 
 ## Known gaps
 

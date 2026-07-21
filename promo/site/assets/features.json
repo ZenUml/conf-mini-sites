@@ -1,0 +1,37 @@
+{
+  "features": [
+    {
+      "id": "a",
+      "letter": "A",
+      "name": "Guided setup checklist",
+      "votes": 4,
+      "impact": 3,
+      "effort": 2,
+      "problem": "New users land in an empty workspace with no signal of what to do first, so many never finish setup and churn before day three.",
+      "solution": "A persistent checklist of the four or five setup steps that matter — connect data, invite a teammate, configure a project — that tracks completion and stays visible until it's done.",
+      "impactStatement": "Higher first-session activation, and fewer support tickets asking what to do next."
+    },
+    {
+      "id": "b",
+      "letter": "B",
+      "name": "Interactive product tour",
+      "votes": 6,
+      "impact": 5,
+      "effort": 4,
+      "problem": "Static screenshots and docs don't match the product a new user is actually looking at, so the first impression depends on reading before doing.",
+      "solution": "A short, skippable walkthrough driven by the real interface, surfacing the three things a new user needs on their very first visit.",
+      "impactStatement": "Faster time-to-first-value, and fewer \"how do I…\" questions in week one."
+    },
+    {
+      "id": "c",
+      "letter": "C",
+      "name": "Personalised sample data",
+      "votes": 2,
+      "impact": 4,
+      "effort": 5,
+      "problem": "A blank workspace makes every feature feel abstract — users can't tell if the product fits their case until they've done the setup work themselves.",
+      "solution": "Pre-load the workspace with realistic content scoped to the signup answers, ready to explore or replace.",
+      "impactStatement": "Users see the product's value before investing their own data, which should lift trial-to-paid conversion."
+    }
+  ]
+}

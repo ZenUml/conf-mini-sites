@@ -23,3 +23,8 @@ forge-app/storybook-static/
 tests/e2e/.auth/
 test-results/
 playwright-report/
+
+# demo-pipeline (agent-first demo video PoC) — generated run artifacts and the
+# project-local Python venv for the pinned Kokoro TTS adapter. Never committed.
+.demo-runs/
+demo-pipeline/.venv/

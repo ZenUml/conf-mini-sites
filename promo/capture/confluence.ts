@@ -130,6 +130,12 @@ export const PRIVACY_CSS = `
   [data-testid="owner-with-contributors-dropdown-trigger"] { visibility: hidden !important; }
   img[alt*="@"], img[data-testid*="avatar"], [data-testid*="avatar"] img { filter: blur(10px) !important; }
 
+  /* Comment authors. The AVATAR is masked by the rule above (verified at 3x zoom on the finished film:
+     it renders as a soft grey blob). The author's NAME is deliberately left legible — on this take it is
+     the product owner's own name on his own promo, and substituting an invented teammate would be a
+     fabricated persona, which is a bigger problem than a real one. Uncomment to hide it. */
+  /* [data-testid="comment-author"] { filter: blur(5px) !important; } */
+
   /* Another vendor's app badge and Atlassian's own AI upsell: neither belongs in this product's film. */
   [data-testid="byline-forge-app-button"] { display: none !important; }
   [data-testid="rovo-non-mau-chat-cta-link"], [data-testid="post-office-ad-controls-dropdown--trigger"] { display: none !important; }

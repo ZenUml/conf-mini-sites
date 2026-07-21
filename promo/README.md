@@ -88,6 +88,10 @@ name* — pressing Enter would take the highlighted first row, which is Staging.
   aria-label is literally a user's email address — and other vendors' app badges are all masked. Every
   selector was read off the live page by `promo/tmp/probe-selectors.ts`, because an earlier invented set
   matched nothing and a whole take filmed the tenant's page tree.
+- The comment beat (26.5–28.4s) shows a **real** Confluence comment with a **blurred** avatar and a
+  legible author name. The name is left visible on purpose: replacing it with an invented teammate
+  would be a fabricated persona. `[data-testid="comment-author"]` in `PRIVACY_CSS` is a one-line
+  uncomment if you'd rather hide it.
 - The end card uses no Atlassian brand asset. We hold no licence to their mark, so the Marketplace is
   referenced in words by the caption track only.
 

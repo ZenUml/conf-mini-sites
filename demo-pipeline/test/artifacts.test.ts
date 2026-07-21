@@ -2,7 +2,7 @@
 // explicit job phases ... A phase writes its manifest atomically only after success. Existing completed
 // phases are reusable when their input hashes still match."). Pure/fs-local — no real browser, FFmpeg, or
 // Kokoro anywhere in this file; every fixture is a tiny hand-written file in a tmp directory.
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

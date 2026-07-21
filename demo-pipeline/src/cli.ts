@@ -282,7 +282,7 @@ export function computePlanHash(plan: DemoPlan): string {
  *  indirection: it keeps a `demo:render` afterward and a later `demo:video run` on the same run id comparable
  *  by the SAME hash shape, so a plain re-run of `run` correctly recognizes a manual rerender as still valid
  *  (no redundant re-encode) instead of just safely-but-wastefully redoing it. */
-export function computeRenderedInputHashes(runDir: string, root: string, renderManifest: RenderManifest): Record<string, string> {
+export function computeRenderedInputHashes(runDir: string, renderManifest: RenderManifest): Record<string, string> {
   const captureManifestPath = join(runDir, CAPTURE_MANIFEST_FILENAME);
   const captureManifestHash = existsSync(captureManifestPath)
     ? hashFile(captureManifestPath)
@@ -424,7 +424,7 @@ async function cmdRun(storyPath: string, runIdOpt: string | undefined, rehearseO
       log('rendered: reused (inputs unchanged since the last successful render in this run directory)', secretValues);
     } else {
       renderManifest = await renderVideo(edl, { runDir, baseDir: root });
-      writePhase(runDir, 'rendered', computeRenderedInputHashes(runDir, root, renderManifest), [
+      writePhase(runDir, 'rendered', computeRenderedInputHashes(runDir, renderManifest), [
         { path: toRootRelative(root, join(runDir, RENDER_MANIFEST_FILENAME)), sha256: hashFile(join(runDir, RENDER_MANIFEST_FILENAME)) },
         { path: toRootRelative(root, join(runDir, RENDER_OUTPUT_FILENAME)), sha256: renderManifest.output.sha256 },
       ]);
@@ -467,7 +467,7 @@ async function cmdRender(runDirArg: string): Promise<void> {
     // imports anything that could launch a browser (render.ts's own module doc comment; no browser code
     // exists in that module to launch one with).
     const renderManifest = await rerender(runDir, root);
-    writePhase(runDir, 'rendered', computeRenderedInputHashes(runDir, root, renderManifest), [
+    writePhase(runDir, 'rendered', computeRenderedInputHashes(runDir, renderManifest), [
       { path: toRootRelative(root, join(runDir, RENDER_MANIFEST_FILENAME)), sha256: hashFile(join(runDir, RENDER_MANIFEST_FILENAME)) },
       { path: toRootRelative(root, join(runDir, RENDER_OUTPUT_FILENAME)), sha256: renderManifest.output.sha256 },
     ]);

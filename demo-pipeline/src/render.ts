@@ -206,11 +206,29 @@ export interface CompileFfmpegArgsOptions {
   readonly outputPath: string;
 }
 
+/** Convert an absolute path to one relative to `baseDir`, "/"-joined (mirrors `story.ts`'s
+ *  `listFilesRecursive` convention so the produced argv is identical on every OS) and prefixed with `./`.
+ *
+ *  The `./` prefix is NOT cosmetic — it is required for FFmpeg to correctly treat the value as a local path.
+ *  Before ever reaching local file-path handling, FFmpeg's libavformat parses every path-like argument (an
+ *  `-i` value, an output filename, or a filtergraph `filename=` value — even one already single-quoted/colon-
+ *  escaped for the filtergraph layer by `escapeForFilterGraphValue`) for a leading `<scheme>:` protocol
+ *  prefix. A relative path whose first segment contains a colon before its first "/" — e.g. a very plausible
+ *  timestamp-based run-id like `run-2026-07-21T10:30:00Z/tone.wav` (`new Date().toISOString()` is exactly this
+ *  shape) — gets misread as an unknown protocol scheme and fails with "Protocol not found", regardless of any
+ *  filtergraph-level escaping: this is a different, LOWER layer than the filtergraph colon-as-option-separator
+ *  problem `escapeForFilterGraphValue` solves, so both are needed together for a path used inside the
+ *  subtitles filter's `filename=`. Empirically verified against the real ffmpeg-full binary this module
+ *  resolves: an unprefixed relative path through a colon-containing directory fails with exit 8 / "Protocol
+ *  not found" (FFmpeg's own error even suggests this exact fix: "Did you mean file:run-2026-...Z/tone.wav?");
+ *  the same path prefixed with "./" succeeds. A leading "./" guarantees a "/" appears before any later ":" in
+ *  the string, which is sufficient for FFmpeg to never mistake the path for a URL — including when the
+ *  relative path already starts with ".." (`./../foo` is a valid, equivalent path to `../foo`, so prefixing is
+ *  always safe to apply unconditionally). See `test/render.test.ts`'s "colon in a relative path segment"
+ *  describe block for a real-FFmpeg regression test (not just a string-content assertion) covering this. */
 function toRelativePosix(baseDir: string, absolutePath: string): string {
-  // Split on the platform separator and rejoin with "/" (mirrors story.ts's listFilesRecursive convention)
-  // so the produced argv — and therefore the recorded RenderManifest — is identical on every OS, not just
-  // whichever one a given run happened to execute on.
-  return relative(baseDir, absolutePath).split(sep).join('/');
+  const rel = relative(baseDir, absolutePath).split(sep).join('/');
+  return `./${rel}`;
 }
 
 /** Escape a path for use as an FFmpeg filtergraph option value (e.g. the subtitles filter's `filename=`/
@@ -497,7 +515,11 @@ export interface RenderManifest {
 }
 
 /** Normalize an absolute path to one relative to `baseDir`, using "/" as the separator on every OS (mirrors
- *  `toRelativePosix` above / `story.ts`'s directory-hashing convention). This is the ONLY place a path is
+ *  `toRelativePosix` above / `story.ts`'s directory-hashing convention) — deliberately WITHOUT `toRelativePosix`'s
+ *  `./` prefix: a `RenderManifest.inputs`/`output` path is only ever consumed by JSON (de)serialization and
+ *  `checkRerenderInputs`'s `path.resolve`/`existsSync` (plain Node path handling, not FFmpeg's URL-scheme
+ *  parsing), so it isn't exposed to the protocol-misparsing issue `toRelativePosix` guards against and doesn't
+ *  need the same prefix. This is the ONLY place a path is
  *  allowed to leak into a `RenderManifest` — every hashed-input/output field below is normalized through it,
  *  so a manifest never contains one machine's raw absolute path (e.g. `/Users/<name>/...`), only a path
  *  relative to `baseDir` (this pipeline's convention: `repoRoot()`, so the manifest stays portable/shareable

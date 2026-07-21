@@ -108,6 +108,7 @@ Rerender accepts a completed run directory and never launches a browser.
 - Existing root Playwright 1.61 and Node 22.
 - `tsx` and `zod` as root development-only dependencies for the isolated CLI and runtime schemas.
 - Existing local FFmpeg/ffprobe 8.1.1. The detected Homebrew binary is GPL-enabled and includes libx264; the PoC records this fact in the manifest and does not claim an LGPL-only distribution path.
+- **Correction (Task 5):** that default Homebrew `ffmpeg` formula does not include libass, so it cannot burn captions via the subtitles filter this PoC relies on. Task 5 instead resolves Homebrew's keg-only `ffmpeg-full` formula (`brew install ffmpeg-full`; overridable via the `DEMO_PIPELINE_FFMPEG_DIR` env var), which does include libass alongside the same GPL/libx264 build already recorded in the manifest — see `demo-pipeline/src/render.ts`'s executable-resolution section for the verified details.
 - A project-local Python virtual environment for pinned Kokoro and audio dependencies. The PoC uses an English preset voice and does not clone a person's voice.
 
 ## Testing and evidence gates

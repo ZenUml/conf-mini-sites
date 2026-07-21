@@ -180,7 +180,7 @@ describe('compileFfmpegArgs: deterministic, no shell interpolation', () => {
     const args = compileFfmpegArgs(edl, options);
 
     const inputIndex = args.indexOf('-i');
-    expect(args[inputIndex + 1]).toBe('.demo-runs/run-1/cap;ture && echo pwned $(whoami).webm');
+    expect(args[inputIndex + 1]).toBe('./.demo-runs/run-1/cap;ture && echo pwned $(whoami).webm');
     // The dangerous string appears in exactly this one element — not split across several array entries.
     expect(args.filter((a) => a.includes(';ture'))).toHaveLength(1);
   });
@@ -207,8 +207,8 @@ describe('compileFfmpegArgs: delays and mixes narration at each scene\'s compute
     // Two narration inputs (index 2 and 3, after video=0 and silence bed=1) plus the silence bed => amix of 3.
     expect(filterComplex).toContain('amix=inputs=3:normalize=0:duration=first');
     // Every narration WAV path appears as its own -i input.
-    expect(args).toContain('demo-pipeline/.demo-cache/narration/aaa.wav');
-    expect(args).toContain('demo-pipeline/.demo-cache/narration/bbb.wav');
+    expect(args).toContain('./demo-pipeline/.demo-cache/narration/aaa.wav');
+    expect(args).toContain('./demo-pipeline/.demo-cache/narration/bbb.wav');
   });
 
   it('delays all three of the real story\'s scenes at their exact plan.scene.startMs + SCENE_LEAD_IN_MS, with three distinct values', () => {
@@ -251,7 +251,7 @@ describe('compileFfmpegArgs: burns captions from the run-local SRT via the subti
     const args = compileFfmpegArgs(edl, { baseDir: '/repo', srtPath: '/repo/.demo-runs/run-1/captions.srt', outputPath: '/repo/.demo-runs/run-1/final.mp4' });
     const filterComplex = argValueAfter(args, '-filter_complex');
 
-    expect(filterComplex).toContain("subtitles=filename='.demo-runs/run-1/captions.srt'");
+    expect(filterComplex).toContain("subtitles=filename='./.demo-runs/run-1/captions.srt'");
     expect(filterComplex).toContain('force_style=');
     expect(filterComplex).toContain('[outv]');
     expect(args).toEqual(expect.arrayContaining(['-map', '[outv]', '-map', '[outa]']));
@@ -265,8 +265,77 @@ describe('compileFfmpegArgs: burns captions from the run-local SRT via the subti
       outputPath: '/repo/.demo-runs/run-1/final.mp4',
     });
     const filterComplex = argValueAfter(args, '-filter_complex');
-    expect(filterComplex).toContain("subtitles=filename='.demo-runs/run-1/wei\\:rd.srt'");
+    expect(filterComplex).toContain("subtitles=filename='./.demo-runs/run-1/wei\\:rd.srt'");
   });
+});
+
+// -------------------------------------------------------------------------------------------------------
+// Regression test (reviewer finding, Task 5 follow-up): a colon in a relative path segment breaks every
+// FFmpeg argument that references it — not just the subtitles filename — because libavformat misparses text
+// before the colon as a protocol scheme ("Protocol not found"), a lower layer than the filtergraph-level
+// colon-escaping `escapeForFilterGraphValue` handles. A string-content assertion (checking the compiled argv
+// *text* contains the right characters) cannot catch this: the text can look perfectly escaped and still fail
+// at the libavformat layer. This test invokes the REAL resolved FFmpeg binary through a directory whose name
+// contains a colon — the exact shape a `new Date().toISOString()`-based run-id (a very plausible Task 7
+// choice) would produce — and asserts the render actually succeeds.
+// -------------------------------------------------------------------------------------------------------
+
+describe('toRelativePosix / compileFfmpegArgs + renderVideo: a colon in a relative path segment does not break FFmpeg', () => {
+  let workDir: string;
+
+  beforeEach(() => {
+    workDir = mkdtempSync(join(tmpdir(), 'demo-pipeline-render-colon-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(workDir, { recursive: true, force: true });
+  });
+
+  it('renders successfully (real ffmpeg, not a string assertion) through a run directory whose name contains a colon', async () => {
+    const ffmpegPath = defaultFfmpegPath();
+
+    // Mimics a plausible Task 7 run-id: `new Date().toISOString()` produces exactly this "YYYY-MM-DDTHH:MM:SSZ"
+    // shape, colons and all. `baseDir` (workDir) is colon-free, but the file's path RELATIVE to baseDir is
+    // "run-2026-07-21T10:30:00Z/capture.webm" — a colon before the first "/", the exact pattern that gets
+    // misread as a URL protocol scheme without the "./" prefix.
+    const runDirName = 'run-2026-07-21T10:30:00Z';
+    const runDir = join(workDir, runDirName);
+    mkdirSync(runDir, { recursive: true });
+
+    const sourceVideoPath = join(runDir, 'capture.webm');
+    const genVideo = await runProcess(ffmpegPath, [
+      '-y', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=10', '-t', '1',
+      '-c:v', 'libvpx', '-loglevel', 'error', sourceVideoPath,
+    ]);
+    expect(genVideo.exitCode).toBe(0);
+
+    const wavPath = join(runDir, 'narration-scene-a.wav');
+    const genWav = await runProcess(ffmpegPath, [
+      '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.5', '-ar', '24000', '-ac', '1',
+      '-loglevel', 'error', wavPath,
+    ]);
+    expect(genWav.exitCode).toBe(0);
+
+    const edl: EditDecisionList = fixtureEdl({
+      sourceVideoPath,
+      totalDurationMs: 1_000,
+      narration: [{ sceneId: 'scene-a', wavPath, startMs: 200, durationSeconds: 0.5 }],
+      captions: [{ index: 1, startMs: 200, endMs: 700, text: 'Colon path regression test.' }],
+    });
+
+    // baseDir = workDir (colon-free) but runDir/sourceVideoPath/wavPath all live under the colon-containing
+    // subdirectory — so every path compileFfmpegArgs compiles relative to baseDir carries the colon.
+    const manifest = await renderVideo(edl, { runDir, baseDir: workDir });
+
+    expect(manifest.output.probe.width).toBe(1920);
+    expect(manifest.output.probe.height).toBe(1080);
+    expect(manifest.output.probe.streams.map((s) => s.codecType).sort()).toEqual(['audio', 'video']);
+    // No resolution/gpl/duration warnings — a clean render through the colon-containing path.
+    expect(manifest.warnings).toEqual([]);
+    // The compiled command actually used "./"-prefixed, colon-containing relative paths (proves this test
+    // exercises the exact vulnerable pattern, not an accidentally-safe one).
+    expect(manifest.command.args.some((a) => a.startsWith(`./${runDirName}/`))).toBe(true);
+  }, 20_000);
 });
 
 // -------------------------------------------------------------------------------------------------------

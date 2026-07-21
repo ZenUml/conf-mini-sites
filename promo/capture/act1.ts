@@ -25,6 +25,15 @@ export async function captureAct1(outDir: string): Promise<void> {
       { waitUntil: 'load' },
     );
 
+    // Scale the prototype up inside the shell. The site lays out for ~800px of content, which left the
+    // bottom quarter of a 1080 frame empty on the film's opening shot — the one that has to earn the
+    // next 34 seconds. Zoom (not a viewport change) keeps the layout identical to what Act 3 shows
+    // inside Confluence; only the rendered size differs, which is what a real browser zoom does too.
+    const siteFrame = page.frames().find((f) => f.url().includes(`:${SITE_PORT}`));
+    if (!siteFrame) throw new Error('site frame not found inside the chrome shell');
+    await siteFrame.addStyleTag({ content: 'html { zoom: 1.22; }' });
+    await page.waitForTimeout(400);
+
     const site = page.frameLocator('#site');
     const cardA = site.locator('.card[data-feature-id="a"]');
     const cardB = site.locator('.card[data-feature-id="b"]');

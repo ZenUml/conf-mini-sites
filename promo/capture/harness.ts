@@ -9,7 +9,7 @@
 import { chromium, type Browser, type BrowserContext, type Frame, type Locator, type Page } from '@playwright/test';
 import { appendFileSync, mkdirSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { CURSOR_INIT, cursorTo, cursorClickFeedback, cursorPlace } from './cursor';
+import { CURSOR_INIT, assertCursorInstalled, cursorTo, cursorClickFeedback, cursorPlace } from './cursor';
 
 export interface CaptureOptions {
   /** Directory that receives <name>.webm, <name>.actions.jsonl, <name>.manifest.json */
@@ -78,8 +78,11 @@ export class Capture {
     appendFileSync(this.logPath, JSON.stringify({ mark: name, t: this.now(), ...extra }) + '\n');
   }
 
-  /** The alignment clap. Call once, on a loaded page, before any footage that matters. */
+  /** The alignment clap. Call once, on a loaded page, before any footage that matters.
+   *  Doubles as the gate that proves the synthetic cursor survived injection — a capture without a
+   *  cursor still "succeeds" and is worthless, so it must fail here rather than in the edit. */
   async clap(): Promise<void> {
+    await assertCursorInstalled(this.page);
     this.mark('clap_begin');
     await this.page.evaluate(() => {
       const d = document.createElement('div');

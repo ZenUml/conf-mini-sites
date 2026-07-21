@@ -79,7 +79,16 @@
     </div>
   </div>
 
-  <div class="viewport"><iframe id="site" src="http://localhost:3000/" title="Feature Prioritisation"></iframe></div>
+  <div class="viewport"><iframe id="site" title="Feature Prioritisation"></iframe></div>
+<script>
+  // The iframe target is passed in (?site=...) and defaults to the IPv4 loopback rather than the name
+  // "localhost". That is not pedantry: macOS resolves localhost to ::1 first, so a stray IPv6 listener
+  // on the same port silently wins and the shell frames someone else's server. Addressing 127.0.0.1
+  // pins the frame to the server this capture actually started. The omnibox still reads localhost:3000
+  // because 127.0.0.1 IS localhost — the claim on screen stays true.
+  var siteUrl = new URLSearchParams(location.search).get('site') || 'http://127.0.0.1:3000/';
+  document.getElementById('site').src = siteUrl;
+</script>
 </div>
 </body>
 </html>

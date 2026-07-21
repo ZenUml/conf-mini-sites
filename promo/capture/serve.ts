@@ -45,7 +45,13 @@ export function startStatic(dir: string, port: number): Promise<Server> {
     }
   });
   return new Promise((res, rej) => {
-    server.once('error', rej);
+    server.once('error', (e: NodeJS.ErrnoException) => {
+      rej(e.code === 'EADDRINUSE'
+        ? new Error(`port ${port} is already in use — free it (lsof -nP -iTCP:${port} -sTCP:LISTEN) before capturing`)
+        : e);
+    });
+    // Bound to the IPv4 loopback on purpose; see the note in chrome-shell.html about ::1 winning
+    // name resolution and shadowing this server.
     server.listen(port, '127.0.0.1', () => res(server));
   });
 }

@@ -164,7 +164,6 @@ export const StorySpecSchema = z
     for (const dup of duplicates(evidenceIds)) {
       ctx.addIssue({ code: 'custom', message: `duplicate evidence id: ${dup}`, path: ['evidence'] });
     }
-    const evidenceIdSet = new Set(evidenceIds);
     const evidenceById = new Map(story.evidence.map((e) => [e.id, e]));
 
     // Narration/scene correspondence: every scene has exactly one narration entry, and every narration entry

@@ -49,7 +49,9 @@ export function filterFor(f: Format): string {
     `[0:v]scale=${f.width}:${bh}:flags=lanczos,setsar=1[v]`,
     // d=40, not d=1: `overlay=shortest=1` ends the output with the SHORTEST input, so a one-second
     // background silently truncated the whole film to one second. It must outlast the footage.
-    `color=c=0x0e0b1a:s=${f.width}x${f.height}:d=40[bg]`,
+    // r=30 is not optional: `color` defaults to 25fps and, being the FIRST input to overlay, its rate
+    // wins — the variants silently rendered at 25fps (875 frames) while the master ran 30 (1050).
+    `color=c=0x0e0b1a:s=${f.width}x${f.height}:d=40:r=30[bg]`,
     `[bg][v]overlay=0:${f.bandY}:shortest=1[out]`,
   ].join(';');
 }

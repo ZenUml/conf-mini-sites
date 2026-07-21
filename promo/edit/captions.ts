@@ -8,7 +8,7 @@
 // survive the platform's own UI. `center` is reserved for the two moments the frame IS the message
 // ("Now what?" and the end card).
 
-export type CuePos = 'lower' | 'center';
+export type CuePos = 'lower' | 'center' | 'end';
 
 export interface Cue {
   text: string;
@@ -43,9 +43,9 @@ export const CUES: Cue[] = [
   { text: 'Upload the folder.', start: 29.05, end: 30.0 },
   { text: 'Publish the page.', start: 30.1, end: 31.0 },
   { text: 'Let the idea run.', start: 31.1, end: 32.2 },
-  { text: 'Bring AI-built interactive websites\\Ninto Confluence.', start: 32.45, end: 33.35, pos: 'center' },
-  { text: 'Available on the Atlassian Marketplace.', start: 33.45, end: 34.25, pos: 'center' },
-  { text: 'Install Mini Sites.', start: 34.35, end: 35.0, pos: 'center' },
+  { text: 'Bring AI-built interactive websites\\Ninto Confluence.', start: 32.45, end: 33.35, pos: 'end' },
+  { text: 'Available on the Atlassian Marketplace.', start: 33.45, end: 34.25, pos: 'end' },
+  { text: 'Install Mini Sites.', start: 34.35, end: 35.0, pos: 'end' },
 ];
 
 /** ASS wants H:MM:SS.cc (centiseconds). */
@@ -117,13 +117,16 @@ export function toAss(cues: Cue[] = CUES, opts: AssOptions = {}): string {
     // Alignment 2 = bottom-centre, 5 = middle-centre (with \an overrides per cue anyway).
     `Style: Lower,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0140A0A,-1,0,0,0,100,100,0.6,0,3,18,0,2,180,180,${Math.round(height * 0.2)},1`,
     `Style: Center,${fontName},${Math.round(fontSize * 1.18)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0140A0A,-1,0,0,0,100,100,1.2,0,3,22,0,5,180,180,0,1`,
+    // The closing cues sit BELOW centre. The end card's own lockup occupies the middle of the frame, and
+    // a centred cue printed straight across the "Mini Site" wordmark on all three closing stills.
+    `Style: End,${fontName},${Math.round(fontSize * 1.02)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80140A0A,-1,0,0,0,100,100,0.8,0,3,16,0,2,180,180,${Math.round(height * 0.13)},1`,
     '',
     '[Events]',
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
   ].join('\n');
 
   const events = cues.map((cue) => {
-    const style = cue.pos === 'center' ? 'Center' : 'Lower';
+    const style = cue.pos === 'center' ? 'Center' : cue.pos === 'end' ? 'End' : 'Lower';
     // Whole-sentence fade, 220ms in / 220ms out. Never a per-character reveal.
     const body = `{\\fad(220,220)}${cue.text}`;
     return `Dialogue: 0,${assTime(cue.start)},${assTime(cue.end)},${style},,0,0,0,,${body}`;

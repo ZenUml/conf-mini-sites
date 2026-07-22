@@ -58,11 +58,12 @@ export const VO_LINES: VoLine[] = [
   // silence makes the line land, the line gives the silence its meaning. It is the only place the voice
   // and the caption deliberately say the same words.
   //
-  // Delivery is the whole point here, so it is not the default voice: British male, 10% slower, pitch
-  // down 3%, and well below the level of the explanatory lines. It has to read as deflated, not as a
-  // question being asked. Starts at 6.72 and ends by 8.39 — measured, not estimated: the test caught 6.78 overrunning the
-  // silence window by 21ms once the stretch was applied.
-  { t: 6.72, text: 'Now what?', why: 'the hinge, spoken once, into the silence', voice: 'bm_george', stretch: 1.10, pitch: 0.97, gain: 0.75 },
+  // SAME narrator as every other line. A different voice here reads as a different character, which is
+  // the opposite of the intended effect — this is the narrator's own moment of deflation, not someone
+  // else's comment on it. The delivery comes from treatment instead: 16% slower, pitch down 5%, and
+  // well under the level of the explanatory lines, so it lands as resigned rather than as a question
+  // being asked. Ends inside the score's silence window; the test measures that rather than trusting it.
+  { t: 6.72, text: 'Now what?', why: 'the hinge, spoken once, into the silence', stretch: 1.16, pitch: 0.95, gain: 0.72 },
   { t: 8.70, text: 'So put it where your team already works.', why: 'the turn, in a full sentence' },
   { t: 12.40, text: 'Drop in the whole folder. No build step, no hosting.', why: 'the two objections, answered' },
   { t: 16.60, text: 'One click to publish.', why: 'names the action the caption only labels' },

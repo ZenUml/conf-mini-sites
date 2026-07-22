@@ -103,12 +103,17 @@ describe('voiceover', () => {
     expect(PLAN_35.sfx.filter((c) => c.t >= 6.35 && c.t < 8.4)).toEqual([]);
   });
 
-  it('gives the hinge line a delivery, not the default read', () => {
+  it('gives the hinge line a delivery, without changing narrator', () => {
     const hinge = VO_LINES.find((l) => l.text === 'Now what?')!;
-    expect(hinge.voice).toBeDefined();
+    // one narrator throughout — a different voice for one line reads as a different character
+    expect(hinge.voice).toBeUndefined();
     expect(hinge.stretch).toBeGreaterThan(1);   // slower
     expect(hinge.pitch).toBeLessThan(1);        // lower
     expect(hinge.gain).toBeLessThan(0.92);      // quieter than the explanatory lines
+  });
+
+  it('uses exactly one voice for the whole film', () => {
+    expect(new Set(VO_LINES.map((l) => l.voice ?? 'default')).size).toBe(1);
   });
 
   it('lines never overlap each other', () => {

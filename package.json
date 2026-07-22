@@ -19,7 +19,8 @@
     "promo:assemble": "tsx promo/edit/assemble.ts",
     "promo:variants": "tsx promo/edit/variants.ts",
     "promo:cut15": "tsx promo/edit/cut15.ts",
-    "promo:verify-site": "node promo/verify-site.mjs"
+    "promo:verify-site": "node promo/verify-site.mjs",
+    "promo:vo": "tsx promo/edit/narration.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",

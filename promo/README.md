@@ -83,6 +83,25 @@ The `/mini` quick-insert menu lists every installed environment, so the macro re
 **Mini-Site (Development)**. A customer sees plain "Mini-Site". Act 2 clicks the Development row *by
 name* — pressing Enter would take the highlighted first row, which is Staging. See "Known gaps".
 
+## Voiceover (optional cut)
+
+`pnpm promo:vo` → `promo/out/final_vo.mp4`. The captions-only `final.mp4` stays the master; this is a
+**separate** cut so the two can be compared rather than one silently replacing the other.
+
+Kokoro-82M (preset English voice `af_heart`, no cloning) through the venv at `demo-pipeline/.venv`,
+cached by content hash. Durations are always **measured** with ffprobe, never taken from the
+synthesizer's word. The bed ducks −7.5dB under speech with a 180ms ramp.
+
+Three rules, all enforced by tests because they are exactly what a voiceover wants to violate:
+
+1. **It does not read the captions aloud.** Captions carry the short beats ("It runs.", "Publish.");
+   the VO carries the argument in fuller sentences. Making a viewer read and hear the same words at
+   slightly different speeds is worse than either alone.
+2. **Silence across the hold (6.35–8.40s).** The film's hinge.
+3. **Silence across the reveal (19.0–21.5s).** A line here was written, rendered, and then cut: it
+   ducked the score's bloom by 6dB (magic beat −12.3 → −18.2 dBFS) to restate what the caption already
+   said. Removing it brought the beat back to −14.7. The reveal belongs to the picture and the score.
+
 ## Caption typography
 
 Avenir Next Heavy, white, on a **#2E1065 indigo plate** — the film's own accent, the same violet as the

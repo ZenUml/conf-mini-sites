@@ -40,7 +40,9 @@ export const CUES: Cue[] = [
   { text: 'No extra links.', start: 16.3, end: 17.2 },
   { text: 'Publish.', start: 17.4, end: 18.5 },
   { text: 'It runs.', start: 19.0, end: 20.1 },
-  { text: 'Right inside Confluence.', start: 20.3, end: 22.4 },
+  // Ends at 21.7, before the Vote click at 21.80: at 22.4 the plate covered the button by 11px at
+  // the exact frame it was pressed. Re-timing the cue is cleaner than fighting the crop geometry.
+  { text: 'Right inside Confluence.', start: 20.3, end: 21.7 },
   { text: 'Not a screenshot.', start: 23.1, end: 24.9 },
   { text: 'Where the work happens.', start: 25.1, end: 26.3 },
   { text: 'Let your team try it.', start: 26.7, end: 29.3 },

@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Mini Site for Confluence">
   <!-- Mini Site for Confluence — Marketplace logo.
-       "Chrome Amber": the tile IS a browser — amber canvas, ink title bar, three dots.
-       Chosen 2026-07-22 over the nested window-in-page mark: at 16px (macro quick-insert menu)
-       nesting mushed; a bare browser survives every size. Explorations kept in
+       "Float" (C4, user-picked 2026-07-22): one browser window floating on the amber tile —
+       white body so the tile stays bright, ink title bar carries the dots. Four shapes total;
+       replaced the nested window-in-page mark, which mushed at 16px. Explorations kept in
        docs/listing/icon-explorations/. Export to PNG at 144x144 (and 512x512) for the listing. -->
   <defs>
     <clipPath id="r"><rect width="512" height="512" rx="112"/></clipPath>
+    <clipPath id="w"><rect x="88" y="120" width="336" height="272" rx="32"/></clipPath>
   </defs>
   <g clip-path="url(#r)">
     <rect width="512" height="512" fill="#FFB020"/>
-    <rect width="512" height="148" fill="#15233E"/>
-    <circle cx="92" cy="74" r="22" fill="#FFB020"/>
-    <circle cx="156" cy="74" r="22" fill="#FFFFFF"/>
-    <circle cx="220" cy="74" r="22" fill="#FFFFFF"/>
+    <g clip-path="url(#w)">
+      <rect x="88" y="120" width="336" height="272" fill="#FFFFFF"/>
+      <rect x="88" y="120" width="336" height="88" fill="#15233E"/>
+      <circle cx="144" cy="164" r="14" fill="#FFB020"/>
+      <circle cx="186" cy="164" r="14" fill="#FFFFFF"/>
+      <circle cx="228" cy="164" r="14" fill="#FFFFFF"/>
+    </g>
   </g>
 </svg>

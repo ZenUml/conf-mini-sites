@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FILM_DURATION, SHOTS, requiredSources, validateShots, type Shot } from './shots';
 import { CUES_15, CUT15_DURATION, SHOTS_15 } from './cut15';
 import { validateCues } from './captions';
-import { FPS, buildMarkMap, checkFootage, focusCentre, frameCount, markTime, parseBlackdetect, shotArgs, shotFilters, zoomFilter } from './assemble';
+import { FPS, buildMarkMap, checkContinuity, checkFootage, focusCentre, frameCount, markTime, parseBlackdetect, resolveSourceIn, shotArgs, shotFilters, zoomFilter } from './assemble';
 
 const shot = (over: Partial<Shot> = {}): Shot => ({
   id: 'x', t: 0, dur: 1, src: 'act1', at: ['m', 0], evidence: 'proves something', ...over,
@@ -202,6 +202,44 @@ describe('measured framing', () => {
   it('ignores focus entirely for shots that authored no zoom', () => {
     const c = focusCentre({ id: 'p', t: 0, dur: 1, src: 'act3', at: ['a3_vote_click', 0], evidence: 'x'.repeat(9) }, entries);
     expect(c).toEqual({ cx: 0.5, cy: 0.5 });
+  });
+});
+
+describe('source continuity', () => {
+  it('accepts a shot that starts after the previous one ended', () => {
+    expect(checkContinuity(shot({ id: 'b' }), 5.0, 4.8)).toBeNull();
+  });
+
+  it('rejects a shot that would run live state backwards', () => {
+    // this is the defect the finished film actually had: an upload percentage reaching 100 and
+    // dropping back, because `publishing` restarted 0.85s before `publish` ended
+    const problem = checkContinuity(shot({ id: 'publishing', src: 'act2' }), 65.63, 66.48);
+    expect(problem).toMatch(/backwards through live on-screen state/);
+    expect(problem).toContain('0.85s BEFORE');
+  });
+
+  it('allows a deliberate flashback (the recap montage revisits earlier footage on purpose)', () => {
+    expect(checkContinuity(shot({ id: 'recap-vote', flashback: true }), 37.0, 53.1)).toBeNull();
+  });
+
+  it('chains a continuing shot onto the previous out-point, ignoring its own mark', () => {
+    expect(resolveSourceIn(shot({ continues: true }), 65.63, 66.48)).toBe(66.48);
+    expect(resolveSourceIn(shot({ continues: true }), 65.63, undefined)).toBe(65.63);
+    expect(resolveSourceIn(shot(), 65.63, 66.48)).toBe(65.63);
+  });
+
+  it('the shipped beat sheet never overlaps two shots anchored to the SAME mark', () => {
+    // Mark times are only known at render time, so a general overlap check lives in the runtime guard.
+    // What IS checkable here: when consecutive shots share one anchor mark, their offsets alone decide
+    // whether they overlap — `it-runs` (a2_live -0.10, 1.30s) abuts `push-in` (a2_live +1.20) exactly.
+    let prev: Shot | null = null;
+    for (const s of SHOTS) {
+      if (prev && prev.src === s.src && prev.at?.[0] === s.at?.[0] && !s.continues && !s.flashback) {
+        const prevOut = prev.at![1] + prev.dur * (prev.speed ?? 1);
+        expect(s.at![1]).toBeGreaterThanOrEqual(prevOut - 0.01);
+      }
+      prev = s;
+    }
   });
 });
 

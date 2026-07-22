@@ -213,6 +213,29 @@ export function checkFootage(
     : null;
 }
 
+/**
+ * Refuse to run the film backwards through live state.
+ *
+ * Two shots covering one continuous action are anchored to marks that can be milliseconds apart, so a
+ * negative offset on the second easily starts it BEFORE the first one ended. On screen that is an
+ * upload percentage climbing to 100 and dropping back to 41, or a vote counter flickering 5 -> 4 -> 5.
+ * Shots that genuinely mean to revisit earlier footage say so with `flashback`.
+ */
+export function checkContinuity(shot: Shot, srcIn: number, prevOut: number | undefined): string | null {
+  if (prevOut === undefined || shot.flashback) return null;
+  const back = prevOut - srcIn;
+  return back > 0.01
+    ? `shot ${shot.id} starts ${back.toFixed(2)}s BEFORE the previous ${shot.src} shot ended — the film ` +
+      'would run backwards through live on-screen state. Set `continues: true` to chain it, or ' +
+      '`flashback: true` if the revisit is deliberate.'
+    : null;
+}
+
+/** Source in-point for a shot: chained when it continues the previous one, else resolved from its mark. */
+export function resolveSourceIn(shot: Shot, fromMark: number, prevOut: number | undefined): number {
+  return shot.continues && prevOut !== undefined ? prevOut : fromMark;
+}
+
 export interface AssembleOptions {
   capturesDir: string;
   outDir: string;
@@ -265,6 +288,8 @@ export async function assemble(opts: AssembleOptions): Promise<{ final: string; 
 
   const rendered: string[] = [];
   const shotReport: any[] = [];
+  /** source out-point of the last non-flashback shot per capture, for continuity chaining */
+  const lastOut = new Map<string, number>();
   for (const [i, shot] of SHOTS.entries()) {
     const out = join(shotsDir, `${String(i).padStart(2, '0')}-${shot.id}.mp4`);
     let src: string;
@@ -277,15 +302,19 @@ export async function assemble(opts: AssembleOptions): Promise<{ final: string; 
       src = join(captures, `${shot.src}.webm`);
       const map = markMaps.get(shot.src);
       if (!map) throw new Error(`shot ${shot.id} needs ${shot.src}.webm, which was not captured`);
-      inS = markTime(map, shot);
+      inS = resolveSourceIn(shot, markTime(map, shot), lastOut.get(shot.src));
+      const gap = checkContinuity(shot, inS, lastOut.get(shot.src));
+      if (gap) throw new Error(gap);
       const problem = checkFootage(shot, inS, await mediaDuration(src));
       if (problem) throw new Error(problem);
+      lastOut.set(shot.src, inS + shot.dur * (shot.speed ?? 1));
     }
     await exec(FFMPEG, shotArgs(shot, src, inS, out, centre));
     rendered.push(out);
     shotReport.push({
       id: shot.id, t: shot.t, dur: shot.dur, src: shot.src, srcIn: +inS.toFixed(3),
-      frames: frameCount(shot), zoom: shot.zoom ?? 1,
+      frames: frameCount(shot), zoom: shot.zoom ?? 1, speed: shot.speed ?? 1,
+      continues: shot.continues ?? false, flashback: shot.flashback ?? false,
       centre: shot.zoom && shot.zoom !== 1 ? { cx: +centre.cx.toFixed(3), cy: +centre.cy.toFixed(3), from: shot.focus ?? 'authored' } : undefined,
       evidence: shot.evidence,
     });

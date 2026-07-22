@@ -44,6 +44,16 @@ export interface Shot {
   dim?: number;
   /** fade in from black at the very top of the film */
   fadeIn?: number;
+  /**
+   * Start this shot exactly where the previous shot from the SAME source ended, ignoring the mark
+   * offset. Use whenever two shots cover one continuous action: anchoring both to their own marks
+   * (which can be milliseconds apart) makes the second one start BEFORE the first one ended, and the
+   * film runs backwards through live state — a vote counter flickering 5 -> 4 -> 5, or an upload
+   * percentage climbing to 100 and dropping to 41.
+   */
+  continues?: boolean;
+  /** A deliberate revisit of earlier footage (the recap montage). Exempts the shot from the guard. */
+  flashback?: boolean;
   /** what this shot proves — the fifth column of the director's table. Every shot must answer it. */
   evidence: string;
 }
@@ -56,7 +66,7 @@ export const SHOTS: Shot[] = [
     evidence: 'A designed, interactive site is already running at localhost:3000 — not a mockup image.' },
   { id: 'vote-click',    t: 1.20, dur: 1.10, src: 'act1', at: ['a1_vote_click', -0.35],
     evidence: 'The site responds to a real click.' },
-  { id: 'vote-result',   t: 2.30, dur: 1.10, src: 'act1', at: ['a1_vote_settled', -0.25],
+  { id: 'vote-result',   t: 2.30, dur: 1.10, src: 'act1', at: ['a1_vote_settled', -0.25], continues: true,
     evidence: 'State actually changed: 4 becomes 5 and the bar grows with it.' },
   { id: 'impact-filter', t: 3.40, dur: 1.05, src: 'act1', at: ['a1_impact_click', -0.30],
     evidence: 'Not a one-button toy — filtering re-ranks the whole list.' },
@@ -86,9 +96,9 @@ export const SHOTS: Shot[] = [
     evidence: 'Validated and ready, with no build step in between.' },
   { id: 'to-publish',    t: 15.60, dur: 1.85, src: 'act2', at: ['a2_publish_hover', -0.40], zoom: 1.25,
     evidence: 'One decisive action is all that remains.' },
-  { id: 'publish',       t: 17.45, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.15], zoom: 1.25,
-    evidence: 'The click that ships it.' },
-  { id: 'publishing',    t: 18.45, dur: 0.55, src: 'act2', at: ['a2_publishing', 0.00], speed: 3.0,
+  { id: 'publish',       t: 17.45, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.15], zoom: 1.25, continues: true,
+    evidence: 'The click that ships it. Chained onto the hover shot — the dwell was already on screen, so this cut lands on the press itself.' },
+  { id: 'publishing',    t: 18.45, dur: 0.55, src: 'act2', at: ['a2_publishing', 0.00], speed: 3.0, continues: true,
     evidence: 'The wait is short — compressed here, but it is a real wait, not a cut.' },
 
   // ── Beat 4 · Magic — hold. do not click. ─────────────────────────────────
@@ -100,7 +110,7 @@ export const SHOTS: Shot[] = [
   // ── Beat 5 · Relief — the team can just use it ───────────────────────────
   { id: 'vote-inside',   t: 21.45, dur: 1.05, src: 'act3', at: ['a3_vote_click', -0.35], zoom: 1.15, focus: 'embed',
     evidence: 'Live interaction in the embed. This is not a recorded animation.' },
-  { id: 'chart-inside',  t: 22.50, dur: 1.05, src: 'act3', at: ['a3_vote_settled', -0.25], zoom: 1.15, focus: 'embed',
+  { id: 'chart-inside',  t: 22.50, dur: 1.05, src: 'act3', at: ['a3_vote_settled', -0.25], zoom: 1.15, focus: 'embed', continues: true,
     evidence: 'Same state change as at 2.3s — the prototype kept all of its behaviour.' },
   { id: 'effort-filter', t: 23.55, dur: 1.05, src: 'act3', at: ['a3_effort_click', -0.30], zoom: 1.15, focus: 'embed',
     evidence: 'Filtering works in the embed too. A screenshot could not do this.' },
@@ -114,15 +124,15 @@ export const SHOTS: Shot[] = [
     evidence: 'A comment turns into an action on the prototype in one move.' },
 
   // ── Recap — three fast proofs, cut to the beat ───────────────────────────
-  { id: 'recap-vote',    t: 29.00, dur: 0.35, src: 'act3', at: ['a3_vote_click', 0.15], zoom: 2.1, focus: 'embed', fx: 0.42, fy: 0.62,
+  { id: 'recap-vote',    t: 29.00, dur: 0.35, src: 'act3', at: ['a3_vote_click', 0.15], zoom: 2.1, focus: 'embed', fx: 0.42, fy: 0.62, flashback: true,
     evidence: 'Recap 1/3 — one click changes the number. This is the whole product in a third of a second.' },
-  { id: 'recap-filter',  t: 29.35, dur: 0.35, src: 'act3', at: ['a3_effort_click', 0.10], zoom: 2.1, focus: 'embed', fx: 0.74, fy: 0.12,
+  { id: 'recap-filter',  t: 29.35, dur: 0.35, src: 'act3', at: ['a3_effort_click', 0.10], zoom: 2.1, focus: 'embed', fx: 0.74, fy: 0.12, flashback: true,
     evidence: 'Recap 2/3 — filtering re-ranks the list, live.' },
-  { id: 'recap-chart',   t: 29.70, dur: 0.35, src: 'act3', at: ['a3_vote_settled', 0.20], zoom: 2.1, focus: 'embed', fx: 0.80, fy: 0.55,
+  { id: 'recap-chart',   t: 29.70, dur: 0.35, src: 'act3', at: ['a3_vote_settled', 0.20], zoom: 2.1, focus: 'embed', fx: 0.80, fy: 0.55, flashback: true,
     evidence: 'Recap 3/3 — the chart follows the votes.' },
-  { id: 'recap-publish', t: 30.05, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.20], zoom: 1.9, focus: 'target',
-    evidence: 'Step two, restated: publish the page.' },
-  { id: 'last-run',      t: 31.05, dur: 1.30, src: 'act3', at: ['a3_final_filter', -0.30],
+  { id: 'recap-publish', t: 30.05, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.80], zoom: 1.9, focus: 'target', flashback: true,
+    evidence: 'Step two, restated — the button going down, not the progress bar: the film has already shown that reach 100%.' },
+  { id: 'last-run',      t: 31.05, dur: 1.30, src: 'act3', at: ['a3_final_filter', -0.30], flashback: true,
     evidence: 'Closing on the idea running, in the hands of someone who is not its author.' },
 
   // ── End card ─────────────────────────────────────────────────────────────

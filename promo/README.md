@@ -42,7 +42,7 @@ pnpm promo:cut15                                       # -> final_15s.mp4
 | `edit/variants.ts` | 1:1 and 9:16, letterboxed with captions re-burned for the canvas |
 | `verify-site.mjs` | standalone check that the prototype really is interactive |
 
-## Five things here that are not obvious
+## Six things here that are not obvious
 
 **1. The cursor is drawn, and it must be shipped as a string.**
 Playwright's recorded video contains no mouse pointer. `cursor.ts` draws one and eases it between
@@ -65,12 +65,20 @@ Shots never carry source timecodes; they carry `at: ['a3_vote_click', -0.35]`. C
 of what it clicked. The first cut hand-tuned those fractions and aimed a 2.2× zoom at body text instead
 of the button.
 
-**4. Frames come from boundaries, not durations.**
+**4. The edit must never run the source backwards.**
+Two shots covering one continuous action are anchored to marks that can be milliseconds apart, so a
+negative offset on the second easily starts it *before* the first one ended. The finished film had this
+in three places: the upload percentage climbed to 100% and dropped back to 41%, and the vote counter
+flickered 5 → 4 → 5 twice. Shots that continue an action now say `continues: true` (chain onto the
+previous out-point, ignore the mark); deliberate revisits say `flashback: true`; anything else is
+rejected by `checkContinuity` before a frame is rendered.
+
+**5. Frames come from boundaries, not durations.**
 Half the beat sheet lands on `0.x5` seconds — 1.5 frames at 30fps. Rounding each duration independently
 pushed the film to 35.3s. `frameCount` subtracts rounded *boundaries* so the errors cancel and the total
 is exactly 1050 frames.
 
-**5. The film is shot on the dev stack, and that is visible in one shot.**
+**6. The film is shot on the dev stack, and that is visible in one shot.**
 The `/mini` quick-insert menu lists every installed environment, so the macro reads
 **Mini-Site (Development)**. A customer sees plain "Mini-Site". Act 2 clicks the Development row *by
 name* — pressing Enter would take the highlighted first row, which is Staging. See "Known gaps".

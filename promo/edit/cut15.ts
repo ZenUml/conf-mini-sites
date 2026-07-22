@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 import { PLAN_15, renderMaster, toWav } from './audio';
 import { toAss, validateCues, type Cue } from './captions';
 import { validateShots, type Shot } from './shots';
-import { FFMPEG, FFPROBE, buildMarkMap, detectClap, focusCentre, markTime, readLog, shotArgs } from './assemble';
+import { FFMPEG, FFPROBE, buildMarkMap, checkContinuity, detectClap, focusCentre, markTime, readLog, resolveSourceIn, shotArgs } from './assemble';
 
 const exec = promisify(execFile);
 export const CUT15_DURATION = 15.0;
@@ -22,7 +22,7 @@ export const SHOTS_15: Shot[] = [
     evidence: 'A real interactive site, running on localhost.' },
   { id: 'vote-click', t: 1.20, dur: 1.10, src: 'act1', at: ['a1_vote_click', -0.35],
     evidence: 'It answers a real click.' },
-  { id: 'vote-result', t: 2.30, dur: 1.00, src: 'act1', at: ['a1_vote_settled', -0.25],
+  { id: 'vote-result', t: 2.30, dur: 1.00, src: 'act1', at: ['a1_vote_settled', -0.25], continues: true,
     evidence: '4 becomes 5 and the bar grows — state really changed.' },
   { id: 'address-bar', t: 3.30, dur: 0.75, src: 'act1', at: ['a1_omnibox_focus', -0.15], zoom: 1.55, cx: 0.30, cy: 0.06,
     evidence: 'It says localhost: one machine can see this.' },
@@ -87,6 +87,9 @@ export async function renderCut15(capturesDir: string, outDir: string): Promise<
   }
 
   const rendered: string[] = [];
+  // Same continuity discipline as the 35s cut: two shots covering one action must not run the
+  // source backwards (a vote counter flickering 5 -> 4 -> 5).
+  const lastOut = new Map<string, number>();
   for (const [i, shot] of SHOTS_15.entries()) {
     const clip = join(shotsDir, `${String(i).padStart(2, '0')}-${shot.id}.mp4`);
     const centre = focusCentre(shot, logs.get(shot.src) ?? []);
@@ -98,7 +101,10 @@ export async function renderCut15(capturesDir: string, outDir: string): Promise<
       src = join(captures, `${shot.src}.webm`);
       const map = markMaps.get(shot.src);
       if (!map) throw new Error(`:15 shot ${shot.id} needs ${shot.src}.webm`);
-      inS = markTime(map, shot);
+      inS = resolveSourceIn(shot, markTime(map, shot), lastOut.get(shot.src));
+      const gap = checkContinuity(shot, inS, lastOut.get(shot.src));
+      if (gap) throw new Error(gap);
+      lastOut.set(shot.src, inS + shot.dur * (shot.speed ?? 1));
     }
     await exec(FFMPEG, shotArgs(shot, src, inS, clip, centre));
     rendered.push(clip);

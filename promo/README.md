@@ -97,7 +97,14 @@ Three rules, all enforced by tests because they are exactly what a voiceover wan
 1. **It does not read the captions aloud.** Captions carry the short beats ("It runs.", "Publish.");
    the VO carries the argument in fuller sentences. Making a viewer read and hear the same words at
    slightly different speeds is worse than either alone.
-2. **Silence across the hold (6.35–8.40s).** The film's hinge.
+2. **Only one line inside the hold (6.35–8.40s).** The script asks for "近乎完全静默" — *near*-complete
+   silence, not absolute. So the hinge gets exactly one spoken line, "Now what?", and nothing else:
+   no music, no SFX, no other voice. Measured on the render: −inf dBFS before it, −21.3 dBFS on the
+   line, −103 dBFS after. Silence → the question → silence. It is also the one place the voice and the
+   caption deliberately say the same words, because there the doubling is the point.
+
+   Its delivery is specified, not defaulted: `bm_george`, 10% slower, pitch −3%, well under the level of
+   the explanatory lines. It has to read as deflated, not as a question being asked.
 3. **Silence across the reveal (19.0–21.5s).** A line here was written, rendered, and then cut: it
    ducked the score's bloom by 6dB (magic beat −12.3 → −18.2 dBFS) to restate what the caption already
    said. Removing it brought the beat back to −14.7. The reveal belongs to the picture and the score.

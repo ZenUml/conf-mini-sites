@@ -36,6 +36,14 @@ export interface VoLine {
   text: string;
   /** what it adds that the captions do not */
   why: string;
+  /** override the default voice for this line */
+  voice?: string;
+  /** 1.0 = as synthesized; >1 stretches the line out (slower, more deliberate) */
+  stretch?: number;
+  /** 1.0 = as synthesized; <1 lowers the pitch */
+  pitch?: number;
+  /** linear gain; the intimate lines sit lower than the explanatory ones */
+  gain?: number;
 }
 
 /**
@@ -45,7 +53,16 @@ export interface VoLine {
 export const VO_LINES: VoLine[] = [
   { t: 0.55, text: 'You built something real with AI.', why: 'states the premise the captions only ask as a question' },
   { t: 3.45, text: 'It works. On your machine.', why: 'sets up the problem before the hold lands' },
-  // 6.35-8.40 — the hold. Nothing is spoken here, ever.
+  // THE ONE LINE INSIDE THE HOLD. The script asks for "near-complete silence", not absolute silence —
+  // and a single quiet line landing in an otherwise empty gap is stronger than the gap alone: the
+  // silence makes the line land, the line gives the silence its meaning. It is the only place the voice
+  // and the caption deliberately say the same words.
+  //
+  // Delivery is the whole point here, so it is not the default voice: British male, 10% slower, pitch
+  // down 3%, and well below the level of the explanatory lines. It has to read as deflated, not as a
+  // question being asked. Starts at 6.72 and ends by 8.39 — measured, not estimated: the test caught 6.78 overrunning the
+  // silence window by 21ms once the stretch was applied.
+  { t: 6.72, text: 'Now what?', why: 'the hinge, spoken once, into the silence', voice: 'bm_george', stretch: 1.10, pitch: 0.97, gain: 0.75 },
   { t: 8.70, text: 'So put it where your team already works.', why: 'the turn, in a full sentence' },
   { t: 12.40, text: 'Drop in the whole folder. No build step, no hosting.', why: 'the two objections, answered' },
   { t: 16.60, text: 'One click to publish.', why: 'names the action the caption only labels' },
@@ -62,22 +79,46 @@ export function duckWindows(lines: VoLine[], durations: Map<string, number>): Ar
   return lines.map((l) => [l.t - 0.25, l.t + (durations.get(l.text) ?? 2) + 0.35] as [number, number]);
 }
 
-const key = (text: string) => createHash('sha256').update(`${VOICE}::${text}`).digest('hex').slice(0, 24);
+const key = (text: string, voice: string, stretch: number, pitch: number) =>
+  createHash('sha256').update(`${voice}::${stretch}::${pitch}::${text}`).digest('hex').slice(0, 24);
 
-export async function synthesize(text: string): Promise<{ wav: string; seconds: number }> {
+/**
+ * Pitch and tempo, kept independent.
+ *
+ * `asetrate` alone shifts pitch AND duration together (it is just playing the samples faster or
+ * slower), so it is followed by `atempo` to put the duration back and then apply the stretch that was
+ * actually asked for. Doing it in one step would make "lower the voice" silently also mean "say it
+ * slower", which is not the same instruction.
+ */
+export function toneFilter(rate: number, stretch: number, pitch: number): string {
+  const tempo = 1 / (pitch * stretch);
+  return `asetrate=${Math.round(rate * pitch)},aresample=${rate},atempo=${tempo.toFixed(6)}`;
+}
+
+export async function synthesize(
+  text: string,
+  opts: { voice?: string; stretch?: number; pitch?: number } = {},
+): Promise<{ wav: string; seconds: number }> {
+  const voice = opts.voice ?? VOICE;
+  const stretch = opts.stretch ?? 1;
+  const pitch = opts.pitch ?? 1;
   mkdirSync(CACHE, { recursive: true });
-  const wav = join(CACHE, `${key(text)}.wav`);
+  const wav = join(CACHE, `${key(text, voice, stretch, pitch)}.wav`);
   const meta = `${wav}.json`;
   if (existsSync(wav) && existsSync(meta)) {
     return { wav, seconds: JSON.parse(readFileSync(meta, 'utf8')).seconds };
   }
   if (!existsSync(PY)) throw new Error(`Kokoro venv not found at ${PY} — see demo-pipeline/README.md`);
-  await exec(PY, [KOKORO, '--text', text, '--voice', VOICE, '--out', wav], { maxBuffer: 8 * 1024 * 1024 });
+  const raw = stretch === 1 && pitch === 1 ? wav : `${wav}.raw.wav`;
+  await exec(PY, [KOKORO, '--text', text, '--voice', voice, '--out', raw], { maxBuffer: 8 * 1024 * 1024 });
+  if (raw !== wav) {
+    await exec(FFMPEG, ['-hide_banner', '-nostats', '-y', '-i', raw, '-af', toneFilter(24000, stretch, pitch), wav]);
+  }
   // Duration is MEASURED, never taken from the synthesizer's word.
   const { stdout } = await exec(FFPROBE, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', wav]);
   const seconds = parseFloat(stdout.trim());
   if (!(seconds > 0)) throw new Error(`synthesized WAV for ${JSON.stringify(text)} has no duration`);
-  writeFileSync(meta, JSON.stringify({ text, voice: VOICE, seconds }));
+  writeFileSync(meta, JSON.stringify({ text, voice, stretch, pitch, seconds }));
   return { wav, seconds };
 }
 
@@ -116,7 +157,7 @@ export async function renderVoiceTrack(lines: VoLine[] = VO_LINES): Promise<{ tr
   const track = new Buf(DURATION_S);
   const durations = new Map<string, number>();
   for (const line of lines) {
-    const { wav, seconds } = await synthesize(line.text);
+    const { wav, seconds } = await synthesize(line.text, line);
     durations.set(line.text, seconds);
     const { data, rate } = loadWavResampled(wav);
     const ratio = rate / track.rate;
@@ -126,7 +167,7 @@ export async function renderVoiceTrack(lines: VoLine[] = VO_LINES): Promise<{ tr
       const i0 = Math.floor(src);
       const frac = src - i0;
       const s = (data[i0] ?? 0) * (1 - frac) + (data[i0 + 1] ?? 0) * frac;
-      track.addAt(line.t + i / track.rate, s * 0.92, 0);
+      track.addAt(line.t + i / track.rate, s * (line.gain ?? 0.92), 0);
     }
   }
   return { track, durations };

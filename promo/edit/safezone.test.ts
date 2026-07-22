@@ -70,6 +70,7 @@ describe('caption placement geometry', () => {
 });
 
 import { VO_LINES, duckWindows } from './narration';
+import { PLAN_35, renderMusic, silenceHoldIsClean } from './audio';
 
 describe('voiceover', () => {
   // Measured durations when the synthesis cache is present, else a conservative word-rate estimate.
@@ -85,12 +86,29 @@ describe('voiceover', () => {
     return text.trim().split(/\s+/).length / 2.2;
   };
 
-  it('never speaks across the "Now what?" hold — the film\'s hinge', () => {
-    const [a, b] = [6.35, 8.40];
+  it('lets ONLY "Now what?" speak inside the hold, and nothing else', () => {
+    const [a, b] = [6.30, 8.42];
     for (const l of VO_LINES) {
       const end = l.t + lineSeconds(l.text);
-      expect(l.t >= b || end <= a).toBe(true);
+      const inside = l.t < b && end > a;
+      if (inside) expect(l.text).toBe('Now what?');
     }
+    const hinge = VO_LINES.find((l) => l.text === 'Now what?')!;
+    expect(hinge.t).toBeGreaterThanOrEqual(a);
+    expect(hinge.t + lineSeconds(hinge.text)).toBeLessThanOrEqual(b);
+  });
+
+  it('keeps the BED silent under that line — the voice is the only thing there', () => {
+    expect(silenceHoldIsClean(renderMusic(), 6.5, 8.3)).toBe(true);
+    expect(PLAN_35.sfx.filter((c) => c.t >= 6.35 && c.t < 8.4)).toEqual([]);
+  });
+
+  it('gives the hinge line a delivery, not the default read', () => {
+    const hinge = VO_LINES.find((l) => l.text === 'Now what?')!;
+    expect(hinge.voice).toBeDefined();
+    expect(hinge.stretch).toBeGreaterThan(1);   // slower
+    expect(hinge.pitch).toBeLessThan(1);        // lower
+    expect(hinge.gain).toBeLessThan(0.92);      // quieter than the explanatory lines
   });
 
   it('lines never overlap each other', () => {
@@ -109,10 +127,12 @@ describe('voiceover', () => {
     }
   });
 
-  it('does not read the captions aloud', () => {
+  it('does not read the captions aloud — except the hinge, deliberately', () => {
     const captions = CUES.map((c) => c.text.replace(/\\N/g, ' ').toLowerCase().replace(/[.?]/g, '').trim());
     for (const l of VO_LINES) {
-      expect(captions).not.toContain(l.text.toLowerCase().replace(/[.?]/g, '').trim());
+      const norm = l.text.toLowerCase().replace(/[.?]/g, '').trim();
+      if (norm === 'now what') continue; // the one intended doubling, in the silence
+      expect(captions).not.toContain(norm);
     }
   });
 

@@ -34,7 +34,7 @@ pnpm promo:cut15                                       # -> final_15s.mp4
 | `capture/confluence.ts` | PRD page builder, the teammate's comment, privacy mask, macro centring |
 | `capture/act{1,2,3}.ts` | the three takes |
 | `capture/endcard.{html,ts}` | closing brand card |
-| `edit/shots.ts` | **the beat sheet** — 34 shots, each anchored to a capture mark, each declaring what it proves |
+| `edit/shots.ts` | **the beat sheet** — 35 shots, each anchored to a capture mark, each declaring what it proves |
 | `edit/captions.ts` | 19 cues → ASS, with the director's rules asserted in code |
 | `edit/audio.ts` | the score, synthesized from oscillators in JS |
 | `edit/assemble.ts` | marks + beat sheet → per-shot clips → concat → captions + audio |

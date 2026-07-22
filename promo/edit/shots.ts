@@ -130,8 +130,16 @@ export const SHOTS: Shot[] = [
     evidence: 'Recap 2/3 — filtering re-ranks the list, live.' },
   { id: 'recap-chart',   t: 29.70, dur: 0.35, src: 'act3', at: ['a3_vote_settled', 0.20], zoom: 2.1, focus: 'embed', fx: 0.80, fy: 0.55, flashback: true,
     evidence: 'Recap 3/3 — the chart follows the votes.' },
-  { id: 'recap-publish', t: 30.05, dur: 1.00, src: 'act2', at: ['a2_publish_click', -0.80], zoom: 1.9, focus: 'target', flashback: true,
-    evidence: 'Step two, restated — the button going down, not the progress bar: the film has already shown that reach 100%.' },
+  // The script asks for "cut to the Publish close-up, then quickly back to the running page". Built as
+  // one 1.0s shot of the publisher dialog, it read as a SECOND upload starting — the film has already
+  // shown the site live by this point, so a re-appearing upload panel looks like the flow restarted.
+  // Split in two: a 0.4s flash of the button going down, then straight back to the page.
+  // The window ends 20ms before the click mark, which is exactly the click ripple and no progress
+  // counter at all — the film already showed that counter reach 100%.
+  { id: 'recap-publish', t: 30.05, dur: 0.40, src: 'act2', at: ['a2_publish_click', -0.42], zoom: 1.9, focus: 'target', flashback: true,
+    evidence: 'Step two, restated: the button going down. No progress bar — that was already resolved at 18.3s.' },
+  { id: 'recap-live',    t: 30.45, dur: 0.60, src: 'act3', at: ['a3_pullback', 0.20], flashback: true,
+    evidence: 'And immediately back to the running page, so the recap resolves instead of re-opening the upload.' },
   { id: 'last-run',      t: 31.05, dur: 1.30, src: 'act3', at: ['a3_final_filter', -0.30], flashback: true,
     evidence: 'Closing on the idea running, in the hands of someone who is not its author.' },
 

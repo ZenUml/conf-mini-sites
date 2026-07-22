@@ -118,35 +118,25 @@ export const SHOTS: Shot[] = [
     evidence: 'A teammate can explore it themselves, without a handover call.' },
   { id: 'pull-back',     t: 25.60, dur: 0.95, src: 'act3', at: ['a3_pullback', -0.20], zoom: 1.0,
     evidence: 'Pull-back (1.15 -> 1.0): it lives among the requirements and the decision notes — not on a separate link.' },
-  { id: 'comment',       t: 26.55, dur: 1.05, src: 'act3', at: ['a3_comment_visible', -0.30],
+  { id: 'comment',       t: 26.55, dur: 1.30, src: 'act3', at: ['a3_comment_visible', -0.30],
     evidence: 'The discussion is already in the same place (a real Confluence comment).' },
-  { id: 'option-b',      t: 27.60, dur: 1.40, src: 'act3', at: ['a3_optionb_click', -0.40],
+  { id: 'option-b',      t: 27.85, dur: 1.60, src: 'act3', at: ['a3_optionb_click', -0.40],
     evidence: 'A comment turns into an action on the prototype in one move.' },
 
-  // ── Recap — three fast proofs, cut to the beat ───────────────────────────
-  { id: 'recap-vote',    t: 29.00, dur: 0.35, src: 'act3', at: ['a3_vote_click', 0.15], zoom: 2.1, focus: 'embed', fx: 0.42, fy: 0.62, flashback: true,
-    evidence: 'Recap 1/3 — one click changes the number. This is the whole product in a third of a second.' },
-  { id: 'recap-filter',  t: 29.35, dur: 0.35, src: 'act3', at: ['a3_effort_click', 0.10], zoom: 2.1, focus: 'embed', fx: 0.74, fy: 0.12, flashback: true,
-    evidence: 'Recap 2/3 — filtering re-ranks the list, live.' },
-  { id: 'recap-chart',   t: 29.70, dur: 0.35, src: 'act3', at: ['a3_vote_settled', 0.20], zoom: 2.1, focus: 'embed', fx: 0.80, fy: 0.55, flashback: true,
-    evidence: 'Recap 3/3 — the chart follows the votes.' },
-  // The script asks for "cut to the Publish close-up, then quickly back to the running page". Built as
-  // one 1.0s shot of the publisher dialog, it read as a SECOND upload starting — the film has already
-  // shown the site live by this point, so a re-appearing upload panel looks like the flow restarted.
-  // Split in two: a 0.4s flash of the button going down, then straight back to the page.
-  // The window ends 20ms before the click mark, which is exactly the click ripple and no progress
-  // counter at all — the film already showed that counter reach 100%.
-  { id: 'recap-publish', t: 30.05, dur: 0.40, src: 'act2', at: ['a2_publish_click', -0.42], zoom: 1.9, focus: 'target', flashback: true,
-    evidence: 'Step two, restated: the button going down. No progress bar — that was already resolved at 18.3s.' },
-  { id: 'recap-live',    t: 30.45, dur: 0.60, src: 'act3', at: ['a3_pullback', 0.20], flashback: true,
-    evidence: 'And immediately back to the running page, so the recap resolves instead of re-opening the upload.' },
-  { id: 'last-run',      t: 31.05, dur: 1.30, src: 'act3', at: ['a3_final_filter', -0.30], flashback: true,
+  { id: 'last-run',      t: 29.45, dur: 1.90, src: 'act3', at: ['a3_final_filter', -0.30],
     evidence: 'Closing on the idea running, in the hands of someone who is not its author.' },
 
+  // The recap that used to sit at 29.00-31.05 (three prototype close-ups + a publish flash) was cut.
+  // It ran the story backwards — the film had already resolved on a colleague using the thing, and the
+  // recap re-opened the mechanics chapter. Its captions were the tell: "Upload the folder." played over
+  // Vote/Filter/Chart, asserting something the frame did not show, and repeating cue #5 verbatim. The
+  // 2.05s it held went to the two beats that actually carry the argument: the colleague using it, and
+  // the CTA.
+
   // ── End card ─────────────────────────────────────────────────────────────
-  { id: 'card-logo',     t: 32.35, dur: 1.05, src: 'endcard', at: ['card1', 0], evidence: 'Product identity — who this is from.' },
-  { id: 'card-market',   t: 33.40, dur: 0.90, src: 'endcard', at: ['card2', 0], evidence: 'Where to get it: a listing verified public at export time.' },
-  { id: 'card-cta',      t: 34.30, dur: 0.70, src: 'endcard', at: ['card3', 0], evidence: 'The single conversion goal is install — one CTA, held long enough to read.' },
+  { id: 'card-logo',     t: 31.35, dur: 1.35, src: 'endcard', at: ['card1', 0], evidence: 'Product identity — who this is from.' },
+  { id: 'card-market',   t: 32.70, dur: 1.15, src: 'endcard', at: ['card2', 0], evidence: 'Where to get it: a listing verified public at export time.' },
+  { id: 'card-cta',      t: 33.85, dur: 1.15, src: 'endcard', at: ['card3', 0], evidence: 'The single conversion goal is install — one CTA, held long enough to read.' },
 ];
 
 export interface ShotProblem {

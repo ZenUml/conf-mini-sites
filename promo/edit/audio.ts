@@ -231,7 +231,7 @@ export interface ScorePlan {
 export const MUSIC_ENV: Array<[number, number]> = [
   [0.0, 0.0], [0.45, 0.5], [5.2, 0.52], [6.35, 0.0], [8.38, 0.0], [8.75, 0.46],
   [16.9, 0.6], [18.5, 0.68], [18.95, 0.5], [19.05, 0.88], [24.9, 0.8], [25.1, 0.68],
-  [31.4, 0.62], [32.4, 0.5], [34.2, 0.42], [35.0, 0.0],
+  [29.3, 0.64], [31.35, 0.58], [31.6, 0.5], [34.3, 0.42], [35.0, 0.0],
 ];
 
 export function renderMusic(plan: ScorePlan = PLAN_35): Buf {
@@ -400,15 +400,14 @@ export const SFX_CUES: Array<{ t: number; kind: SfxKind; why: string }> = [
   { t: 22.45, kind: 'tick', why: 'count changes — same as at 2.45s, deliberately' },
   { t: 23.55, kind: 'clickSoft', why: 'Effort filter' },
   { t: 24.55, kind: 'panel', why: 'detail panel, inside Confluence' },
-  { t: 26.45, kind: 'notify', why: 'a teammate comments' },
-  { t: 27.55, kind: 'click', why: 'comment turns into a click on Option B' },
-  { t: 29.10, kind: 'clickSoft', why: 'recap 1/3 — on the beat' },
-  { t: 29.42, kind: 'clickSoft', why: 'recap 2/3' },
-  { t: 29.74, kind: 'clickSoft', why: 'recap 3/3' },
-  { t: 30.35, kind: 'click', why: 'Publish, recapped' },
-  { t: 31.55, kind: 'click', why: 'the last real interaction' },
-  { t: 33.50, kind: 'chime', why: 'brand' },
-  { t: 34.45, kind: 'confirm', why: 'CTA — install' },
+  { t: 26.85, kind: 'notify', why: 'a teammate comments' },
+  { t: 28.25, kind: 'click', why: 'comment turns into a click on Option B' },
+  // The three beat-synced recap clicks (29.10/29.42/29.74) and the recapped Publish (30.35) went with
+  // the recap section itself. They were the best rhythmic moment in the score, and losing them is the
+  // real cost of cutting it — but SFX with no action on screen is worse than a quieter bar.
+  { t: 29.75, kind: 'click', why: 'the last real interaction, now the film\'s closing action' },
+  { t: 31.50, kind: 'chime', why: 'brand — struck as the end card appears' },
+  { t: 34.00, kind: 'confirm', why: 'CTA — install' },
 ];
 
 export const PLAN_35: ScorePlan = {
@@ -418,7 +417,8 @@ export const PLAN_35: ScorePlan = {
   bright: [19.0, 25.1],
   magicAt: 19.0,
   riserAt: 18.1,
-  resolveAt: 32.45,
+  // struck as the end card appears (31.35), not a second later
+  resolveAt: 31.45,
   sfx: SFX_CUES,
 };
 

@@ -34,7 +34,7 @@ pnpm promo:cut15                                       # -> final_15s.mp4
 | `capture/confluence.ts` | PRD page builder, the teammate's comment, privacy mask, macro centring |
 | `capture/act{1,2,3}.ts` | the three takes |
 | `capture/endcard.{html,ts}` | closing brand card |
-| `edit/shots.ts` | **the beat sheet** — 35 shots, each anchored to a capture mark, each declaring what it proves |
+| `edit/shots.ts` | **the beat sheet** — 30 shots, each anchored to a capture mark, each declaring what it proves |
 | `edit/captions.ts` | 19 cues → ASS, with the director's rules asserted in code |
 | `edit/audio.ts` | the score, synthesized from oscillators in JS |
 | `edit/assemble.ts` | marks + beat sheet → per-shot clips → concat → captions + audio |
@@ -82,6 +82,25 @@ is exactly 1050 frames.
 The `/mini` quick-insert menu lists every installed environment, so the macro reads
 **Mini-Site (Development)**. A customer sees plain "Mini-Site". Act 2 clicks the Development row *by
 name* — pressing Enter would take the highlighted first row, which is Staging. See "Known gaps".
+
+## The recap that was cut
+
+The script called for a recap at 29–31s: three prototype close-ups captioned "Upload the folder.", then
+a Publish close-up captioned "Publish the page." It was built, shipped, and then removed. Three reasons,
+in order of weight:
+
+1. **It ran the story backwards.** The five beats resolve on a colleague using the thing. Re-opening the
+   mechanics chapter after that reads as the flow restarting — which is exactly how it played: the
+   re-appearing upload panel looked like a second upload.
+2. **A caption asserted what its frame did not show.** "Upload the folder." played over Vote / Filter /
+   Chart — the product being *used*, not uploaded. By the script's own fifth column that shot proved
+   "restate step one", and restatement is not evidence. It was also a verbatim repeat of cue #5.
+3. **The budget was inverted.** Mechanics already held 30% of the film; the magic beat held 7% and each
+   closing CTA line under 0.9s.
+
+The 2.05s went to the two beats carrying the argument: the colleague using it (+1.05s) and the end card
+(+1.00s, so each CTA line now gets a full second). What was genuinely lost is the score's best rhythmic
+moment — three clicks landing on the beat. SFX with no action on screen is worse than a quieter bar.
 
 ## Honesty rules this pipeline enforces
 

@@ -19,7 +19,11 @@ export interface Cue {
 }
 
 /**
- * The 19 cues of the script, in order. Timings are keyed to the beat sheet in shots.json.
+ * 17 cues. The script's two recap lines ("Upload the folder." / "Publish the page." at 29-31s) were cut
+ * with the recap section they captioned: the first repeated cue #5 verbatim over footage of the product
+ * being USED rather than uploaded, which made a caption assert what its frame did not show.
+ *
+ * In order. Timings are keyed to the beat sheet in shots.json.
  *
  * Two director constraints are encoded here and asserted by validateCues():
  *  - "Now what?" holds ~1.9s in near-silence — it is the emotional hinge of the film.
@@ -39,13 +43,12 @@ export const CUES: Cue[] = [
   { text: 'Right inside Confluence.', start: 20.3, end: 22.4 },
   { text: 'Not a screenshot.', start: 23.1, end: 24.9 },
   { text: 'Where the work happens.', start: 25.1, end: 26.3 },
-  { text: 'Let your team try it.', start: 26.5, end: 28.4 },
-  { text: 'Upload the folder.', start: 29.05, end: 30.0 },
-  { text: 'Publish the page.', start: 30.1, end: 31.0 },
-  { text: 'Let the idea run.', start: 31.1, end: 32.2 },
-  { text: 'Bring AI-built interactive websites\\Ninto Confluence.', start: 32.45, end: 33.35, pos: 'end' },
-  { text: 'Available on the Atlassian Marketplace.', start: 33.45, end: 34.25, pos: 'end' },
-  { text: 'Install Mini Sites.', start: 34.35, end: 35.0, pos: 'end' },
+  { text: 'Let your team try it.', start: 26.7, end: 29.3 },
+  { text: 'Let the idea run.', start: 29.6, end: 31.2 },
+  // Each closing line now gets a full second to be read, instead of ~0.85s.
+  { text: 'Bring AI-built interactive websites\\Ninto Confluence.', start: 31.55, end: 32.65, pos: 'end' },
+  { text: 'Available on the Atlassian Marketplace.', start: 32.80, end: 33.80, pos: 'end' },
+  { text: 'Install Mini Sites.', start: 33.95, end: 35.0, pos: 'end' },
 ];
 
 /** ASS wants H:MM:SS.cc (centiseconds). */

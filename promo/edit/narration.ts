@@ -60,10 +60,12 @@ export const VO_LINES: VoLine[] = [
   //
   // SAME narrator as every other line. A different voice here reads as a different character, which is
   // the opposite of the intended effect — this is the narrator's own moment of deflation, not someone
-  // else's comment on it. The delivery comes from treatment instead: 16% slower, pitch down 5%, and
-  // well under the level of the explanatory lines, so it lands as resigned rather than as a question
-  // being asked. Ends inside the score's silence window; the test measures that rather than trusting it.
-  { t: 6.72, text: 'Now what?', why: 'the hinge, spoken once, into the silence', stretch: 1.16, pitch: 0.95, gain: 0.72 },
+  // else's comment on it. The delivery comes from treatment instead: 8% slower, pitch down 2%, and well
+  // under the level of the explanatory lines. Chosen by ear over heavier reads (1.16/0.95 and 1.24/0.92
+  // were rendered into the real hold and compared) — past a point the processing stops sounding
+  // deflated and starts sounding processed. Ends inside the score's silence window; the test measures
+  // that rather than trusting it.
+  { t: 6.72, text: 'Now what?', why: 'the hinge, spoken once, into the silence', stretch: 1.08, pitch: 0.98, gain: 0.72 },
   { t: 8.70, text: 'So put it where your team already works.', why: 'the turn, in a full sentence' },
   { t: 12.40, text: 'Drop in the whole folder. No build step, no hosting.', why: 'the two objections, answered' },
   { t: 16.60, text: 'One click to publish.', why: 'names the action the caption only labels' },

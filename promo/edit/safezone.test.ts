@@ -75,27 +75,33 @@ import { PLAN_35, renderMusic, silenceHoldIsClean } from './audio';
 describe('voiceover', () => {
   // Measured durations when the synthesis cache is present, else a conservative word-rate estimate.
   // Kokoro runs ~2.3-2.5 words/sec on these lines, so words/2.2 always over-estimates.
-  const lineSeconds = (text: string): number => {
+  // Matched on the FULL synthesis key, not just the text. Three treatments of "Now what?" are cached
+  // (1.08/0.98, 1.16/0.95, 1.24/0.92); a text-only lookup returned whichever landed first and reported
+  // the heaviest read's 1.82s for a line that is actually 1.58s, failing on a film that was correct.
+  const lineSeconds = (line: { text: string; voice?: string; stretch?: number; pitch?: number }): number => {
     const dir = 'promo/out/.vo-cache';
+    const want = { voice: line.voice ?? 'af_heart', stretch: line.stretch ?? 1, pitch: line.pitch ?? 1 };
     if (existsSync(dir)) {
       for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
         const m = JSON.parse(readFileSync(`${dir}/${f}`, 'utf8'));
-        if (m.text === text) return m.seconds;
+        if (m.text === line.text && m.voice === want.voice && m.stretch === want.stretch && m.pitch === want.pitch) {
+          return m.seconds;
+        }
       }
     }
-    return text.trim().split(/\s+/).length / 2.2;
+    return (line.text.trim().split(/\s+/).length / 2.2) * (line.stretch ?? 1);
   };
 
   it('lets ONLY "Now what?" speak inside the hold, and nothing else', () => {
     const [a, b] = [6.30, 8.42];
     for (const l of VO_LINES) {
-      const end = l.t + lineSeconds(l.text);
+      const end = l.t + lineSeconds(l);
       const inside = l.t < b && end > a;
       if (inside) expect(l.text).toBe('Now what?');
     }
     const hinge = VO_LINES.find((l) => l.text === 'Now what?')!;
     expect(hinge.t).toBeGreaterThanOrEqual(a);
-    expect(hinge.t + lineSeconds(hinge.text)).toBeLessThanOrEqual(b);
+    expect(hinge.t + lineSeconds(hinge)).toBeLessThanOrEqual(b);
   });
 
   it('keeps the BED silent under that line — the voice is the only thing there', () => {
@@ -118,7 +124,7 @@ describe('voiceover', () => {
 
   it('lines never overlap each other', () => {
     for (let i = 1; i < VO_LINES.length; i++) {
-      expect(VO_LINES[i].t).toBeGreaterThan(VO_LINES[i - 1].t + lineSeconds(VO_LINES[i - 1].text));
+      expect(VO_LINES[i].t).toBeGreaterThan(VO_LINES[i - 1].t + lineSeconds(VO_LINES[i - 1]));
     }
   });
 
@@ -126,7 +132,7 @@ describe('voiceover', () => {
     // 19.0-21.5 is the bloom. A line here ducked it by 6dB to restate the caption.
     const [a, b] = [19.0, 21.5];
     for (const l of VO_LINES) {
-      const end = l.t + lineSeconds(l.text);
+      const end = l.t + lineSeconds(l);
       expect(l.t >= b || end <= a).toBe(true);
       expect(end).toBeLessThanOrEqual(35.0);
     }

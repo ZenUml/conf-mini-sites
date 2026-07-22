@@ -102,11 +102,20 @@ export interface AssOptions {
 export function toAss(cues: Cue[] = CUES, opts: AssOptions = {}): string {
   const width = opts.width ?? 1920;
   const height = opts.height ?? 1080;
-  const fontName = opts.fontName ?? 'Helvetica Neue';
-  const fontSize = opts.fontSize ?? 62;
+  const fontName = opts.fontName ?? 'Avenir Next Heavy';
+  const fontSize = opts.fontSize ?? 56;
 
   // &HAABBGGRR — ASS colours are BGR with an INVERTED alpha byte (00 = opaque, FF = transparent).
-  // BorderStyle 3 + a translucent BackColour gives the legibility plate; Outline is its padding.
+  //
+  // The plate colour goes in OutlineColour, NOT BackColour. With BorderStyle 3 libass fills the box
+  // from the outline colour and uses BackColour only for the shadow; setting the plate on BackColour
+  // silently renders a black bar, which is how the first cut ended up looking like a subtitle track.
+  // `Outline` is the box's padding.
+  //
+  // #2E1065 indigo is the film's own accent — the prototype's buttons and the end card's ground — so
+  // the captions read as a designed lower-third rather than burned-in subtitles. White on near-black
+  // was maximum contrast and zero identity.
+  const PLATE = '&H1465102E'; // indigo, ~92% opaque
   const header = [
     '[Script Info]',
     'ScriptType: v4.00+',
@@ -118,11 +127,14 @@ export function toAss(cues: Cue[] = CUES, opts: AssOptions = {}): string {
     '[V4+ Styles]',
     'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
     // Alignment 2 = bottom-centre, 5 = middle-centre (with \an overrides per cue anyway).
-    `Style: Lower,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0140A0A,-1,0,0,0,100,100,0.6,0,3,18,0,2,180,180,${Math.round(height * 0.2)},1`,
-    `Style: Center,${fontName},${Math.round(fontSize * 1.18)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0140A0A,-1,0,0,0,100,100,1.2,0,3,22,0,5,180,180,0,1`,
-    // The closing cues sit BELOW centre. The end card's own lockup occupies the middle of the frame, and
+    `Style: Lower,${fontName},${fontSize},&H00FFFFFF,&H00FFFFFF,${PLATE},&H60000000,-1,0,0,0,100,100,1.6,0,3,17,0,2,180,180,${Math.round(height * 0.2)},1`,
+    `Style: Center,${fontName},${Math.round(fontSize * 1.18)},&H00FFFFFF,&H00FFFFFF,${PLATE},&H60000000,-1,0,0,0,100,100,2.0,0,3,20,0,5,180,180,0,1`,
+    // The closing cues sit BELOW centre: the end card's own lockup occupies the middle of the frame, and
     // a centred cue printed straight across the "Mini Site" wordmark on all three closing stills.
-    `Style: End,${fontName},${Math.round(fontSize * 1.02)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80140A0A,-1,0,0,0,100,100,0.8,0,3,16,0,2,180,180,${Math.round(height * 0.13)},1`,
+    // No plate here — these sit on the dark end card, where white text needs only a soft drop shadow,
+    // and a box would look like a sticker on an otherwise clean brand frame. BorderStyle 1 + Outline 0
+    // + Shadow 3 = text and shadow, nothing else.
+    `Style: End,${fontName},${Math.round(fontSize * 1.06)},&H00FFFFFF,&H00FFFFFF,&H00000000,&HA0000000,-1,0,0,0,100,100,2.0,0,1,0,3,2,180,180,${Math.round(height * 0.13)},1`,
     '',
     '[Events]',
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',

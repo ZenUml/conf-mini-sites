@@ -125,6 +125,25 @@ describe('captions', () => {
     expect(ass).toContain('PlayResX: 1920');
   });
 
+  it('puts the plate colour on OutlineColour, which is what libass actually fills the box from', () => {
+    // BorderStyle 3 fills from OutlineColour; BackColour is only the shadow. Setting the plate on
+    // BackColour renders a plain black bar — the film shipped looking like a subtitle track because
+    // of exactly this.
+    const lower = toAss().split('\n').find((l) => l.startsWith('Style: Lower'))!;
+    const f = lower.replace('Style: ', '').split(',');
+    expect(f[5]).toBe('&H1465102E'); // OutlineColour = the indigo plate
+    expect(f[15]).toBe('3');          // BorderStyle 3 = opaque box
+    expect(+f[16]).toBeGreaterThan(10); // Outline = the box's padding
+  });
+
+  it('gives the end-card cues no plate — they sit on the dark brand frame', () => {
+    const end = toAss().split('\n').find((l) => l.startsWith('Style: End'))!;
+    const f = end.replace('Style: ', '').split(',');
+    expect(f[15]).toBe('1');  // BorderStyle 1 = outline+shadow, no box
+    expect(f[16]).toBe('0');  // no outline
+    expect(+f[17]).toBeGreaterThan(0); // just a drop shadow
+  });
+
   it('rejects a cue that breaks the six-word rule', () => {
     const bad = validateCues([{ text: 'one two three four five six seven', start: 0, end: 1 }]);
     expect(bad[0].problem).toContain('max 6');

@@ -35,7 +35,7 @@ pnpm promo:cut15                                       # -> final_15s.mp4
 | `capture/act{1,2,3}.ts` | the three takes |
 | `capture/endcard.{html,ts}` | closing brand card |
 | `edit/shots.ts` | **the beat sheet** — 30 shots, each anchored to a capture mark, each declaring what it proves |
-| `edit/captions.ts` | 19 cues → ASS, with the director's rules asserted in code |
+| `edit/captions.ts` | 17 cues → ASS; typography, placement rules and the director's rules asserted in code |
 | `edit/audio.ts` | the score, synthesized from oscillators in JS |
 | `edit/assemble.ts` | marks + beat sheet → per-shot clips → concat → captions + audio |
 | `edit/cut15.ts` | the :15 cut — its own beat sheet, cue list and score plan, same captures |
@@ -82,6 +82,21 @@ is exactly 1050 frames.
 The `/mini` quick-insert menu lists every installed environment, so the macro reads
 **Mini-Site (Development)**. A customer sees plain "Mini-Site". Act 2 clicks the Development row *by
 name* — pressing Enter would take the highlighted first row, which is Staging. See "Known gaps".
+
+## Caption typography
+
+Avenir Next Heavy, white, on a **#2E1065 indigo plate** — the film's own accent, the same violet as the
+prototype's buttons and the end card's ground, so captions read as a designed lower-third instead of a
+burned-in subtitle track. The end-card cues carry **no plate**: they sit on the dark brand frame where
+white text needs only a drop shadow, and a box there looks like a sticker.
+
+One libass trap, now covered by a test: with `BorderStyle: 3` the box is filled from **OutlineColour**,
+not `BackColour` — `BackColour` is only the shadow. Putting the plate colour on `BackColour` silently
+renders a plain black bar, which is exactly why the first cut looked like subtitles.
+
+To try the alternative treatment (dark ink on a warm parchment plate, more editorial, lower separation
+from Confluence's white page): set `PLATE = '&H0CEEF7FB'` and the Lower/Center `PrimaryColour` to
+`&H00181014`.
 
 ## The recap that was cut
 

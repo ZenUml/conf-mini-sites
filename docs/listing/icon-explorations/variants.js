@@ -3,54 +3,35 @@ window.VARIANTS = {
   brandName: "Mini Sites",
   concepts: [
     {
-      name: "大胆几何 Bold Geometric",
+      name: "纯浏览器 Just a Browser",
       variants: [
         {
-          id: "A1",
-          name: "Amber Tile",
-          description: "Miro 式全出血亮色块:热琥珀底 + 白色页面 + 墨蓝浏览器窗。三层嵌套纯平色,宏菜单 16px 下靠色块识别。",
-          light: "icon-a1-amber-tile.svg",
-          dark: "icon-a1-amber-tile.svg"
+          id: "C1",
+          name: "Chrome Amber",
+          description: "瓦片本身就是浏览器:琥珀画布 + 墨蓝标题栏 + 三个点。两层,再无其他。",
+          light: "icon-c1-chrome-amber.svg",
+          dark: "icon-c1-chrome-amber.svg"
         },
         {
-          id: "A2",
-          name: "Ink Punch",
-          description: "编辑裁切:墨蓝底,羊皮纸页面出血到底边,琥珀窗是最响的元素。与现有识别同色系,但压平并裁切出张力。",
-          light: "icon-a2-ink-punch.svg",
-          dark: "icon-a2-ink-punch.svg"
+          id: "C2",
+          name: "Chrome Ink",
+          description: "C1 的反相:墨蓝画布 + 琥珀标题栏 + 墨蓝点。",
+          light: "icon-c2-chrome-ink.svg",
+          dark: "icon-c2-chrome-ink.svg"
         },
         {
-          id: "A3",
-          name: "Cutout",
-          description: "两色加一个洞:窗口从墨蓝页面上冲切掉,琥珀底色透出来——页面开了一扇通向活物的窗。全组最减,任何尺寸都清晰。",
-          light: "icon-a3-cutout.svg",
-          dark: "icon-a3-cutout.svg"
-        }
-      ]
-    },
-    {
-      name: "鲜亮渐变 Vibrant Gradient",
-      variants: [
-        {
-          id: "B1",
-          name: "Indigo Bloom",
-          description: "靛蓝→紫罗兰底,白页面,窗口本身是珊瑚→琥珀热渐变——嵌入物是整页最温暖的东西。",
-          light: "icon-b1-indigo-bloom.svg",
-          dark: "icon-b1-indigo-bloom.svg"
+          id: "C3",
+          name: "Chrome Bloom",
+          description: "渐变版瓦片即浏览器:靛蓝→紫画布,白标题栏,点取自渐变色。",
+          light: "icon-c3-chrome-bloom.svg",
+          dark: "icon-c3-chrome-bloom.svg"
         },
         {
-          id: "B2",
-          name: "Neon Frame",
-          description: "深空底,页面安静,窗口只剩一圈发光渐变边框——产品是那个让外面的东西活在里面的边界。",
-          light: "icon-b2-neon-frame.svg",
-          dark: "icon-b2-neon-frame.svg"
-        },
-        {
-          id: "B3",
-          name: "Aurora Card",
-          description: "紫→粉底配青色系窗口:两组互补渐变,窗口作为「另一个活物」从白页面里跳出来。",
-          light: "icon-b3-aurora-card.svg",
-          dark: "icon-b3-aurora-card.svg"
+          id: "C4",
+          name: "Float",
+          description: "一个浏览器窗浮在琥珀瓦片上:白窗体 + 墨蓝标题栏。共四个形状。",
+          light: "icon-c4-float.svg",
+          dark: "icon-c4-float.svg"
         }
       ]
     }

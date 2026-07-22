@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — chrome amber">
+  <!-- C1 "Chrome Amber" — the tile IS the browser. Amber canvas, ink title bar, three dots.
+       Two visual layers, nothing else. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <rect width="512" height="148" fill="#15233E"/>
+    <circle cx="92" cy="74" r="22" fill="#FFB020"/>
+    <circle cx="156" cy="74" r="22" fill="#FFFFFF"/>
+    <circle cx="220" cy="74" r="22" fill="#FFFFFF"/>
+  </g>
+</svg>

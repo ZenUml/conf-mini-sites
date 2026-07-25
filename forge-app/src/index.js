@@ -21,6 +21,7 @@
 // mis-applies ESM interop and `new Resolver()` throws "not a constructor" (caught live on first render).
 import Resolver from '@forge/resolver';
 import { invokeRemote } from '@forge/api';
+import { sendMixpanelEvent, CLIENT_TRACKABLE_EVENT_NAMES } from './analytics';
 
 // The manifest declares one remote per control-Worker env (a remote's baseUrl is static), so the existing
 // per-env CONTROL_BASE_URL Forge variable stays the single source of truth and selects the remote KEY.
@@ -64,6 +65,37 @@ async function instanceIdFromContext(context) {
   return { instanceId: `i${hex.slice(0, 31)}`, cloudId }; // 'i'+31 hex = 32 chars, matches /^[a-z0-9][a-z0-9_-]{0,55}$/
 }
 
+/** Common analytics dimensions from a resolver invocation's context — the mini-sites analog of
+ *  trackAnalyticsEvent.ts's enrichment step in conf-app. `accountId`/`environmentType` are read
+ *  best-effort (Forge's resolver Context is an untyped bag — `{[key: string]: any}` — so absence is a
+ *  normal, non-error case, not a crash: sendMixpanelEvent falls back to an `unknown_*` sentinel). */
+function analyticsContext(context, instanceId, cloudId) {
+  return {
+    instanceId,
+    cloudId,
+    accountId: typeof context?.accountId === 'string' ? context.accountId : undefined,
+    environmentType: typeof context?.environmentType === 'string' ? context.environmentType : undefined,
+  };
+}
+
+// Single generic endpoint the Custom UI invokes for the funnel steps that only happen client-side (the
+// macro rendering, the Publisher modal opening, a folder pick) — mirrors conf-app's single functions/
+// track.ts endpoint for all frontend-originated events, rather than one resolver function per event.
+// Every other event in the catalog (validation/secret-scan/publish/render outcomes, license-blocked
+// publish) is tracked server-side, in the handler that actually knows the outcome — never trusted from
+// the client. Fire-and-forget from the Custom UI's POV (view.js/publisher.js call invoke('trackEvent',
+// ...) without awaiting), but awaited HERE because a Forge resolver invocation's background work is not
+// guaranteed to run once the function returns (no ctx.waitUntil equivalent) — see mixpanelClient.ts's
+// dispatch-Worker counterpart for the ctx.waitUntil version of this same "never block the caller" rule.
+resolver.define('trackEvent', async (req) => {
+  const name = req.payload?.name;
+  if (typeof name !== 'string' || !CLIENT_TRACKABLE_EVENT_NAMES.has(name)) return { ok: false, code: 'UNKNOWN_EVENT' };
+  const { instanceId, cloudId } = await instanceIdFromContext(req.context);
+  const properties = req.payload?.properties && typeof req.payload.properties === 'object' ? req.payload.properties : {};
+  await sendMixpanelEvent(name, properties, analyticsContext(req.context, instanceId, cloudId));
+  return { ok: true };
+});
+
 resolver.define('getServeUrl', async (req) => {
   const { instanceId, cloudId } = await instanceIdFromContext(req.context);
   const path = `/serve-url?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`;
@@ -80,6 +112,7 @@ resolver.define('publish', async (req) => {
   // Gate the WRITE path: refuse new publishes on an inactive license and signal the UI to show an upgrade
   // CTA (402 Payment Required). Existing embeds keep serving via getServeUrl — only new publishing is blocked.
   if (licenseInactive(req.context)) {
+    await sendMixpanelEvent('license_blocked_publish', {}, analyticsContext(req.context, instanceId, cloudId));
     return { ok: false, code: 'LICENSE_INACTIVE', httpStatus: 402, instanceId };
   }
   const files = Array.isArray(req.payload?.files) ? req.payload.files : [];

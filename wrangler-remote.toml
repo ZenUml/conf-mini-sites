@@ -22,6 +22,10 @@ DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-dev.zenuml.workers.dev"
 #     npx wrangler secret put K_GRANT --config wrangler-remote.toml
 #   CONTROL_SHARED_SECRET — the x-mini-sites-secret the Forge resolver sends to authorize provisioning:
 #     npx wrangler secret put CONTROL_SHARED_SECRET --config wrangler-remote.toml
+#   MIXPANEL_TOKEN — Mixpanel project token for the publish-funnel events (mini_site_bundle_validated /
+#     secret_scan_rejected / publish_succeeded / publish_failed — src/analytics/miniSiteEvents.ts).
+#     Optional: unset ⇒ sendMiniSiteEvents no-ops silently, publish is unaffected either way.
+#     npx wrangler secret put MIXPANEL_TOKEN --config wrangler-remote.toml
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UNINSTALL-GC ACTIVATION — delete a site's mini-site bundles 30 days AFTER the app is uninstalled (instead of
@@ -53,6 +57,9 @@ DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-dev.zenuml.workers.dev"
 #   npx wrangler secret put K_GRANT              --config wrangler-remote.toml --env staging
 #   npx wrangler secret put CONTROL_SHARED_SECRET --config wrangler-remote.toml --env staging
 #   (…and the same three with --env production)
+#   MIXPANEL_TOKEN is OPTIONAL per env (analytics no-ops silently when unset):
+#     npx wrangler secret put MIXPANEL_TOKEN --config wrangler-remote.toml --env staging
+#     npx wrangler secret put MIXPANEL_TOKEN --config wrangler-remote.toml --env production
 #
 # INVARIANT (the single most likely operational failure): K_GRANT MUST be
 # BYTE-IDENTICAL between this remote Worker and the dispatch Worker FOR THE SAME

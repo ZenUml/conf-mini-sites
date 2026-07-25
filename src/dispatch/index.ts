@@ -17,6 +17,7 @@ import type { ForgeGatewayDeps } from './forgeGateway';
 import { CloudflareWfPProvider } from '../hosting/CloudflareWfPProvider';
 import { DispatchBindingWfpClient } from '../hosting/DispatchBindingWfpClient';
 import type { DispatchNamespaceBinding } from '../hosting/DispatchBindingWfpClient';
+import { sendMiniSiteEvents } from '../analytics/mixpanelClient';
 
 export interface Env {
   /** WfP dispatch-namespace binding — env.MINISITES.get('ms-<id>').fetch(). */
@@ -25,26 +26,40 @@ export interface Env {
   K_GRANT: string;
   /** CSP frame-ancestors (the Confluence/Forge embed origin), e.g. "https://*.atlassian.net". */
   EMBED_ANCESTORS?: string;
+  /** Mixpanel project token (a Cloudflare secret) — render_succeeded/failed for the entrypoint-
+   *  document serve outcome. Optional: sendMiniSiteEvents no-ops silently when unset. */
+  MIXPANEL_TOKEN?: string;
   [binding: string]: unknown;
 }
 
 const enc = new TextEncoder();
 
-function buildDeps(env: Env): ForgeGatewayDeps {
+/** The parts of ForgeGatewayDeps that are stateless per isolate (worth memoizing — avoids re-importing
+ *  the HMAC key every request). `track` is deliberately NOT here: it closes over this request's
+ *  ExecutionContext (ctx.waitUntil), which is per-invocation, not per-isolate. */
+type StaticDeps = Pick<ForgeGatewayDeps, 'provider' | 'grantKey' | 'embedAncestors'>;
+
+function buildStaticDeps(env: Env): StaticDeps {
   return {
     provider: new CloudflareWfPProvider(new DispatchBindingWfpClient(env.MINISITES)),
     grantKey: enc.encode(env.K_GRANT ?? ''), // empty key ⇒ all grants fail signature ⇒ fail-closed 401
-    now: () => Date.now(),
     embedAncestors: env.EMBED_ANCESTORS,
   };
 }
 
-// Memoize per isolate — the deps are stateless here, but reuse avoids re-importing the HMAC key each request.
-let cachedDeps: ForgeGatewayDeps | null = null;
+// Memoize per isolate — see StaticDeps.
+let cachedStatic: StaticDeps | null = null;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    cachedDeps ??= buildDeps(env);
-    return handleForgeServe(request, cachedDeps);
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    cachedStatic ??= buildStaticDeps(env);
+    const deps: ForgeGatewayDeps = {
+      ...cachedStatic,
+      now: () => Date.now(),
+      // Fire-and-forget: handleForgeServe never awaits this, so a Mixpanel outage adds no latency to a
+      // real viewer's page load. ctx.waitUntil keeps the isolate alive long enough for the send to land.
+      track: (event) => ctx.waitUntil(sendMiniSiteEvents([event], { token: env.MIXPANEL_TOKEN })),
+    };
+    return handleForgeServe(request, deps);
   },
 };

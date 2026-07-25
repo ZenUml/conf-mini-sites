@@ -37,3 +37,9 @@ promo/out/
 promo/capture/.backdrop.png
 promo/capture/.logo.svg
 promo/tmp/
+
+# agent scratch — MCP snapshots, tokens, per-tool caches
+.playwright-mcp/
+.mcp.json
+.agents/
+.codex/

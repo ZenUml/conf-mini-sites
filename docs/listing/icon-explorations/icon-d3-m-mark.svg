@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — M mark">
+  <!-- D3 "M Mark" — the letterform route: a single heavy M, rounded terminals, amber on ink.
+       Says nothing about browsers or folders; bets on the name and owns it. One stroke. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#15233E"/>
+    <path fill="none" stroke="#FFB020" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"
+          d="M 140 372 V 172 L 256 300 L 372 172 V 372"/>
+  </g>
+</svg>

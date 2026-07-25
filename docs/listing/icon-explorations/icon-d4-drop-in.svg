@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — drop in">
+  <!-- D4 "Drop In" — the action: a tiny site dropping through a slot in the page. The payload is
+       a window (not a bare arrow) so it does not read as "download". Window + slot. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <clipPath id="w4"><rect x="156" y="96" width="200" height="164" rx="24"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <g clip-path="url(#w4)">
+      <rect x="156" y="96" width="200" height="164" fill="#FFFFFF"/>
+      <rect x="156" y="96" width="200" height="56" fill="#15233E"/>
+      <circle cx="192" cy="124" r="9" fill="#FFB020"/>
+      <circle cx="219" cy="124" r="9" fill="#FFFFFF"/>
+      <circle cx="246" cy="124" r="9" fill="#FFFFFF"/>
+    </g>
+    <rect x="116" y="336" width="280" height="44" rx="22" fill="#15233E"/>
+  </g>
+</svg>

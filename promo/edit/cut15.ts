@@ -50,16 +50,15 @@ export const SHOTS_15: Shot[] = [
 export const CUES_15: Cue[] = [
   { text: 'Built something with AI?', start: 0.35, end: 3.1 },
   { text: 'Now what?', start: 4.15, end: 5.1, pos: 'center' },
-  { text: 'Bring it to your team.', start: 5.3, end: 6.0 },
-  { text: 'Insert Mini Sites.', start: 6.2, end: 7.0 },
-  { text: 'Upload the folder.', start: 7.2, end: 8.0 },
-  { text: 'Publish.', start: 8.15, end: 8.9 },
-  { text: 'It runs.', start: 9.05, end: 10.2 },
-  { text: 'Right inside Confluence.', start: 10.4, end: 11.25 },
-  { text: 'Not a screenshot.', start: 11.45, end: 12.3 },
-  { text: 'Bring AI-built interactive websites\\Ninto Confluence.', start: 12.5, end: 13.35, pos: 'end' },
-  { text: 'Available on the Atlassian Marketplace.', start: 13.45, end: 14.25, pos: 'end' },
-  { text: 'Install Mini Sites.', start: 14.35, end: 15.0, pos: 'end' },
+  { text: 'Bring it to your team', start: 5.3, end: 6.0 },
+  { text: 'Insert Mini Sites', start: 6.2, end: 7.0 },
+  { text: 'Upload the folder', start: 7.2, end: 8.0 },
+  { text: 'Publish', start: 8.15, end: 8.9 },
+  { text: 'It runs', start: 9.05, end: 10.2 },
+  { text: 'Right inside Confluence', start: 10.4, end: 11.25 },
+  { text: 'Not a screenshot', start: 11.45, end: 12.3 },
+  { text: 'Bring AI-built interactive websites\\Ninto Confluence', start: 12.5, end: 13.35, pos: 'end' },
+  { text: 'Available on the Atlassian Marketplace', start: 13.45, end: 15.0, pos: 'end' },
 ];
 
 export async function renderCut15(capturesDir: string, outDir: string): Promise<{ path: string; duration: number }> {

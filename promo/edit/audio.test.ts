@@ -99,7 +99,7 @@ describe('captions', () => {
 
   it('tells the whole story with the sound off', () => {
     const story = cueStory();
-    for (const beat of ['Built something with AI?', 'Now what?', 'Upload the folder.', 'Publish.', 'It runs.', 'Install Mini Sites.']) {
+    for (const beat of ['Built something with AI?', 'Now what?', 'Upload the folder', 'Publish', 'It runs', 'Available on the Atlassian Marketplace']) {
       expect(story).toContain(beat);
     }
   });
@@ -107,7 +107,7 @@ describe('captions', () => {
   it('holds "Now what?" long enough to land, and delays "It runs." until after the reveal', () => {
     const nowWhat = CUES.find((c) => c.text === 'Now what?')!;
     expect(nowWhat.end - nowWhat.start).toBeGreaterThanOrEqual(1.5);
-    expect(CUES.find((c) => c.text === 'It runs.')!.start).toBeGreaterThanOrEqual(19.0);
+    expect(CUES.find((c) => c.text === 'It runs')!.start).toBeGreaterThanOrEqual(19.0);
   });
 
   it('formats ASS timestamps', () => {
@@ -119,29 +119,36 @@ describe('captions', () => {
   it('renders ASS with a fade on every cue and no typewriter effect', () => {
     const ass = toAss();
     const lines = ass.split('\n').filter((l) => l.startsWith('Dialogue:'));
-    expect(lines).toHaveLength(CUES.length);
+    // Every cue is one text event; every LOWER cue additionally carries its full-bleed band event.
+    expect(lines).toHaveLength(CUES.length + CUES.filter((c) => !c.pos).length);
     for (const l of lines) expect(l).toContain('\\fad(220,220)');
     expect(ass).not.toContain('\\k'); // \k = karaoke/per-syllable reveal
     expect(ass).toContain('PlayResX: 1920');
   });
 
-  it('puts the plate colour on OutlineColour, which is what libass actually fills the box from', () => {
-    // BorderStyle 3 fills from OutlineColour; BackColour is only the shadow. Setting the plate on
-    // BackColour renders a plain black bar — the film shipped looking like a subtitle track because
-    // of exactly this.
-    const lower = toAss().split('\n').find((l) => l.startsWith('Style: Lower'))!;
+  it('renders lower cues as ink type on a full-bleed parchment band', () => {
+    // The band is a layer-0 drawing event spanning the full frame width (BorderStyle 3 can only box
+    // the text's own width), in the icon's ground colour; the text rides layer 1 in ink.
+    const ass = toAss();
+    const lower = ass.split('\n').find((l) => l.startsWith('Style: Lower'))!;
     const f = lower.replace('Style: ', '').split(',');
-    expect(f[5]).toBe('&H1465102E'); // OutlineColour = the indigo plate
-    expect(f[15]).toBe('3');          // BorderStyle 3 = opaque box
-    expect(+f[16]).toBeGreaterThan(10); // Outline = the box's padding
+    expect(f[3]).toBe('&H003E2315'); // ink text on the light band
+    expect(f[15]).toBe('1');          // no per-text box — the band carries the ground
+    const band = ass.split('\n').find((l) => l.startsWith('Style: Band'))!;
+    expect(band.split(',')[3]).toBe('&H55DDECF4'); // parchment #F4ECDD, ~67% opaque
+    const draw = ass.split('\n').filter((l) => l.startsWith('Dialogue: 0,') && l.includes('\\p1'));
+    expect(draw.length).toBe(CUES.filter((c) => !c.pos).length); // one band per lower cue
+    for (const d of draw) expect(d).toContain('l 1920 0'); // full-bleed, not text-width
+    expect(ass.split('\n').find((l) => l.startsWith('Style: Band'))!.split(',')[3]).toBe('&H55DDECF4'); // semi-transparent parchment
   });
 
-  it('gives the end-card cues no plate — they sit on the dark brand frame', () => {
+  it('gives the end-card cues no plate — bare ink type on the parchment brand frame', () => {
     const end = toAss().split('\n').find((l) => l.startsWith('Style: End'))!;
     const f = end.replace('Style: ', '').split(',');
-    expect(f[15]).toBe('1');  // BorderStyle 1 = outline+shadow, no box
+    expect(f[3]).toBe('&H003E2315'); // ink text, not white — the card is light now
+    expect(f[15]).toBe('1');  // BorderStyle 1, no box
     expect(f[16]).toBe('0');  // no outline
-    expect(+f[17]).toBeGreaterThan(0); // just a drop shadow
+    expect(f[17]).toBe('0');  // no shadow either — ink on parchment needs nothing
   });
 
   it('rejects a cue that breaks the six-word rule', () => {

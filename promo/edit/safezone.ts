@@ -17,14 +17,12 @@ export interface Rect {
 }
 
 /**
- * Where a caption's plate actually lands, in output pixels. Measured against the rendered film:
- * the Lower band occupies rows 792-879 at 1080p with MarginV = 0.2*H, which these numbers reproduce.
+ * Where a caption's band actually lands, in output pixels. Since the band became an explicit
+ * full-width drawing event (2026-07-22) its geometry is DERIVED, not calibrated: toAss draws
+ * y = H - marginV - textH with h = textH + 15, marginV = 0.12*H — rows 878-965 at 1080p.
  */
 export function captionRect(pos: CuePos | undefined, fontSize = 56, height = H): Rect {
-  // CALIBRATED, not derived. libass's box metrics for BorderStyle 3 do not fall out of fontsize and
-  // Outline in any way worth reverse-engineering, so these two constants were measured off the
-  // rendered film by row-scanning for the plate colour: at fontSize 56 with MarginV = 0.2*H the plate
-  // occupies rows 792-879. Re-measure if the style changes.
+  // Keep these formulas in lockstep with toAss()'s band maths — they are the same numbers.
   const textH = Math.round(fontSize * 1.286);
   const plateH = textH + 15;
   const band = (marginV: number, fs: number): Rect => {
@@ -36,10 +34,11 @@ export function captionRect(pos: CuePos | undefined, fontSize = 56, height = H):
     const h = Math.round(fs * 1.286) + 15;
     return { x: 0, y: Math.round(height / 2 - h / 2), w: W, h };
   }
-  if (pos === 'end') return band(Math.round(height * 0.13), Math.round(fontSize * 1.06));
+  // End cues moved to 0.09*H when the Lower band went down to 0.12*H — they stay the lowest thing.
+  if (pos === 'end') return band(Math.round(height * 0.09), Math.round(fontSize * 1.06));
   void plateH;
   void textH;
-  return band(Math.round(height * 0.2), fontSize);
+  return band(Math.round(height * 0.12), fontSize);
 }
 
 /** Map a point from source-capture space into the shot's cropped-and-rescaled output frame. */

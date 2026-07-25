@@ -8,10 +8,10 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 const shot = (o: Partial<Shot> = {}): Shot => ({ id: 'x', t: 0, dur: 1, src: 'act1', at: ['m', 0], evidence: 'proves a thing', ...o });
 
 describe('caption placement geometry', () => {
-  it('reproduces the band measured on the rendered film (rows 792-879)', () => {
+  it('matches the band geometry toAss draws (rows 878-965 at 1080p)', () => {
     const r = captionRect('lower');
-    expect(r.y).toBe(792);
-    expect(r.y + r.h).toBe(879);
+    expect(r.y).toBe(878);
+    expect(r.y + r.h).toBe(965);
   });
 
   it('puts the end-card cues lower than the in-film ones, clear of the lockup', () => {
@@ -43,12 +43,12 @@ describe('caption placement geometry', () => {
 
   it('finds the cues on screen during a shot', () => {
     const during = cuesDuring(shot({ t: 19.0, dur: 1.3 }), CUES).map((c) => c.text);
-    expect(during).toContain('It runs.');
+    expect(during).toContain('It runs');
   });
 
   it('flags a caption sitting on the control the shot is about', () => {
     const hits = findCollisions(
-      () => ({ x: 800, y: 800, width: 120, height: 40 }), // a button inside the caption band
+      () => ({ x: 800, y: 890, width: 120, height: 40 }), // a button inside the caption band (rows 878-965)
       () => ({ cx: 0.5, cy: 0.5 }),
       [shot({ id: 'bad', at: ['a1_vote_click', 0], t: 1.2, dur: 1.1 })],
       CUES,

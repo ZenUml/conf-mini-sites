@@ -5,9 +5,11 @@
 //
 // Two rules the VO must obey, both inherited from the film it sits on:
 //
-//  1. **It does not read the captions aloud.** Captions carry the short beats ("It runs.", "Publish.");
-//     the VO carries the argument in fuller sentences. Narration that duplicates on-screen text makes a
-//     viewer read and listen to the same words at slightly different speeds, which is worse than either.
+//  1. **Voice and print never compete.** Early cuts burned the full caption track under the narration;
+//     reading one sentence while hearing a different one was the single most-reported distraction
+//     (user note, 2026-07-22). So the VO cut carries CUES_VO — only the cues that play where the voice
+//     is silent, plus "Now what?", the one deliberate voice=text moment. The captions-only master
+//     (`final.mp4`) keeps the full track; the two versions serve different placements, not the same one.
 //  2. **It never speaks between 6.35s and 8.40s**, and it never speaks across the reveal at 19.0-21.5s.
 //     The hold is the film's hinge and is silent by design; the reveal belongs to the picture and the
 //     score. Both are enforced by tests, because the temptation to fill them with words is exactly the
@@ -21,6 +23,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { Buf, DURATION_S, PLAN_35, renderMusic, renderSfx, toWav } from './audio';
+import { CUES, toAss, type Cue } from './captions';
 import { FFMPEG, FFPROBE } from './assemble';
 
 const exec = promisify(execFile);
@@ -66,7 +69,9 @@ export const VO_LINES: VoLine[] = [
   // deflated and starts sounding processed. Ends inside the score's silence window; the test measures
   // that rather than trusting it.
   { t: 6.72, text: 'Now what?', why: 'the hinge, spoken once, into the silence', stretch: 1.08, pitch: 0.98, gain: 0.72 },
-  { t: 8.70, text: 'So put it where your team already works.', why: 'the turn, in a full sentence' },
+  // Names the platform out loud (user note 2026-07-22): the product runs ONLY in Confluence, so
+  // "where your team already works" must not stay generic.
+  { t: 8.70, text: 'So put it in Confluence, where your team already works.', why: 'the turn, and it names the platform' },
   { t: 12.40, text: 'Drop in the whole folder. No build step, no hosting.', why: 'the two objections, answered' },
   { t: 16.60, text: 'One click to publish.', why: 'names the action the caption only labels' },
   // NOTHING is spoken across the reveal (19.0-21.5). A line here ducked the score's bloom by 6dB —
@@ -74,8 +79,17 @@ export const VO_LINES: VoLine[] = [
   // note is explicit that the viewer must be left to register the reveal before being told about it.
   { t: 22.60, text: 'Your team can click it, filter it, explore it themselves.', why: 'the shareability argument the captions compress' },
   { t: 26.90, text: 'The prototype and the conversation, finally in one place.', why: 'closes the narrative the film opened' },
-  { t: 31.70, text: 'Mini Site for Confluence.', why: 'the lockup, spoken once; the captions carry the CTA' },
+  { t: 31.70, text: 'Mini Sites for Confluence.', why: 'the lockup, spoken once, matching the printed name' },
 ];
+
+/**
+ * The caption cues that survive into the VO cut: exactly one. The narrated version trusts the voice
+ * and the picture everywhere — including the reveal and the end card (user note 2026-07-22: any
+ * second-half text under narration read as leftover subtitles). "Now what?" stays because it is the
+ * film's one deliberate voice=text moment, printed into a silent, dimmed frame.
+ */
+export const VO_CAPTION_KEEP = new Set(['Now what?']);
+export const CUES_VO: Cue[] = CUES.filter((c) => VO_CAPTION_KEEP.has(c.text));
 
 /** Windows where the bed should step back so the voice stays intelligible. */
 export function duckWindows(lines: VoLine[], durations: Map<string, number>): Array<[number, number]> {
@@ -214,7 +228,9 @@ export async function buildVoiceCut(outDir = 'promo/out'): Promise<{ path: strin
   writeFileSync(wav, toWav(master));
 
   const silent = join(dir, 'silent.mp4');
-  const ass = join(dir, 'captions.ass');
+  // The VO cut burns its own reduced caption track — never the full one (see header rule 1).
+  const ass = join(dir, 'captions_vo.ass');
+  writeFileSync(ass, toAss(CUES_VO));
   if (!existsSync(silent)) throw new Error('run pnpm promo:assemble first');
   const out = join(dir, 'final_vo.mp4');
   await exec(

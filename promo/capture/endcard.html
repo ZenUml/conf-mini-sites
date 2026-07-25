@@ -6,10 +6,10 @@
 <!--
   The closing brand card.
 
-  Deliberately carries NO copy. The three closing lines ("Bring AI-built interactive websites into
-  Confluence", "Available on the Atlassian Marketplace", "Install Mini Sites") are burned in as captions,
-  and printing them here as well would double every line on screen. So this is only the lockup, placed in
-  the upper half to leave the caption's centre band clear.
+  Deliberately carries NO copy beyond the lockup. The closing lines are burned in as captions on the
+  captions-only master (the VO cut prints nothing here — the voice speaks the lockup instead), and
+  printing them in the card as well would double them on screen. The lockup sits in the upper half to
+  leave the caption band clear.
 
   It also uses no Atlassian brand asset. We hold no licence to their logo, so the Marketplace is
   referenced in words by the caption track and never by an imitation of their mark.
@@ -18,21 +18,24 @@
   and desaturated. Ending on an out-of-focus echo of the product's own proof, rather than stock texture.
 -->
 <style>
+  /* Parchment brand card (2026-07-22): the whole film moved onto the icon's palette —
+     warm paper ground, ink type, amber accent. The blurred product frame stays underneath,
+     brightened instead of darkened, so the card still ends on the product's own proof. */
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;overflow:hidden;background:#0e0b1a}
+  html,body{height:100%;overflow:hidden;background:#F4ECDD}
   body{font:400 16px/1.4 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}
   .stage{position:relative;height:100vh;width:100vw;display:flex;align-items:center;justify-content:center}
   .bg{position:absolute;inset:-6%;background-size:cover;background-position:center 38%;
-      filter:blur(26px) saturate(.35) brightness(.42);transform:scale(var(--s,1));transition:none}
+      filter:blur(26px) saturate(.4) brightness(1.08);transform:scale(var(--s,1));transition:none}
   .veil{position:absolute;inset:0;
-        background:radial-gradient(ellipse at 50% 34%, rgba(124,58,237,.30), transparent 62%),
-                   linear-gradient(180deg, rgba(14,11,26,.72) 0%, rgba(14,11,26,.90) 62%, #0e0b1a 100%)}
+        background:radial-gradient(ellipse at 50% 34%, rgba(209,138,24,.18), transparent 62%),
+                   linear-gradient(180deg, rgba(244,236,221,.82) 0%, rgba(244,236,221,.92) 62%, #F4ECDD 100%)}
   .lockup{position:relative;display:flex;flex-direction:column;align-items:center;gap:26px;
           transform:translateY(-24%)}
   .mark{width:150px;height:150px;display:block;border-radius:30px;background:#fbf7ee;padding:0;
-        box-shadow:0 18px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10)}
-  .name{color:#fff;font-size:70px;font-weight:700;letter-spacing:-.022em;line-height:1}
-  .for{color:#c4b5fd;font-size:28px;font-weight:500;letter-spacing:.055em;text-transform:uppercase}
+        box-shadow:0 18px 48px rgba(21,35,62,.22), 0 0 0 1px rgba(21,35,62,.08)}
+  .name{color:#15233E;font-size:70px;font-weight:700;letter-spacing:-.022em;line-height:1}
+  .for{color:#B8720F;font-size:28px;font-weight:500;letter-spacing:.055em;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -41,7 +44,7 @@
   <div class="veil"></div>
   <div class="lockup">
     <img class="mark" id="mark" alt="">
-    <div class="name">Mini Site</div>
+    <div class="name">Mini Sites</div>
     <div class="for">for Confluence</div>
   </div>
 </div>

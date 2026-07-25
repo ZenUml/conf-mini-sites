@@ -1,5 +1,9 @@
 /* Feature Prioritisation — New Onboarding Experience
-   Light theme only (embeds in Confluence). One accent: deep indigo/violet. 8px spacing rhythm. */
+   Light theme only (embeds in Confluence). One accent: deep indigo/violet — DELIBERATELY not the
+   product's parchment/ink/amber. This site plays "something the customer built with AI": indigo is
+   the default aesthetic of AI site builders, so it reads instantly as AI-made, and keeping it off
+   the brand palette stops the demo content being mistaken for the product's own UI. The film's
+   designed layer (caption plates, end card, letterbox) is where the brand colours live. */
 
 :root {
   --ink: #18132e;

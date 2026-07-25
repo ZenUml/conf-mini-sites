@@ -6,6 +6,7 @@ import type { GrantPayload } from '../gateway/grant';
 import { CloudflareWfPProvider } from '../hosting/CloudflareWfPProvider';
 import { InMemoryWfpClient } from '../hosting/InMemoryWfpClient';
 import { bundleOf } from '../hosting/providerContract';
+import type { MixpanelServiceEvent } from '../analytics/miniSiteEvents';
 
 const NOW = 1_700_000_000_000;
 const TTL = 300_000;
@@ -119,5 +120,59 @@ describe('handleForgeServe — authorization', () => {
     const grant = await grantFor('inst-1', NOW + TTL);
     const unwired: ForgeGatewayDeps = { ...deps, grantKey: enc.encode('') };
     expect((await handleForgeServe(req(`/v/inst-1/g/${grant}/`), unwired)).status).toBe(401);
+  });
+});
+
+describe('handleForgeServe — render analytics (mini_site_render_succeeded/failed)', () => {
+  function withTrack(): { deps: ForgeGatewayDeps; events: MixpanelServiceEvent[] } {
+    const events: MixpanelServiceEvent[] = [];
+    return { deps: { ...deps, track: (e) => events.push(e) }, events };
+  }
+
+  it('tracks mini_site_render_succeeded once for a valid entrypoint request', async () => {
+    const { deps: tracked, events } = withTrack();
+    const grant = await grantFor('inst-1', NOW + TTL);
+    await handleForgeServe(req(`/v/inst-1/g/${grant}/`), tracked);
+    expect(events.length).toBe(1);
+    expect(events[0]!.event).toBe('mini_site_render_succeeded');
+    expect(events[0]!.properties.instance_id).toBe('inst-1');
+    expect(events[0]!.properties.cloud_id).toBe('cloud-1');
+    expect(events[0]!.properties.account_id).toBe('acct-1');
+    expect(typeof events[0]!.properties.duration_ms).toBe('number');
+  });
+
+  it('does NOT track sub-resource requests (only the entrypoint document)', async () => {
+    const { deps: tracked, events } = withTrack();
+    const grant = await grantFor('inst-1', NOW + TTL);
+    await handleForgeServe(req(`/v/inst-1/g/${grant}/app.js`), tracked);
+    expect(events.length).toBe(0);
+  });
+
+  it('tracks mini_site_render_failed with the grant-verify reason for an expired grant on the entrypoint', async () => {
+    const { deps: tracked, events } = withTrack();
+    const grant = await grantFor('inst-1', NOW - 1);
+    await handleForgeServe(req(`/v/inst-1/g/${grant}/`), tracked);
+    expect(events.length).toBe(1);
+    expect(events[0]!.event).toBe('mini_site_render_failed');
+    expect(events[0]!.properties.reason).toBe('grant_expired');
+  });
+
+  it('tracks mini_site_render_failed (http_404) for a valid grant to an entrypoint the provider 404s', async () => {
+    // Re-provision without index.html so the entrypoint itself 404s from the provider.
+    const emptyProvider = new CloudflareWfPProvider(new InMemoryWfpClient());
+    await emptyProvider.createInstance({ id: 'inst-empty', providerRef: 'ms-inst-empty' }, bundleOf('index.html', { 'other.txt': 'x' }));
+    const events: MixpanelServiceEvent[] = [];
+    const tracked: ForgeGatewayDeps = { ...deps, provider: emptyProvider, track: (e) => events.push(e) };
+    const grant = await mintGrant({ i: 'inst-empty', ck: 'ck', c: 'page-1', a: 'acct-1', cl: 'cloud-1', exp: NOW + TTL }, GRANT_KEY, () => NOW);
+    await handleForgeServe(req(`/v/inst-empty/g/${grant}/`), tracked);
+    expect(events.length).toBe(1);
+    expect(events[0]!.event).toBe('mini_site_render_failed');
+    expect(events[0]!.properties.reason).toBe('http_404');
+    expect(events[0]!.properties.http_status).toBe(404);
+  });
+
+  it('is a no-op (no throw) when track is not supplied', async () => {
+    const grant = await grantFor('inst-1', NOW + TTL);
+    await expect(handleForgeServe(req(`/v/inst-1/g/${grant}/`), deps)).resolves.toBeDefined();
   });
 });

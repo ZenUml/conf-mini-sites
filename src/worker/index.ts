@@ -21,6 +21,9 @@ import { mintGrant } from '../gateway/grant';
 import type { InstanceHandle } from '../hosting/HostingProvider';
 import { D1ProvisionedInstanceStore } from '../db/D1ProvisionedInstanceStore';
 import { runUninstallSweep } from '../lifecycle/uninstallGc';
+import { buildMiniSiteEvent } from '../analytics/miniSiteEvents';
+import type { MiniSiteAnalyticsEvent, MiniSiteEventContext } from '../analytics/miniSiteEvents';
+import { sendMiniSiteEvents } from '../analytics/mixpanelClient';
 
 /** Serve-grant TTL — long enough for an iframe to load all of a bundle's assets at render, short enough to
  *  bound replay. Under Forge there is no permission-cache to couple to; this is purely the replay bound. */
@@ -44,6 +47,10 @@ export interface Env {
   CONTROL_SHARED_SECRET: string;
   /** Optional Forge JWKS URL override (tests/staging). */
   FORGE_JWKS_URL?: string;
+  /** Mixpanel project token (a Cloudflare secret) — publish-funnel analytics (validation/secret-scan/
+   *  provision outcomes). Optional: sendMiniSiteEvents no-ops silently when unset, so an unconfigured
+   *  token never blocks a publish. */
+  MIXPANEL_TOKEN?: string;
   /** D1 database for uninstall-driven GC bookkeeping (ProvisionedInstance). Optional: when unbound (dev not yet
    *  provisioned), all GC bookkeeping is a graceful no-op and the Worker behaves exactly as before. */
   DB?: D1Database;
@@ -135,11 +142,56 @@ export default {
       try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
       const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
 
+      // Publish-funnel analytics (mini_site_bundle_validated / secret_scan_rejected / publish_succeeded /
+      // publish_failed — see src/analytics/miniSiteEvents.ts). Best-effort + off the response path via
+      // ctx.waitUntil, same posture as the recordActive calls below: a Mixpanel outage or unset
+      // MIXPANEL_TOKEN must never affect whether a publish succeeds.
+      const startedAt = Date.now();
+      const fileCount = files.length;
+      const totalBytes = files.reduce((n, f) => n + f.bytes.byteLength, 0);
+      const pubCloudId = url.searchParams.get('cloudId') ?? '';
+      const ctxAccountId = (auth.context.payload as Record<string, any>)?.context?.accountId;
+      const analyticsCtx: MiniSiteEventContext = {
+        cloudId: pubCloudId || undefined,
+        accountId: typeof ctxAccountId === 'string' ? ctxAccountId : undefined,
+        instanceId,
+      };
+      const track = (event: MiniSiteAnalyticsEvent): void => {
+        const mpEvent = buildMiniSiteEvent(event, analyticsCtx, { now: Date.now, insertId: () => crypto.randomUUID() });
+        ctx.waitUntil(sendMiniSiteEvents([mpEvent], { token: env.MIXPANEL_TOKEN }));
+      };
+
       const validated = await validateBundle(files);
-      if (!validated.ok) return cors(json({ ok: false, code: validated.error.code, message: validated.error.message }, validated.error.status));
+      track({
+        name: 'mini_site_bundle_validated',
+        properties: validated.ok
+          ? { outcome: 'pass', file_count: fileCount, total_bytes: totalBytes }
+          : { outcome: 'fail', reason: validated.error.code, file_count: fileCount, total_bytes: totalBytes },
+      });
+      if (!validated.ok) {
+        track({
+          name: 'mini_site_publish_failed',
+          properties: {
+            reason: validated.error.code,
+            http_status: validated.error.status,
+            file_count: fileCount,
+            total_bytes: totalBytes,
+            duration_ms: Date.now() - startedAt,
+          },
+        });
+        return cors(json({ ok: false, code: validated.error.code, message: validated.error.message }, validated.error.status));
+      }
       const scan = scanForSecrets(files);
       if (scan.hits.length > 0) {
         const hit = scan.hits[0]!;
+        track({
+          name: 'mini_site_secret_scan_rejected',
+          properties: { hit_count: scan.hits.length, first_hit_kind: hit.kind, file_count: fileCount, total_bytes: totalBytes },
+        });
+        track({
+          name: 'mini_site_publish_failed',
+          properties: { reason: 'SECRET_DETECTED', http_status: 422, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
+        });
         return cors(json({ ok: false, code: 'SECRET_DETECTED', message: `secret in ${hit.file}:${hit.line} (${hit.kind})` }, 422));
       }
 
@@ -147,12 +199,19 @@ export default {
       try {
         await makeProvider(env).createInstance(handle, validated.bundle);
       } catch (e) {
+        track({
+          name: 'mini_site_publish_failed',
+          properties: { reason: 'PROVISION_FAILED', http_status: 502, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
+        });
         return cors(json({ ok: false, code: 'PROVISION_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
       }
+      track({
+        name: 'mini_site_publish_succeeded',
+        properties: { file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
+      });
       // Track the provisioned instance for uninstall-driven GC, clearing any prior tombstone (a publish proves
       // the site is live). Best-effort + off the response path: provisioning already succeeded; failing to
       // record only means this instance won't be auto-collected, never that publish fails.
-      const pubCloudId = url.searchParams.get('cloudId') ?? '';
       const pubStore = makeInstanceStore(env);
       if (pubStore && pubCloudId) ctx.waitUntil(pubStore.recordActive(instanceId, pubCloudId).catch(() => {}));
       return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));

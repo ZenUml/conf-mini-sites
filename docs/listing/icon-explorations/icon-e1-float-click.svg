@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — float click">
+  <!-- E1 "Float Click" — C4's floating window with D2's click landing inside it: the ripple sits
+       in the window body, the cursor's tail breaks out of the window onto the tile, so the click
+       reads as reaching INTO a live site. Cursor drawn outside the window clip on purpose. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <clipPath id="w"><rect x="88" y="120" width="336" height="272" rx="32"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <g clip-path="url(#w)">
+      <rect x="88" y="120" width="336" height="272" fill="#FFFFFF"/>
+      <rect x="88" y="120" width="336" height="88" fill="#15233E"/>
+      <circle cx="144" cy="164" r="14" fill="#FFB020"/>
+      <circle cx="186" cy="164" r="14" fill="#FFFFFF"/>
+      <circle cx="228" cy="164" r="14" fill="#FFFFFF"/>
+      <circle cx="232" cy="276" r="50" fill="none" stroke="#FFB020" stroke-width="22"/>
+    </g>
+    <path fill="#15233E" d="M 232 276 l 61 148 l 22 -64 l 64 -22 Z"/>
+  </g>
+</svg>

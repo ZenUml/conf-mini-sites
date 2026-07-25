@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — float click, no tile">
+  <!-- E2 — E1 with the amber tile removed: the mark is just the window being clicked, on a
+       transparent ground, scaled up to fill the canvas. Same geometry as E1 x1.38. -->
+  <defs>
+    <clipPath id="w"><rect x="24" y="46" width="464" height="376" rx="44"/></clipPath>
+  </defs>
+  <g clip-path="url(#w)">
+    <rect x="24" y="46" width="464" height="376" fill="#FFFFFF"/>
+    <rect x="24" y="46" width="464" height="122" fill="#15233E"/>
+    <circle cx="101" cy="107" r="19" fill="#FFB020"/>
+    <circle cx="159" cy="107" r="19" fill="#FFFFFF"/>
+    <circle cx="217" cy="107" r="19" fill="#FFFFFF"/>
+    <circle cx="223" cy="261" r="69" fill="none" stroke="#FFB020" stroke-width="30"/>
+  </g>
+  <!-- Keyline so the white body holds its edge on white grounds; navy, so it fuses with the bar. -->
+  <rect x="24" y="46" width="464" height="376" rx="44" fill="none" stroke="#15233E" stroke-width="18"/>
+  <path fill="#15233E" d="M 223 261 l 84 204 l 30 -88 l 88 -30 Z"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — click ripple, parchment bright">
+  <!-- D2c3b — brighter plain arcs (#D18A18). Honest trade-off: contrast vs parchment drops
+       from 3.3:1 (#B8720F) to 2.4:1 — livelier at display sizes, softer at 32/16px. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#F4ECDD"/>
+    <path fill="none" stroke="#D18A18" stroke-width="28" stroke-linecap="round" d="M 241 143 A 80 80 0 0 0 140 227"/>
+    <path fill="none" stroke="#D18A18" stroke-width="30" stroke-linecap="round" d="M 268 88 A 140 140 0 0 0 93 279"/>
+    <path fill="#15233E" d="M 220 220 l 89 214 l 32 -94 l 94 -32 Z"/>
+  </g>
+</svg>

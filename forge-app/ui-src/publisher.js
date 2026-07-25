@@ -7,6 +7,15 @@ import { invoke, view, router } from '@forge/bridge';
 const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (id) => document.getElementById(id);
 
+// Fire-and-forget: never await/block the UI on analytics (mirrors conf-app's trackAnalyticsEvent, which
+// likewise doesn't await from its call sites). The resolver's trackEvent forwards to Mixpanel — see
+// forge-app/src/analytics.js + src/analytics/miniSiteEvents.ts for the full catalog/privacy rules. The
+// server-side outcome of an actual publish (validation/secret-scan/provision) is tracked by the control
+// Worker from its real response, not duplicated here from doPublish()'s client-side view of `res`.
+function track(name, properties) {
+  invoke('trackEvent', { name, properties }).catch(() => {});
+}
+
 /* ---------- helpers (ported from the design) ---------- */
 const GLYPH = {
   html: { c: '#0C66E4', t: '<>' }, htm: { c: '#0C66E4', t: '<>' },
@@ -87,11 +96,22 @@ function onFilesPicked(fileList) {
   const arr = [...fileList].filter((f) => f.size >= 0);
   FILES = arr.map((f) => ({ file: f, path: relPath(f), size: f.size }));
   const err = $('picker-error');
-  if (FILES.length < 2) { err.hidden = false; err.textContent = 'Pick a folder with at least two files (index.html + assets).'; return; }
-  if (!FILES.some((f) => f.path === 'index.html')) { err.hidden = false; err.textContent = 'No index.html at the folder root — that file is the entry point.'; return; }
+  const fileCount = FILES.length;
+  const totalBytes = FILES.reduce((n, f) => n + f.size, 0);
+  if (FILES.length < 2) {
+    err.hidden = false; err.textContent = 'Pick a folder with at least two files (index.html + assets).';
+    track('mini_site_folder_selected', { outcome: 'rejected', reject_reason: 'too_few_files', file_count: fileCount, total_bytes: totalBytes });
+    return;
+  }
+  if (!FILES.some((f) => f.path === 'index.html')) {
+    err.hidden = false; err.textContent = 'No index.html at the folder root — that file is the entry point.';
+    track('mini_site_folder_selected', { outcome: 'rejected', reject_reason: 'missing_index_html', file_count: fileCount, total_bytes: totalBytes });
+    return;
+  }
   err.hidden = true;
   $('sel-count').textContent = String(FILES.length);
-  $('sel-size').textContent = fmtSize(FILES.reduce((n, f) => n + f.size, 0));
+  $('sel-size').textContent = fmtSize(totalBytes);
+  track('mini_site_folder_selected', { outcome: 'accepted', file_count: fileCount, total_bytes: totalBytes });
   showUploadSub('selected');
 }
 
@@ -267,6 +287,7 @@ wireCopy('btn-copy-link', 'copy-link-label', () => lastPageUrl || lastUrl, 'Shar
 (async function boot() {
   try { const ctx = await view.getContext(); lastPageUrl = (ctx && ctx.extension && ctx.extension.content && ctx.extension.content.url) || ''; } catch {}
   const published = await loadPreview();
+  track('mini_site_publisher_opened', { has_published_site: published });
   if (published) { show(false); showUploadSub('picker'); }
   else { show(true); showUploadSub('picker'); }
 })();

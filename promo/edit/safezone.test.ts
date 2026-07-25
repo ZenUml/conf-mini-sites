@@ -78,17 +78,30 @@ describe('voiceover', () => {
   // Matched on the FULL synthesis key, not just the text. Three treatments of "Now what?" are cached
   // (1.08/0.98, 1.16/0.95, 1.24/0.92); a text-only lookup returned whichever landed first and reported
   // the heaviest read's 1.82s for a line that is actually 1.58s, failing on a film that was correct.
+  // The cache lives under promo/out/, which is gitignored — so on a fresh checkout (CI) this used to
+  // fall through to the words-per-second guess, and that guess is ~25% slow: it read the 10-word
+  // "So put it in Confluence, …" as 4.55s when the rendered line is 3.62s, and failed a film that was
+  // correct. The measurements are therefore checked in as promo/edit/vo-durations.json, so CI and a
+  // local run judge the same numbers. Regenerate it after editing any VO line (see the file's _why).
   const lineSeconds = (line: { text: string; voice?: string; stretch?: number; pitch?: number }): number => {
-    const dir = 'promo/out/.vo-cache';
     const want = { voice: line.voice ?? 'af_heart', stretch: line.stretch ?? 1, pitch: line.pitch ?? 1 };
+    const match = (m: { text: string; voice?: string; stretch?: number; pitch?: number }) =>
+      m.text === line.text && m.voice === want.voice && m.stretch === want.stretch && m.pitch === want.pitch;
+
+    const table = 'promo/edit/vo-durations.json';
+    if (existsSync(table)) {
+      const hit = JSON.parse(readFileSync(table, 'utf8')).lines.find(match);
+      if (hit) return hit.seconds;
+    }
+    const dir = 'promo/out/.vo-cache';
     if (existsSync(dir)) {
       for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
         const m = JSON.parse(readFileSync(`${dir}/${f}`, 'utf8'));
-        if (m.text === line.text && m.voice === want.voice && m.stretch === want.stretch && m.pitch === want.pitch) {
-          return m.seconds;
-        }
+        if (match(m)) return m.seconds;
       }
     }
+    // Last resort — a line nobody has rendered yet. Deliberately pessimistic: an unmeasured line
+    // should fail the no-overlap check rather than sail through on an optimistic guess.
     return (line.text.trim().split(/\s+/).length / 2.2) * (line.stretch ?? 1);
   };
 

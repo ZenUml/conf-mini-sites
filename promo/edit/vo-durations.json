@@ -1,0 +1,68 @@
+{
+  "_why": "Measured durations of the rendered VO lines. Checked in so the no-overlap invariant is tested against what the film actually plays, not a words-per-second guess (the guess was 25% slow: 4.55s estimated vs 3.62s real). Regenerate after changing any VO_LINES text: pnpm promo:audio, then rebuild this from promo/out/.vo-cache/*.json.",
+  "lines": [
+    {
+      "text": "Drop in the whole folder. No build step, no hosting.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 3.675
+    },
+    {
+      "text": "It works. On your machine.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 2
+    },
+    {
+      "text": "Mini Sites for Confluence.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 2.2
+    },
+    {
+      "text": "Now what?",
+      "voice": "af_heart",
+      "stretch": 1.08,
+      "pitch": 0.98,
+      "seconds": 1.578
+    },
+    {
+      "text": "One click to publish.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 1.9
+    },
+    {
+      "text": "So put it in Confluence, where your team already works.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 3.625
+    },
+    {
+      "text": "The prototype and the conversation, finally in one place.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 3.95
+    },
+    {
+      "text": "You built something real with AI.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 2.4
+    },
+    {
+      "text": "Your team can click it, filter it, explore it themselves.",
+      "voice": "af_heart",
+      "stretch": 1,
+      "pitch": 1,
+      "seconds": 3.825
+    }
+  ]
+}

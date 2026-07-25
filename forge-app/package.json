@@ -29,5 +29,11 @@
     "storybook": "^8.6.18",
     "tailwindcss": "^3.4.19",
     "vite": "^5.4.21"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion": "^5.0.7",
+      "linkify-it": "^5.0.2"
+    }
   }
 }

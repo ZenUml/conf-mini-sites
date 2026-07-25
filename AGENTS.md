@@ -1,6 +1,6 @@
-# CLAUDE.md — Conf Mini-Sites
+# AGENTS.md — Conf Mini-Sites
 
-Guidance for Claude Code working in this project. The workspace-level `../../CLAUDE.md` and the user's global
+Guidance for Codex working in this project. The workspace-level `../../AGENTS.md` and the user's global
 instructions also apply. The settled architecture, live-verification state, and release process live in
 **`CONTEXT.md`**; design invariants + threat models in **`DESIGN.md`** / **`BACKEND_DESIGN.md`**. Read those for
 depth — this file is the operational orientation.
@@ -10,8 +10,7 @@ depth — this file is the operational orientation.
 A **Forge Confluence Cloud app** that embeds a **live, multi-file mini-site** (a clickable prototype, dashboard,
 or small tool) inline on a Confluence page. The Forge app is a thin shell; the bundle bytes are hosted on
 **Cloudflare Workers for Platforms (WfP)**, not in Forge. Marketplace listing: *Mini Sites for Confluence*
-(app key `com.zenuml.confluence.minisite`, vendor P&D VISION) — **public** as of 2026-07-22
-(`/rest/2/addons/com.zenuml.confluence.minisite` reports `status: public`; listing page 4169123443 returns 200).
+(app key `com.zenuml.confluence.minisite`, vendor P&D VISION) — currently a **private draft**.
 
 ## Architecture (one screen)
 
@@ -104,7 +103,7 @@ A release deploys **the Forge app AND both Cloudflare Workers to production toge
 the pipeline is separate from making the Marketplace listing public (a paid app must enforce licensing —
 EAG-92 — before Submit-for-review).
 
-## Project skills (`.claude/skills/`)
+## Project skills (`.Codex/skills/`)
 
 `release-app` (prod release), `check-version` (what's live per env), `spot-check` (targeted post-deploy
 coverage), `submit-branch` / `ready-pr` / `babysit-pr` / `land-pr` / `ship-branch` / `validate-branch` (PR

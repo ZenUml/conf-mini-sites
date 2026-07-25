@@ -1,15 +1,15 @@
-# Privacy Policy — Mini Site for Confluence
+# Privacy Policy — Mini Sites for Confluence
 
 **Vendor:** P&D VISION
-**App:** Mini Site for Confluence (app key `com.zenuml.confluence.minisite`)
+**App:** Mini Sites for Confluence (app key `com.zenuml.confluence.minisite`)
 **Contact:** support@zenuml.com
 
-This policy explains what data Mini Site for Confluence processes, where it is stored, and how it can
+This policy explains what data Mini Sites for Confluence processes, where it is stored, and how it can
 be deleted. It applies to all versions of the app listed on the Atlassian Marketplace.
 
 ## What the app does
 
-Mini Site for Confluence lets an editor upload a multi-file static bundle (HTML/CSS/JS and assets) and
+Mini Sites for Confluence lets an editor upload a multi-file static bundle (HTML/CSS/JS and assets) and
 embeds it, live, inline on a Confluence page. Unlike a "Runs on Atlassian" app, the bundle is not stored
 inside Atlassian's infrastructure — it is provisioned to an external processor (Cloudflare) and served
 from there back into the page.

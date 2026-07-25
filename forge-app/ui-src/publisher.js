@@ -224,7 +224,7 @@ function onPublishFail(res) {
   // EAG-92 — the license gate fires BEFORE validation, so no checklist row is "stopped"; show an upgrade prompt.
   else if (code === 'LICENSE_INACTIVE') {
     $('narrator').textContent = 'Stopped — subscription inactive';
-    msg = 'Your Mini Site for Confluence subscription is inactive or has expired. Renew it from the Atlassian Marketplace to publish new mini-sites — mini-sites you already published keep rendering.';
+    msg = 'Your Mini Sites for Confluence subscription is inactive or has expired. Renew it from the Atlassian Marketplace to publish new mini-sites — mini-sites you already published keep rendering.';
   }
   else { $('narrator').textContent = 'Stopped — ' + code; }
   $('secret-msg').textContent = msg;

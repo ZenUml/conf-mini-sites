@@ -1,11 +1,11 @@
-# Getting started with Mini Site for Confluence
+# Getting started with Mini Sites for Confluence
 
 Embed a live, multi-file mini-site — a clickable prototype, an interactive dashboard, or a small tool —
 directly on a Confluence page. This is the user-facing doc to host (e.g. on the ZenUML site or a GitHub
 wiki) and link as the **Documentation** URL in the Marketplace listing.
 
 ## 1. Install
-Install **Mini Site for Confluence** from the Atlassian Marketplace onto your Confluence Cloud site
+Install **Mini Sites for Confluence** from the Atlassian Marketplace onto your Confluence Cloud site
 (site admin required). A 30-day free trial is included.
 
 ## 2. Add the macro

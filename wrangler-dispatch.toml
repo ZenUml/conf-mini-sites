@@ -19,9 +19,13 @@ namespace = "mini-sites-dev"
 # browser during the install+render verification).
 EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*.atl-paas.net"
 
-# Secret (set out-of-band, never committed):
+# Secrets (set out-of-band, never committed):
 #   K_GRANT — the HMAC key shared with the Forge resolver. Set with:
 #     npx wrangler secret put K_GRANT --config wrangler-dispatch.toml
+#   MIXPANEL_TOKEN — Mixpanel project token for mini_site_render_succeeded/failed (the entrypoint-document
+#     serve outcome — src/analytics/miniSiteEvents.ts). Optional: unset ⇒ sendMiniSiteEvents no-ops
+#     silently, serving is unaffected either way.
+#     npx wrangler secret put MIXPANEL_TOKEN --config wrangler-dispatch.toml
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Named environments. The top-level config above stays the DEV worker (deployed
@@ -33,6 +37,9 @@ EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*
 # Secrets are NOT inherited from the top-level config — set them PER ENV:
 #   npx wrangler secret put K_GRANT --config wrangler-dispatch.toml --env staging
 #   npx wrangler secret put K_GRANT --config wrangler-dispatch.toml --env production
+#   MIXPANEL_TOKEN is OPTIONAL per env (analytics no-ops silently when unset):
+#     npx wrangler secret put MIXPANEL_TOKEN --config wrangler-dispatch.toml --env staging
+#     npx wrangler secret put MIXPANEL_TOKEN --config wrangler-dispatch.toml --env production
 #
 # INVARIANT (the single most likely operational failure): K_GRANT MUST be
 # BYTE-IDENTICAL between this dispatch Worker and the remote Worker FOR THE SAME

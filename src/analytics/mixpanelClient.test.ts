@@ -3,7 +3,7 @@ import { sendMiniSiteEvents } from './mixpanelClient';
 import type { MixpanelServiceEvent } from './miniSiteEvents';
 
 const event: MixpanelServiceEvent = {
-  event: 'mini_site_publish_succeeded',
+  event: 'publish_succeeded',
   properties: { file_count: 3, total_bytes: 100, cloud_id: 'cloud-1' },
   distinctId: 'cloud-1',
   insertId: 'insert-1',
@@ -45,7 +45,7 @@ describe('sendMiniSiteEvents', () => {
     const body = JSON.parse(calls[0]!.init.body as string);
     expect(body).toEqual([
       {
-        event: 'mini_site_publish_succeeded',
+        event: 'publish_succeeded',
         properties: {
           file_count: 3,
           total_bytes: 100,
@@ -61,7 +61,7 @@ describe('sendMiniSiteEvents', () => {
 
   it('batches multiple events into a single request', async () => {
     const { impl, calls } = fakeFetch({ ok: true });
-    const second: MixpanelServiceEvent = { ...event, event: 'mini_site_render_succeeded', insertId: 'insert-2' };
+    const second: MixpanelServiceEvent = { ...event, event: 'render_succeeded', insertId: 'insert-2' };
     await sendMiniSiteEvents([event, second], { token: 'proj-token', fetchImpl: impl });
     expect(calls.length).toBe(1);
     const body = JSON.parse(calls[0]!.init.body as string);

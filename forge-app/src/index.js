@@ -112,7 +112,7 @@ resolver.define('publish', async (req) => {
   // Gate the WRITE path: refuse new publishes on an inactive license and signal the UI to show an upgrade
   // CTA (402 Payment Required). Existing embeds keep serving via getServeUrl — only new publishing is blocked.
   if (licenseInactive(req.context)) {
-    await sendMixpanelEvent('mini_site_license_blocked_publish', {}, analyticsContext(req.context, instanceId, cloudId));
+    await sendMixpanelEvent('license_blocked_publish', {}, analyticsContext(req.context, instanceId, cloudId));
     return { ok: false, code: 'LICENSE_INACTIVE', httpStatus: 402, instanceId };
   }
   const files = Array.isArray(req.payload?.files) ? req.payload.files : [];

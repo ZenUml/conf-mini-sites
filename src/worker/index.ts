@@ -142,7 +142,7 @@ export default {
       try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
       const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
 
-      // Publish-funnel analytics (mini_site_bundle_validated / secret_scan_rejected / publish_succeeded /
+      // Publish-funnel analytics (bundle_validated / secret_scan_rejected / publish_succeeded /
       // publish_failed — see src/analytics/miniSiteEvents.ts). Best-effort + off the response path via
       // ctx.waitUntil, same posture as the recordActive calls below: a Mixpanel outage or unset
       // MIXPANEL_TOKEN must never affect whether a publish succeeds.
@@ -163,14 +163,14 @@ export default {
 
       const validated = await validateBundle(files);
       track({
-        name: 'mini_site_bundle_validated',
+        name: 'bundle_validated',
         properties: validated.ok
           ? { outcome: 'pass', file_count: fileCount, total_bytes: totalBytes }
           : { outcome: 'fail', reason: validated.error.code, file_count: fileCount, total_bytes: totalBytes },
       });
       if (!validated.ok) {
         track({
-          name: 'mini_site_publish_failed',
+          name: 'publish_failed',
           properties: {
             reason: validated.error.code,
             http_status: validated.error.status,
@@ -185,11 +185,11 @@ export default {
       if (scan.hits.length > 0) {
         const hit = scan.hits[0]!;
         track({
-          name: 'mini_site_secret_scan_rejected',
+          name: 'secret_scan_rejected',
           properties: { hit_count: scan.hits.length, first_hit_kind: hit.kind, file_count: fileCount, total_bytes: totalBytes },
         });
         track({
-          name: 'mini_site_publish_failed',
+          name: 'publish_failed',
           properties: { reason: 'SECRET_DETECTED', http_status: 422, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
         });
         return cors(json({ ok: false, code: 'SECRET_DETECTED', message: `secret in ${hit.file}:${hit.line} (${hit.kind})` }, 422));
@@ -200,13 +200,13 @@ export default {
         await makeProvider(env).createInstance(handle, validated.bundle);
       } catch (e) {
         track({
-          name: 'mini_site_publish_failed',
+          name: 'publish_failed',
           properties: { reason: 'PROVISION_FAILED', http_status: 502, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
         });
         return cors(json({ ok: false, code: 'PROVISION_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
       }
       track({
-        name: 'mini_site_publish_succeeded',
+        name: 'publish_succeeded',
         properties: { file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
       });
       // Track the provisioned instance for uninstall-driven GC, clearing any prior tombstone (a publish proves

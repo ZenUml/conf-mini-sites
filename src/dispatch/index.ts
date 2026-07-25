@@ -26,7 +26,7 @@ export interface Env {
   K_GRANT: string;
   /** CSP frame-ancestors (the Confluence/Forge embed origin), e.g. "https://*.atlassian.net". */
   EMBED_ANCESTORS?: string;
-  /** Mixpanel project token (a Cloudflare secret) — mini_site_render_succeeded/failed for the entrypoint-
+  /** Mixpanel project token (a Cloudflare secret) — render_succeeded/failed for the entrypoint-
    *  document serve outcome. Optional: sendMiniSiteEvents no-ops silently when unset. */
   MIXPANEL_TOKEN?: string;
   [binding: string]: unknown;

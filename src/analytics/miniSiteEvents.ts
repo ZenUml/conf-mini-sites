@@ -10,20 +10,17 @@
 //   - a wide outcome (…_succeeded/…_failed) is paired with narrower stage-level breadcrumb events for
 //     the same funnel (conf-app: macro_publish_completed is wider than macro_save_succeeded;
 //     attachment_upload_async_succeeded/failed sit alongside the queued event). We mirror that shape:
-//     mini_site_publish_succeeded/failed is the terminal outcome; mini_site_bundle_validated and
-//     mini_site_secret_scan_rejected are the stage breadcrumbs inside it.
+//     publish_succeeded/failed is the terminal outcome; bundle_validated and
+//     secret_scan_rejected are the stage breadcrumbs inside it.
 //   - backend/service events with no live user session (conf-app's mixpanelImportServiceEvents) skip
 //     mixpanel.identify() and post straight to the Import API with an explicit distinct_id + insert_id
 //     + time (seconds) — see mixpanelClient.ts, which mirrors that function almost verbatim.
 //
-// Deliberate deviation: every event name here is prefixed `mini_site_`. conf-app does NOT prefix its
-// events even though it ships lite/full/diagramly variants — but those are variants of ONE app family
-// sharing one Mixpanel project, distinguished by a `product_type` property. Conf Mini-Sites is a
-// genuinely separate Forge app/listing (different app id, different macro key `mini-site`, different
-// Marketplace listing "Mini Site for Confluence"). Whether it ends up in conf-app's Mixpanel project
-// (co-resident with Diagramly) or a new one of its own is not settled in this codebase, so prefixing
-// avoids an `macro_viewed` collision with conf-app's own macro_viewed (which carries incompatible
-// properties like macro_type=sequence/mermaid) either way.
+// Event names are UNPREFIXED, exactly as conf-app names its own (`macro_viewed`, not
+// `zenuml_macro_viewed`). Conf Mini-Sites is a separate Forge app, so `macro_viewed` here and
+// conf-app's `macro_viewed` can co-exist in one project only because every event carries
+// `product_type: 'mini-sites'` — the same discriminator conf-app uses for lite/full/diagramly.
+// Read the two apps' `macro_viewed` as different events: ours has no `macro_type`.
 //
 // PRIVACY (task constraint): never send Confluence page content, file contents, file names, or any
 // other user-authored text — only counts, byte sizes, durations, bounded outcome/reason enums, and the
@@ -37,16 +34,16 @@
 // unit-testable without mocking Date/crypto globals.
 
 export const MINI_SITE_EVENT_NAMES = [
-  'mini_site_macro_viewed',
-  'mini_site_publisher_opened',
-  'mini_site_folder_selected',
-  'mini_site_bundle_validated',
-  'mini_site_secret_scan_rejected',
-  'mini_site_publish_succeeded',
-  'mini_site_publish_failed',
-  'mini_site_license_blocked_publish',
-  'mini_site_render_succeeded',
-  'mini_site_render_failed',
+  'macro_viewed',
+  'publisher_opened',
+  'folder_selected',
+  'bundle_validated',
+  'secret_scan_rejected',
+  'publish_succeeded',
+  'publish_failed',
+  'license_blocked_publish',
+  'render_succeeded',
+  'render_failed',
 ] as const;
 
 export type MiniSiteEventName = (typeof MINI_SITE_EVENT_NAMES)[number];
@@ -69,15 +66,15 @@ export interface MiniSiteEventContext {
 // keeps the "never file names/contents" rule enforced at the type level (there is no `path` field).
 export type MiniSiteAnalyticsEvent =
   | {
-      readonly name: 'mini_site_macro_viewed';
+      readonly name: 'macro_viewed';
       readonly properties: { readonly has_published_site: boolean; readonly license_active?: boolean };
     }
   | {
-      readonly name: 'mini_site_publisher_opened';
+      readonly name: 'publisher_opened';
       readonly properties: { readonly has_published_site: boolean };
     }
   | {
-      readonly name: 'mini_site_folder_selected';
+      readonly name: 'folder_selected';
       readonly properties: {
         readonly outcome: 'accepted' | 'rejected';
         readonly reject_reason?: 'too_few_files' | 'missing_index_html';
@@ -86,7 +83,7 @@ export type MiniSiteAnalyticsEvent =
       };
     }
   | {
-      readonly name: 'mini_site_bundle_validated';
+      readonly name: 'bundle_validated';
       readonly properties: {
         readonly outcome: 'pass' | 'fail';
         /** A BundleErrorCode (src/pipeline/bundleValidation.ts) when outcome === 'fail'. Kept as a plain
@@ -98,7 +95,7 @@ export type MiniSiteAnalyticsEvent =
       };
     }
   | {
-      readonly name: 'mini_site_secret_scan_rejected';
+      readonly name: 'secret_scan_rejected';
       readonly properties: {
         readonly hit_count: number;
         /** SecretHit.kind (src/pipeline/secretScan.ts) — a bounded pattern-name enum, never the match text. */
@@ -108,11 +105,11 @@ export type MiniSiteAnalyticsEvent =
       };
     }
   | {
-      readonly name: 'mini_site_publish_succeeded';
+      readonly name: 'publish_succeeded';
       readonly properties: { readonly file_count: number; readonly total_bytes: number; readonly duration_ms: number };
     }
   | {
-      readonly name: 'mini_site_publish_failed';
+      readonly name: 'publish_failed';
       readonly properties: {
         readonly reason: string;
         readonly http_status: number;
@@ -122,15 +119,15 @@ export type MiniSiteAnalyticsEvent =
       };
     }
   | {
-      readonly name: 'mini_site_license_blocked_publish';
+      readonly name: 'license_blocked_publish';
       readonly properties: Record<string, never>;
     }
   | {
-      readonly name: 'mini_site_render_succeeded';
+      readonly name: 'render_succeeded';
       readonly properties: { readonly duration_ms: number };
     }
   | {
-      readonly name: 'mini_site_render_failed';
+      readonly name: 'render_failed';
       readonly properties: { readonly reason: string; readonly duration_ms: number; readonly http_status?: number };
     };
 
@@ -156,6 +153,7 @@ export interface BuildMiniSiteEventOptions {
   readonly insertId: () => string;
 }
 
+const PRODUCT_TYPE = 'mini-sites';
 const UNKNOWN_CLOUD_ID = 'unknown_cloud_id';
 const UNKNOWN_ACCOUNT_ID = 'unknown_account_id';
 const UNKNOWN_INSTANCE_ID = 'unknown_instance_id';
@@ -175,6 +173,10 @@ export function buildMiniSiteEvent(
     account_id: context.accountId ?? UNKNOWN_ACCOUNT_ID,
     instance_id: context.instanceId ?? UNKNOWN_INSTANCE_ID,
     environment_type: context.environmentType ?? UNKNOWN_ENVIRONMENT_TYPE,
+    // Disambiguates this app from conf-app's lite/full/diagramly in a shared project — the same
+    // mechanism conf-app uses (src/utils/analytics/types.ts: product_type), which is why the event
+    // names here carry no prefix of their own.
+    product_type: PRODUCT_TYPE,
   };
   return {
     event: event.name,

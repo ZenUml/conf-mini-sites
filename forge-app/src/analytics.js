@@ -24,9 +24,9 @@ const IMPORT_ENDPOINT = 'https://api.mixpanel.com/import';
  *  (validation/secret-scan/publish/render outcomes, license-blocked-publish) is tracked server-side
  *  where the real outcome is known, never trusted from the client. */
 export const CLIENT_TRACKABLE_EVENT_NAMES = new Set([
-  'mini_site_macro_viewed',
-  'mini_site_publisher_opened',
-  'mini_site_folder_selected',
+  'macro_viewed',
+  'publisher_opened',
+  'folder_selected',
 ]);
 
 const UNKNOWN_CLOUD_ID = 'unknown_cloud_id';

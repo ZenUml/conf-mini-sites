@@ -29,7 +29,7 @@ export interface ForgeGatewayDeps {
   readonly now: () => number;
   /** CSP frame-ancestors value (the Confluence/Forge embed origin). */
   readonly embedAncestors?: string;
-  /** Sink for mini_site_render_succeeded/failed (entrypoint-document serve outcome only — see
+  /** Sink for render_succeeded/failed (entrypoint-document serve outcome only — see
    *  handleForgeServe). Optional and fire-and-forget by design: production wires this to
    *  `ctx.waitUntil(sendMiniSiteEvents(...))` (src/dispatch/index.ts); omitted in tests that don't care
    *  about analytics, and handleForgeServe never awaits it — a slow/failing sink must not add latency or
@@ -64,14 +64,14 @@ export async function handleForgeServe(request: Request, deps: ForgeGatewayDeps)
 
   const startedAt = deps.now();
   // The dispatch Worker sees one request per bundle asset (html, css, js, images…) per page load —
-  // tracking every one would flood mini_site_render_* with sub-resource noise and wouldn't match
+  // tracking every one would flood render_* with sub-resource noise and wouldn't match
   // conf-app's "one event per macro render" granularity (macro_viewed). The entrypoint document request
   // (empty path ⇒ 'index.html', parseServeRoute's default) is the one-per-render signal: a browser that
   // fails to load it never issues the sub-resource requests at all, so it alone carries the render
   // outcome. Sub-resource requests are never tracked.
   const isEntrypoint = route.filePath === 'index.html';
   const trackRender = (
-    name: 'mini_site_render_succeeded' | 'mini_site_render_failed',
+    name: 'render_succeeded' | 'render_failed',
     properties: { duration_ms: number; reason?: string; http_status?: number },
     cloudId?: string,
     accountId?: string,
@@ -98,7 +98,7 @@ export async function handleForgeServe(request: Request, deps: ForgeGatewayDeps)
   }
   if (!g || !g.ok) {
     const reason = g ? `grant_${g.reason.replace(/-/g, '_')}` : 'grant_error';
-    trackRender('mini_site_render_failed', { reason, duration_ms: deps.now() - startedAt });
+    trackRender('render_failed', { reason, duration_ms: deps.now() - startedAt });
     return deny(401);
   }
 
@@ -117,12 +117,12 @@ export async function handleForgeServe(request: Request, deps: ForgeGatewayDeps)
   try {
     served = await deps.provider.serve(handle, route.filePath, auth);
   } catch {
-    trackRender('mini_site_render_failed', { reason: 'instance_not_found', duration_ms: deps.now() - startedAt }, g.payload.cl, g.payload.a);
+    trackRender('render_failed', { reason: 'instance_not_found', duration_ms: deps.now() - startedAt }, g.payload.cl, g.payload.a);
     return withSecurityHeaders(deny(404), deps);
   }
   if (served.status !== 200) {
     trackRender(
-      'mini_site_render_failed',
+      'render_failed',
       { reason: `http_${served.status}`, http_status: served.status, duration_ms: deps.now() - startedAt },
       g.payload.cl,
       g.payload.a,
@@ -130,7 +130,7 @@ export async function handleForgeServe(request: Request, deps: ForgeGatewayDeps)
     return withSecurityHeaders(served, deps); // pass through 404 etc. (still hardened)
   }
 
-  trackRender('mini_site_render_succeeded', { duration_ms: deps.now() - startedAt }, g.payload.cl, g.payload.a);
+  trackRender('render_succeeded', { duration_ms: deps.now() - startedAt }, g.payload.cl, g.payload.a);
 
   // Inject <base> into HTML so relative sub-resources resolve under the same signed /g/<grant>/ path.
   const ct = served.headers.get('content-type') ?? '';

@@ -16,10 +16,10 @@ async function refresh() {
   const res = await invoke('getServeUrl').catch(() => null);
   $('loading').hidden = true;
   const hasPublishedSite = !!(res && res.ok && res.url);
-  // mini_site_macro_viewed — one per macro render (this refresh() runs on initial mount and again after
+  // macro_viewed — one per macro render (this refresh() runs on initial mount and again after
   // the Publisher modal closes), the closest analog of conf-app's macro_viewed.
   track(
-    'mini_site_macro_viewed',
+    'macro_viewed',
     hasPublishedSite ? { has_published_site: true, license_active: !!res.licenseActive } : { has_published_site: false },
   );
   if (hasPublishedSite) {

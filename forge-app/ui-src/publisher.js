@@ -100,18 +100,18 @@ function onFilesPicked(fileList) {
   const totalBytes = FILES.reduce((n, f) => n + f.size, 0);
   if (FILES.length < 2) {
     err.hidden = false; err.textContent = 'Pick a folder with at least two files (index.html + assets).';
-    track('mini_site_folder_selected', { outcome: 'rejected', reject_reason: 'too_few_files', file_count: fileCount, total_bytes: totalBytes });
+    track('folder_selected', { outcome: 'rejected', reject_reason: 'too_few_files', file_count: fileCount, total_bytes: totalBytes });
     return;
   }
   if (!FILES.some((f) => f.path === 'index.html')) {
     err.hidden = false; err.textContent = 'No index.html at the folder root — that file is the entry point.';
-    track('mini_site_folder_selected', { outcome: 'rejected', reject_reason: 'missing_index_html', file_count: fileCount, total_bytes: totalBytes });
+    track('folder_selected', { outcome: 'rejected', reject_reason: 'missing_index_html', file_count: fileCount, total_bytes: totalBytes });
     return;
   }
   err.hidden = true;
   $('sel-count').textContent = String(FILES.length);
   $('sel-size').textContent = fmtSize(totalBytes);
-  track('mini_site_folder_selected', { outcome: 'accepted', file_count: fileCount, total_bytes: totalBytes });
+  track('folder_selected', { outcome: 'accepted', file_count: fileCount, total_bytes: totalBytes });
   showUploadSub('selected');
 }
 
@@ -287,7 +287,7 @@ wireCopy('btn-copy-link', 'copy-link-label', () => lastPageUrl || lastUrl, 'Shar
 (async function boot() {
   try { const ctx = await view.getContext(); lastPageUrl = (ctx && ctx.extension && ctx.extension.content && ctx.extension.content.url) || ''; } catch {}
   const published = await loadPreview();
-  track('mini_site_publisher_opened', { has_published_site: published });
+  track('publisher_opened', { has_published_site: published });
   if (published) { show(false); showUploadSub('picker'); }
   else { show(true); showUploadSub('picker'); }
 })();

@@ -59,6 +59,10 @@ export async function sendMixpanelEvent(name, properties, context) {
         account_id: ctx.accountId || UNKNOWN_ACCOUNT_ID,
         instance_id: ctx.instanceId || UNKNOWN_INSTANCE_ID,
         environment_type: ctx.environmentType || UNKNOWN_ENVIRONMENT_TYPE,
+        // Discriminates this app from conf-app's lite/full/diagramly in the shared project. Without it
+        // our macro_viewed is indistinguishable from conf-app's 3,400/day — the whole reason the event
+        // names carry no prefix. Keep in lockstep with src/analytics/miniSiteEvents.ts's PRODUCT_TYPE.
+        product_type: 'mini-sites',
         token,
         // Unix epoch SECONDS — matches src/analytics/miniSiteEvents.ts / conf-app's documented
         // mixpanelImportServiceEvents convention for backend/service-originated events.
@@ -74,7 +78,7 @@ export async function sendMixpanelEvent(name, properties, context) {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Basic ${btoa(`${token}:`)}`,
+        authorization: `Basic ${Buffer.from(`${token}:`).toString('base64')}`,
       },
       body: JSON.stringify(payload),
     });

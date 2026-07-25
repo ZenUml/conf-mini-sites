@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — cursor click">
+  <!-- D2 "Cursor Click" — interaction as identity. The film's whole argument is "your team can
+       click it"; the mark is the click itself: a pointer landing inside a ripple. Nobody in the
+       Confluence marketplace owns a cursor. Two elements. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <circle cx="196" cy="196" r="100" fill="none" stroke="#FFFFFF" stroke-width="34"/>
+    <path fill="#15233E" d="M 196 196 l 99 238 35 -104 104 -35 Z"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RSS reference (not a candidate)">
+  <!-- Reference only: the standard RSS badge, drawn for the confusion test. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#EE802F"/>
+    <circle cx="148" cy="364" r="36" fill="#FFFFFF"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round" d="M 148 240 A 124 124 0 0 1 272 364"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round" d="M 148 148 A 216 216 0 0 1 364 364"/>
+  </g>
+</svg>

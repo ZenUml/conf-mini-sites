@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — single ripple">
+  <!-- F2 — RSS disambiguation, route 1: ONE arc. The RSS grammar needs a dot plus at least
+       two nested arcs; a single ripple plus a big cursor cannot be parsed as broadcast. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#F4ECDD"/>
+    <path fill="none" stroke="#D18A18" stroke-width="34" stroke-linecap="round" d="M 268 88 A 140 140 0 0 0 93 279"/>
+    <path fill="#15233E" d="M 220 220 l 89 214 l 32 -94 l 94 -32 Z"/>
+  </g>
+</svg>

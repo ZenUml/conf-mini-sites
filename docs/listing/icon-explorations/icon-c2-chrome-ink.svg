@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — chrome ink">
+  <!-- C2 "Chrome Ink" — inverse of C1: ink canvas, amber title bar, ink dots. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#15233E"/>
+    <rect width="512" height="148" fill="#FFB020"/>
+    <circle cx="92" cy="74" r="22" fill="#15233E"/>
+    <circle cx="156" cy="74" r="22" fill="#15233E"/>
+    <circle cx="220" cy="74" r="22" fill="#15233E"/>
+  </g>
+</svg>

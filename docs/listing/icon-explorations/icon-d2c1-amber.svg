@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — click ripple, amber">
+  <!-- D2c geometry: motif nudged up-left to optical centre; inner arc shorter than outer
+       (110 deg vs 135 deg) with a wider gap so the ripple radiates instead of engraving. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" d="M 241 143 A 80 80 0 0 0 140 227"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" d="M 268 88 A 140 140 0 0 0 93 279"/>
+    <path fill="#15233E" d="M 220 220 l 89 214 l 32 -94 l 94 -32 Z"/>
+  </g>
+</svg>

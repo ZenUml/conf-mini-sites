@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — click ripple, mono">
+  <!-- D2c colourway: single-ink motif on amber — the quietest version. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <path fill="none" stroke="#15233E" stroke-width="28" stroke-linecap="round" d="M 241 143 A 80 80 0 0 0 140 227"/>
+    <path fill="none" stroke="#15233E" stroke-width="30" stroke-linecap="round" d="M 268 88 A 140 140 0 0 0 93 279"/>
+    <path fill="#15233E" d="M 220 220 l 89 214 l 32 -94 l 94 -32 Z"/>
+  </g>
+</svg>

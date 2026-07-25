@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — amber tile">
+  <!-- Direction A (bold geometric) · 01 "Amber Tile"
+       Miro-style full-bleed colour tile: hot amber ground, white Confluence page,
+       ink-navy browser window embedded in it. Three nested shapes, flat colour only. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <!-- The Confluence page -->
+    <rect x="100" y="72" width="312" height="368" rx="28" fill="#FFFFFF"/>
+    <!-- Page heading above the embed -->
+    <rect x="148" y="108" width="132" height="18" rx="9" fill="#C9D2E3"/>
+    <!-- The embedded mini-site window -->
+    <rect x="148" y="156" width="216" height="228" rx="24" fill="#15233E"/>
+    <!-- Browser dots -->
+    <circle cx="184" cy="192" r="10" fill="#FFB020"/>
+    <circle cx="214" cy="192" r="10" fill="#7E92B8"/>
+    <circle cx="244" cy="192" r="10" fill="#7E92B8"/>
+    <!-- Live site content -->
+    <rect x="176" y="228" width="140" height="20" rx="10" fill="#FFFFFF"/>
+    <rect x="176" y="264" width="104" height="14" rx="7" fill="#7E92B8"/>
+    <rect x="176" y="292" width="124" height="14" rx="7" fill="#7E92B8"/>
+    <!-- Live dot -->
+    <circle cx="190" cy="342" r="14" fill="#FFB020"/>
+  </g>
+</svg>

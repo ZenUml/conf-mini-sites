@@ -9,8 +9,9 @@ depth — this file is the operational orientation.
 
 A **Forge Confluence Cloud app** that embeds a **live, multi-file mini-site** (a clickable prototype, dashboard,
 or small tool) inline on a Confluence page. The Forge app is a thin shell; the bundle bytes are hosted on
-**Cloudflare Workers for Platforms (WfP)**, not in Forge. Marketplace listing: *Mini Site for Confluence*
-(app key `com.zenuml.confluence.minisite`, vendor P&D VISION) — currently a **private draft**.
+**Cloudflare Workers for Platforms (WfP)**, not in Forge. Marketplace listing: *Mini Sites for Confluence*
+(app key `com.zenuml.confluence.minisite`, vendor P&D VISION) — **public** as of 2026-07-22
+(`/rest/2/addons/com.zenuml.confluence.minisite` reports `status: public`; listing page 4169123443 returns 200).
 
 ## Architecture (one screen)
 

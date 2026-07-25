@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — click ripple">
+  <!-- D2b — D2 with the full ring broken into two ripple arcs radiating up-left from the tip.
+       Kills the magnifying-glass anatomy (ring + diagonal stem) that D2 grew at small sizes;
+       what remains can only be read as a click. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" d="M 269 165 A 84 84 0 0 0 161 273"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="32" stroke-linecap="round" d="M 287 116 A 136 136 0 0 0 112 291"/>
+    <path fill="#15233E" d="M 240 244 l 89 214 l 32 -94 l 94 -32 Z"/>
+  </g>
+</svg>

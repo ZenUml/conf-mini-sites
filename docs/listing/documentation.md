@@ -1,4 +1,4 @@
-# Mini Site for Confluence — Documentation
+# Mini Sites for Confluence — Documentation
 
 Mini Site lets you upload a folder of HTML, CSS, JavaScript, and image files and run it live inside a
 Confluence page.

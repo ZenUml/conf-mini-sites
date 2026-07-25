@@ -1,0 +1,568 @@
+/* Feature Prioritisation — New Onboarding Experience
+   Light theme only (embeds in Confluence). One accent: deep indigo/violet — DELIBERATELY not the
+   product's parchment/ink/amber. This site plays "something the customer built with AI": indigo is
+   the default aesthetic of AI site builders, so it reads instantly as AI-made, and keeping it off
+   the brand palette stops the demo content being mistaken for the product's own UI. The film's
+   designed layer (caption plates, end card, letterbox) is where the brand colours live. */
+
+:root {
+  --ink: #18132e;
+  --ink-muted: #66607a;
+  --ink-faint: #9c97ae;
+  --bg: #f5f4fb;
+  --surface: #ffffff;
+  --border: #e4e1ee;
+  --border-soft: #ece9f5;
+  --accent: #4b2fe0;
+  --accent-dark: #3a22b8;
+  --accent-soft: #efebfc;
+  --accent-soft-border: #d9d1f5;
+
+  --shadow-sm: 0 1px 2px rgba(24, 19, 46, 0.06);
+  --shadow-md: 0 16px 32px -18px rgba(24, 19, 46, 0.28);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  --dur: 300ms;
+  --dur-fast: 180ms;
+  --ease: cubic-bezier(0.22, 0.9, 0.32, 1);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 40px;
+
+  --rail-width: 340px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (max-width: 1080px) {
+  :root {
+    --rail-width: 300px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Focus (visible everywhere, never suppressed) ------------------------------------------------ */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- Page shell ------------------------------------------------------------------------------------ */
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-5) clamp(var(--space-4), 3vw, var(--space-6)) var(--space-6);
+}
+
+/* --- Header ----------------------------------------------------------------------------------------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-5);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brand__mark {
+  display: block;
+  flex: none;
+}
+
+.brand__title {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.brand__subtitle {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+.sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sort__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: var(--space-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  gap: 2px;
+}
+
+.segmented__btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.segmented__btn:hover {
+  color: var(--ink);
+}
+
+.segmented__btn.is-active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/* --- Layout ------------------------------------------------------------------------------------------ */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-width);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* --- Cards ---------------------------------------------------------------------------------------------- */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-soft-border);
+}
+
+.card__open-target {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 0;
+  border-radius: var(--radius-md);
+}
+
+.card__row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: break-word;
+}
+
+.card__votes {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.card__vote-count {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  transition: color var(--dur-fast) linear;
+}
+
+.card__vote-count.is-flash {
+  animation: vote-flash var(--dur) ease-out 1;
+}
+
+@keyframes vote-flash {
+  0% {
+    color: var(--accent);
+  }
+  100% {
+    color: var(--ink);
+  }
+}
+
+.card__vote-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* --- Meters (the impact / effort glyph — the page's signature element) ------------------------------------- */
+
+.meters {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: var(--space-5);
+  margin-top: var(--space-3);
+  pointer-events: none;
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.meter__label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex: none;
+  width: 52px;
+}
+
+.meter__track {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.meter__seg {
+  display: block;
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--border-soft);
+}
+
+.meter--impact .meter__seg.is-filled {
+  background: var(--accent);
+}
+
+.meter--effort .meter__seg {
+  background: transparent;
+  border: 1.5px solid var(--border);
+}
+
+.meter--effort .meter__seg.is-filled {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* --- Card footer / vote button ------------------------------------------------------------------------------ */
+
+.card__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+  pointer-events: none;
+}
+
+.btn {
+  appearance: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  transition: background var(--dur-fast) var(--ease), transform 120ms var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.btn--vote {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13.5px;
+  padding: var(--space-2) var(--space-4);
+}
+
+.btn--vote:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.btn--vote:active {
+  transform: scale(0.97);
+}
+
+/* --- Right rail: results chart + detail panel ------------------------------------------------------------------ */
+
+.rail {
+  min-width: 0;
+}
+
+.rail__inner {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  /* Tall enough that the detail panel's Problem/Solution/Expected-Impact copy never needs an
+     internal scrollbar — measured against the longest feature copy (~550px) plus headroom. */
+  min-height: 580px;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+}
+
+.chart-card__title {
+  margin: 0 0 var(--space-4);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: var(--space-3);
+  height: 160px;
+}
+
+.chart__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: var(--space-2);
+  flex: 1 1 0;
+}
+
+.chart__value {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.chart__track {
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.chart__bar {
+  width: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height var(--dur) var(--ease);
+}
+
+.chart__axis {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+/* --- Detail panel: slides over the rail, chart stays underneath ------------------------------------------------- */
+
+.detail-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-4);
+  transform: translateX(115%);
+  transition: transform var(--dur) var(--ease);
+  overflow-y: auto;
+}
+
+.detail-panel.is-open {
+  transform: translateX(0);
+}
+
+.detail-panel__close {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  float: right;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.detail-panel__close:hover {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.detail-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  clear: both;
+  padding-top: var(--space-1);
+}
+
+.detail-panel__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.detail-panel__sections {
+  margin: var(--space-5) 0 0;
+}
+
+.detail-panel__section {
+  margin-bottom: var(--space-4);
+}
+
+.detail-panel__section dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-2);
+}
+
+.detail-panel__section dd {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* --- Narrow (Confluence macro iframe, ~1000-1200px) ------------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .page {
+    padding-top: var(--space-4);
+  }
+
+  .layout {
+    gap: var(--space-4);
+  }
+
+  .card {
+    padding: var(--space-3);
+  }
+
+  .meters {
+    gap: var(--space-4);
+  }
+}

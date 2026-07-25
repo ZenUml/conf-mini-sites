@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — float">
+  <!-- C4 "Float" — one browser window floating on the amber tile. White body so the tile
+       stays bright; ink bar carries the dots. Four shapes total. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <clipPath id="win"><rect x="88" y="120" width="336" height="272" rx="32"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#FFB020"/>
+    <g clip-path="url(#win)">
+      <rect x="88" y="120" width="336" height="272" fill="#FFFFFF"/>
+      <rect x="88" y="120" width="336" height="88" fill="#15233E"/>
+      <circle cx="144" cy="164" r="14" fill="#FFB020"/>
+      <circle cx="186" cy="164" r="14" fill="#FFFFFF"/>
+      <circle cx="228" cy="164" r="14" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

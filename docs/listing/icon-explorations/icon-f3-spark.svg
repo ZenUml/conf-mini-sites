@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — click spark">
+  <!-- F3 — RSS disambiguation, route 2: three straight spark ticks instead of arcs. This is
+       the classic cursor-CLICK glyph; nothing about it can read as a feed. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#F4ECDD"/>
+    <path fill="none" stroke="#D18A18" stroke-width="28" stroke-linecap="round" d="M 208 151 L 197 92"/>
+    <path fill="none" stroke="#D18A18" stroke-width="28" stroke-linecap="round" d="M 166 175 L 113 130"/>
+    <path fill="none" stroke="#D18A18" stroke-width="28" stroke-linecap="round" d="M 150 220 L 90 220"/>
+    <path fill="#15233E" d="M 220 220 l 89 214 l 32 -94 l 94 -32 Z"/>
+  </g>
+</svg>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feature Prioritisation — New Onboarding Experience</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="app-header">
+        <div class="brand">
+          <img class="brand__mark" src="assets/logo.svg" alt="" aria-hidden="true" width="32" height="32" />
+          <div class="brand__text">
+            <h1 class="brand__title">Feature Prioritisation</h1>
+            <p class="brand__subtitle">New Onboarding Experience</p>
+          </div>
+        </div>
+        <div class="sort">
+          <span class="sort__label" id="sort-label">Sort by</span>
+          <div class="segmented" id="segmented" role="group" aria-labelledby="sort-label">
+            <button type="button" class="segmented__btn" data-sort="impact" aria-pressed="false">Impact</button>
+            <button type="button" class="segmented__btn" data-sort="effort" aria-pressed="false">Effort</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="cards" id="card-list" aria-label="Candidate features"></section>
+
+        <aside class="rail">
+          <div class="rail__inner" id="rail-inner">
+            <div class="chart-card">
+              <h2 class="chart-card__title">Results</h2>
+              <div class="chart" id="chart"></div>
+            </div>
+
+            <div class="detail-panel" id="detail-panel" aria-hidden="true">
+              <button
+                type="button"
+                class="detail-panel__close"
+                id="detail-close"
+                aria-label="Close details"
+              >
+                &times;
+              </button>
+              <div class="detail-panel__header">
+                <span class="badge" id="detail-badge"></span>
+                <h2 class="detail-panel__title" id="detail-title"></h2>
+              </div>
+              <dl class="detail-panel__sections" id="detail-sections"></dl>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

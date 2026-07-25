@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — neon frame">
+  <!-- Direction B (vibrant gradient) · 02 "Neon Frame"
+       Deep-space ground; the page is white and quiet, the window is only a glowing
+       gradient FRAME — the product is the boundary that lets the outside live inside. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <linearGradient id="frame-b2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F472B6"/>
+      <stop offset="0.5" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#1E1B4B"/>
+    <!-- The Confluence page -->
+    <rect x="100" y="72" width="312" height="368" rx="28" fill="#FFFFFF"/>
+    <!-- Page heading -->
+    <rect x="148" y="108" width="132" height="18" rx="9" fill="#C7CDDF"/>
+    <!-- The window as a thick gradient frame -->
+    <rect x="160" y="168" width="192" height="204" rx="24" fill="none" stroke="url(#frame-b2)" stroke-width="28"/>
+    <!-- Live site content inside the frame -->
+    <rect x="196" y="216" width="120" height="20" rx="10" fill="#1E1B4B"/>
+    <rect x="196" y="252" width="88" height="14" rx="7" fill="#94A3B8"/>
+    <rect x="196" y="280" width="104" height="14" rx="7" fill="#94A3B8"/>
+    <circle cx="210" cy="328" r="14" fill="#22D3EE"/>
+  </g>
+</svg>

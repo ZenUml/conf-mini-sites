@@ -23,3 +23,23 @@ forge-app/storybook-static/
 tests/e2e/.auth/
 test-results/
 playwright-report/
+
+# demo-pipeline (agent-first demo video PoC) — generated run artifacts, the project-local Python venv for
+# the pinned Kokoro TTS adapter, and the cross-run narration cache (WAV files + sidecar manifests, keyed by a
+# hash of provider/model/voice/text — see demo-pipeline/src/narration.ts). None of these are committed.
+.demo-runs/
+demo-pipeline/.venv/
+demo-pipeline/.demo-cache/
+demo-pipeline/voice/__pycache__/
+
+# promo video render artifacts (large media; regenerate with pnpm promo:*)
+promo/out/
+promo/capture/.backdrop.png
+promo/capture/.logo.svg
+promo/tmp/
+
+# agent scratch — MCP snapshots, tokens, per-tool caches
+.playwright-mcp/
+.mcp.json
+.agents/
+.codex/

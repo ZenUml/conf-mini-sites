@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — chrome bloom">
+  <!-- C3 "Chrome Bloom" — the gradient take on tile-as-browser: vivid canvas, white bar,
+       dots sampled from the gradient. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <linearGradient id="body-c3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="url(#body-c3)"/>
+    <rect width="512" height="148" fill="#FFFFFF"/>
+    <circle cx="92" cy="74" r="22" fill="#4F46E5"/>
+    <circle cx="156" cy="74" r="22" fill="#A855F7"/>
+    <circle cx="220" cy="74" r="22" fill="#EC4899"/>
+  </g>
+</svg>

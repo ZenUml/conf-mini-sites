@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // "DOM"/"DOM.Iterable" are required because confluenceRunner.ts imports the project's Playwright e2e
+    // helpers (tests/e2e/helpers/{forge,confluence,workers}.ts) — the only cross-boundary import in the
+    // pipeline. forge.ts's page.evaluate() callbacks are authored against browser globals (HTMLElement,
+    // HTMLInputElement, document), and the fetch-based confluence/workers helpers rely on the DOM lib's loose
+    // Response.json(): Promise<any>. Playwright itself transpiles these via esbuild (no type-check), so this is
+    // the first tsc program to compile them; adding the DOM lib lets it do so WITHOUT modifying the helpers.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true
+  },
+  "exclude": ["node_modules", ".venv", "voice"]
+}

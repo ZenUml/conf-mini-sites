@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mini Sites — ink punch">
+  <!-- Direction A (bold geometric) · 02 "Ink Punch"
+       Editorial crop: ink ground, parchment page bleeding off the bottom edge,
+       amber window as the loudest element. Continuity with the current identity's palette,
+       but flattened and cropped for energy. -->
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="#15233E"/>
+    <!-- Parchment page, cropped by the tile bottom -->
+    <rect x="96" y="88" width="320" height="480" rx="28" fill="#F4ECDD"/>
+    <!-- Page heading -->
+    <rect x="144" y="124" width="150" height="18" rx="9" fill="#15233E" opacity="0.35"/>
+    <!-- Amber mini-site window -->
+    <rect x="144" y="172" width="224" height="224" rx="24" fill="#FFB020"/>
+    <!-- Browser dots -->
+    <circle cx="180" cy="208" r="10" fill="#15233E"/>
+    <circle cx="210" cy="208" r="10" fill="#15233E"/>
+    <circle cx="240" cy="208" r="10" fill="#15233E"/>
+    <!-- Live site content -->
+    <rect x="172" y="244" width="144" height="20" rx="10" fill="#15233E"/>
+    <rect x="172" y="280" width="108" height="14" rx="7" fill="#15233E"/>
+    <rect x="172" y="308" width="128" height="14" rx="7" fill="#15233E"/>
+    <!-- Live dot -->
+    <circle cx="186" cy="356" r="14" fill="#FFFFFF"/>
+  </g>
+</svg>

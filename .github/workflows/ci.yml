@@ -11,6 +11,8 @@
 #      repo (grant minting/verification, etc.). These guard the K_GRANT
 #      sign/verify contract that, if broken, fail-closes every serve grant.
 # A third gate builds the Forge Custom UI so a broken UI bundle can't merge.
+# A fourth runs the promo/ film pipeline's pure tests — they need no browser or
+# ffmpeg, and they encode the launch film's structural rules.
 #
 # Adapted from conf-app's build-test-deploy.yml — we kept ONLY the build job and
 # dropped every deploy/release/E2E job, because this is a single-variant app
@@ -75,6 +77,17 @@ jobs:
 
       - name: Unit tests (vitest run)
         run: pnpm test
+
+      # The promo pipeline's pure layer: beat sheet, caption rules, the score, and the ffmpeg argv
+      # builders. All 52 run without a browser, network, ffmpeg, or any capture — they only need the
+      # source. Gated here so the film's structural rules (the magic beat holds >= 1s, the "Now what?"
+      # silence, captions <= 6 words, the film totals exactly 1050 frames) cannot rot unnoticed.
+      # Rendering itself is NOT in CI: it needs ffmpeg-full, a browser, and live Confluence credentials.
+      - name: Promo pipeline typecheck
+        run: pnpm promo:typecheck
+
+      - name: Promo pipeline unit tests
+        run: pnpm promo:test
 
   forge-ui:
     # forge-app is a SEPARATE pnpm package (its own lockfile, no workspace link),

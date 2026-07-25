@@ -3,6 +3,10 @@
 Host a multi-file static bundle — an AI-generated interactive mini-site (clickable prototype, filterable
 dashboard, troubleshooting tool) — embedded live on a Confluence page.
 
+**Marketplace listing:** [Mini Sites (Embed HTML & Prototypes) for Confluence](https://marketplace.atlassian.com/apps/4169123443/mini-sites-embed-html-prototypes-for-confluence)
+· **35-second demo:** [youtu.be/vQfuQDDDXs8](https://youtu.be/vQfuQDDDXs8)
+(link the *canonical* listing URL above — the slug in Atlassian's sitemap is stale but both resolve.)
+
 **Stack:** **Atlassian Forge** (macro + resolver; Confluence permissions inherited) + **Cloudflare Workers for
 Platforms** (one dispatch namespace; one non-routable user Worker per macro instance; the dispatch Worker
 verifies the resolver-minted grant). *(The original Connect/JWT design was dropped for Forge on 2026-06-17 —

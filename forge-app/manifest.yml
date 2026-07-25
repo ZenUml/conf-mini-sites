@@ -81,6 +81,13 @@ permissions:
         - address: https://conf-mini-sites-remote-dev.zenuml.workers.dev
         # Production control Worker — the prod env's CONTROL_BASE_URL resolves here (resolver api.fetch egress).
         - address: https://conf-mini-sites-remote-production.zenuml.workers.dev
+        # Mixpanel Import API — the resolver's trackEvent function forwards Custom-UI-originated funnel
+        # events here (see src/index.js analytics.js). A CSP/external-fetch addition, not a scope: per
+        # conf-app's manifest.yml (same author, same pattern), "Modifying content permissions CSP
+        # options, external permissions CSP options and URLs, or fetch permissions options and URLs"
+        # does not require admin re-approval/re-consent, unlike `permissions.scopes` (see the project's
+        # storage-scope consent-campaign note) — so this is safe to add post-public-listing.
+        - address: https://api.mixpanel.com
     frames:
       - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev
         # Staging dispatch Worker — the nested mini-site iframe in the staging Custom UI.

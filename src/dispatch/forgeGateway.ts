@@ -29,6 +29,8 @@ export interface ForgeGatewayDeps {
   readonly now: () => number;
   /** CSP frame-ancestors value (the Confluence/Forge embed origin). */
   readonly embedAncestors?: string;
+  /** DEVELOPMENT | STAGING | PRODUCTION, from the Worker's per-env [vars]. */
+  readonly environmentType?: string;
   /** Sink for render_succeeded/failed (entrypoint-document serve outcome only — see
    *  handleForgeServe). Optional and fire-and-forget by design: production wires this to
    *  `ctx.waitUntil(sendMiniSiteEvents(...))` (src/dispatch/index.ts); omitted in tests that don't care
@@ -79,7 +81,7 @@ export async function handleForgeServe(request: Request, deps: ForgeGatewayDeps)
     if (!isEntrypoint || !deps.track) return;
     const event = { name, properties } as MiniSiteAnalyticsEvent;
     deps.track(
-      buildMiniSiteEvent(event, { instanceId: route.instanceId, cloudId, accountId }, {
+      buildMiniSiteEvent(event, { instanceId: route.instanceId, cloudId, accountId, environmentType: deps.environmentType }, {
         now: deps.now,
         insertId: () => crypto.randomUUID(),
       }),

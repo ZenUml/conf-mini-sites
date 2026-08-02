@@ -1,0 +1,314 @@
+- generic [ref=f37e26]:
+  - generic:
+    - generic: "Skip to:"
+    - list:
+      - listitem:
+        - link "Top Bar":
+          - /url: "#top-nav-bar"
+      - listitem:
+        - link "Sidebar":
+          - /url: "#_rh_"
+      - listitem:
+        - link "Main Content":
+          - /url: "#main"
+      - listitem:
+        - link "Aside":
+          - /url: "#aside"
+  - generic [ref=f37e27]:
+    - banner [ref=f37e28]:
+      - generic [ref=f37e29]:
+        - button "Collapse sidebar" [ref=f37e30] [cursor=pointer]
+        - button "Switch sites or apps" [ref=f37e34] [cursor=pointer]
+        - link "Home page" [ref=f37e38] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f37e39]: Administration
+      - search [ref=f37e53]:
+        - textbox "Search" [ref=f37e56]
+      - navigation "Actions" [ref=f37e57]:
+        - list [ref=f37e58]:
+          - listitem [ref=f37e59]:
+            - button "22 unread notifications" [ref=f37e60] [cursor=pointer]
+            - generic: 9+
+          - listitem [ref=f37e64]:
+            - button "Help" [ref=f37e65] [cursor=pointer]
+          - listitem [ref=f37e69]:
+            - button "support@zenuml.com" [ref=f37e70] [cursor=pointer]
+    - navigation "Sidebar" [ref=f37e76]:
+      - list [ref=f37e80]:
+        - button "Organization lite-stg Open dropdown" [ref=f37e83] [cursor=pointer]:
+          - img "Organization" [ref=f37e86]
+          - generic [ref=f37e87]: lite-stg
+          - img "Open dropdown" [ref=f37e88]
+        - listitem [ref=f37e90]:
+          - generic [ref=f37e91]:
+            - link "Overview" [ref=f37e92] [cursor=pointer]:
+              - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e
+            - generic:
+              - img "Overview"
+        - listitem [ref=f37e98]:
+          - generic [ref=f37e99]:
+            - generic [ref=f37e101]:
+              - button "Directory" [expanded] [ref=f37e102] [cursor=pointer]
+              - generic:
+                - generic:
+                  - img "Directory"
+            - list [ref=f37e107]:
+              - listitem [ref=f37e108]:
+                - link "Users" [ref=f37e110] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/users
+              - listitem [ref=f37e116]:
+                - link "Groups" [ref=f37e118] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/groups
+              - listitem [ref=f37e124]:
+                - link "Teams" [ref=f37e126] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/teams
+              - listitem [ref=f37e132]:
+                - link "Managed accounts" [ref=f37e134] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/members
+              - listitem [ref=f37e140]:
+                - link "Service accounts" [ref=f37e142] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/service-accounts
+              - listitem [ref=f37e148]:
+                - link "Domains" [ref=f37e150] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/domains
+        - listitem [ref=f37e156]:
+          - generic [ref=f37e159]:
+            - button "Apps" [ref=f37e160] [cursor=pointer]
+            - generic:
+              - generic:
+                - img "Apps"
+        - listitem [ref=f37e166]:
+          - generic [ref=f37e169]:
+            - button "Rovo" [ref=f37e170] [cursor=pointer]
+            - generic:
+              - generic:
+                - img "Rovo"
+        - listitem [ref=f37e176]:
+          - generic [ref=f37e179]:
+            - button "Security" [ref=f37e180] [cursor=pointer]
+            - generic:
+              - generic:
+                - img "Security"
+        - listitem [ref=f37e186]:
+          - generic [ref=f37e189]:
+            - button "Data management" [ref=f37e190] [cursor=pointer]
+            - generic:
+              - generic:
+                - img "Data management"
+        - listitem [ref=f37e196]:
+          - generic [ref=f37e199]:
+            - button "Insights" [ref=f37e200] [cursor=pointer]
+            - generic:
+              - generic:
+                - img "Insights"
+        - listitem [ref=f37e205]:
+          - generic [ref=f37e206]:
+            - link "Billing" [ref=f37e207] [cursor=pointer]:
+              - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/billing-preview
+            - generic:
+              - img "Billing"
+        - listitem [ref=f37e214]:
+          - generic [ref=f37e217]:
+            - button "Organization settings" [ref=f37e218] [cursor=pointer]
+            - generic:
+              - generic:
+                - img "Organization settings"
+      - generic [ref=f37e224]:
+        - slider "Resize side nav" [ref=f37e225]: "260"
+        - text: Resize side nav
+    - main [ref=f37e227]:
+      - generic [ref=f37e232]:
+        - generic [ref=f37e233]:
+          - navigation "Breadcrumbs" [ref=f37e234]:
+            - list [ref=f37e235]:
+              - listitem [ref=f37e236]:
+                - link "Users" [ref=f37e237] [cursor=pointer]:
+                  - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/users
+          - generic [ref=f37e239]:
+            - heading "Peng Xiao" [level=1] [ref=f37e244]
+            - group [ref=f37e246]:
+              - generic [ref=f37e247]:
+                - button "Grant access" [ref=f37e248] [cursor=pointer]
+                - button "Add to group" [ref=f37e250] [cursor=pointer]
+                - button "More actions for user Peng Xiao" [ref=f37e253] [cursor=pointer]
+        - generic [ref=f37e258]:
+          - generic [ref=f37e261]:
+            - button "External user" [ref=f37e270] [cursor=pointer]
+            - generic [ref=f37e276]:
+              - generic [ref=f37e277]:
+                - generic [ref=f37e278]:
+                  - img "Email address" [ref=f37e280]
+                  - generic [ref=f37e281]: eagle.xiao@gmail.com
+                - generic [ref=f37e282]:
+                  - img "Job title" [ref=f37e284]
+                  - generic [ref=f37e285]: Network Administrator
+              - generic [ref=f37e286]: Details managed by the user
+          - generic [ref=f37e288]:
+            - generic [ref=f37e292]:
+              - heading "Active" [level=2] [ref=f37e294]
+              - generic [ref=f37e295]: Last seen May 10, 2026
+            - generic [ref=f37e296]:
+              - tablist [ref=f37e297]:
+                - tab "Apps" [selected] [ref=f37e298] [cursor=pointer]
+                - tab "Groups" [ref=f37e300] [cursor=pointer]
+              - tabpanel "Apps" [ref=f37e302]:
+                - generic [ref=f37e304]:
+                  - generic [ref=f37e305]:
+                    - textbox "Search apps by app name" [ref=f37e308]:
+                      - /placeholder: Search by app name
+                    - group "Filter options" [ref=f37e309]:
+                      - button "App" [ref=f37e314] [cursor=pointer]
+                    - generic [ref=f37e319]:
+                      - text: Showing results
+                      - button "refresh" [ref=f37e321] [cursor=pointer]
+                  - generic [ref=f37e325]: 6 results found
+                  - table "Adminhub table" [ref=f37e328]:
+                    - rowgroup [ref=f37e329]:
+                      - row [ref=f37e330]:
+                        - columnheader "App 326.41796875" [ref=f37e331]:
+                          - generic [ref=f37e332]: App
+                          - 'slider "Resize column: product" [ref=f37e336]'
+                        - columnheader "Last seen Data can be delayed up to 24 hours More actions for last seen column 195.85078124999998" [ref=f37e337]:
+                          - generic [ref=f37e338]:
+                            - generic [ref=f37e343]:
+                              - generic [ref=f37e344]: Last seen
+                              - button "Data can be delayed up to 24 hours" [ref=f37e347] [cursor=pointer]
+                            - generic:
+                              - generic:
+                                - button "More actions for last seen column"
+                          - 'slider "Resize column: lastSeen" [ref=f37e352]'
+                        - columnheader "Plan More actions for plan column 195.85078124999998" [ref=f37e353]:
+                          - generic [ref=f37e354]:
+                            - generic [ref=f37e355]: Plan
+                            - generic:
+                              - generic:
+                                - button "More actions for plan column"
+                          - 'slider "Resize column: plan" [ref=f37e359]'
+                        - columnheader "Roles More actions for roles column 326.41796875" [ref=f37e360]:
+                          - generic [ref=f37e361]:
+                            - generic [ref=f37e362]: Roles
+                            - generic:
+                              - generic:
+                                - button "More actions for roles column"
+                          - 'slider "Resize column: roles" [ref=f37e366]'
+                        - columnheader "Actions" [ref=f37e367]
+                    - rowgroup [ref=f37e372]:
+                      - row [ref=f37e373]:
+                        - cell [ref=f37e374]:
+                          - link "ASSETS lite-stg" [ref=f37e377] [cursor=pointer]:
+                            - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/products/cmdb/c78e721e-957f-402c-9b70-1df2227c2739
+                            - generic [ref=f37e386]:
+                              - generic "ASSETS" [ref=f37e389]: Assets
+                              - generic [ref=f37e391]: lite-stg
+                        - cell "Unavailable" [ref=f37e393]
+                        - cell "Free" [ref=f37e395]
+                        - cell "App admin App admin, remove User User, remove" [ref=f37e397]:
+                          - generic [ref=f37e399]:
+                            - status [ref=f37e401]
+                            - generic [ref=f37e403]:
+                              - generic [ref=f37e404]:
+                                - generic [ref=f37e405]: App admin
+                                - button "App admin, remove" [ref=f37e406]
+                              - generic [ref=f37e409]:
+                                - generic [ref=f37e410]: User
+                                - button "User, remove" [ref=f37e411]
+                              - combobox "Roles" [ref=f37e414]
+                        - cell [ref=f37e419]:
+                          - button "More actions for product Assets" [ref=f37e423] [cursor=pointer]
+                      - row [ref=f37e427]:
+                        - cell [ref=f37e428]:
+                          - link "CONFLUENCE lite-stg" [ref=f37e431] [cursor=pointer]:
+                            - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/products/conf/c78e721e-957f-402c-9b70-1df2227c2739
+                            - generic [ref=f37e439]:
+                              - generic "CONFLUENCE" [ref=f37e442]: Confluence
+                              - generic [ref=f37e444]: lite-stg
+                        - cell "May 10, 2026" [ref=f37e446]
+                        - cell "Standard" [ref=f37e448]
+                        - cell "User User, remove" [ref=f37e450]:
+                          - generic [ref=f37e452]:
+                            - status [ref=f37e454]
+                            - generic [ref=f37e456]:
+                              - generic [ref=f37e457]:
+                                - generic [ref=f37e458]: User
+                                - button "User, remove" [ref=f37e459]
+                              - combobox "Roles" [ref=f37e462]
+                        - cell [ref=f37e467]:
+                          - button "More actions for product Confluence" [ref=f37e471] [cursor=pointer]
+                      - row [ref=f37e475]:
+                        - cell [ref=f37e476]:
+                          - link "GOAL lite-stg" [ref=f37e479] [cursor=pointer]:
+                            - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/products/goal/c78e721e-957f-402c-9b70-1df2227c2739
+                            - generic [ref=f37e488]:
+                              - generic "GOAL" [ref=f37e491]: Goals
+                              - generic [ref=f37e493]: lite-stg
+                        - cell "Unavailable" [ref=f37e495]
+                        - cell "Free" [ref=f37e497]
+                        - cell "User User, remove" [ref=f37e499]:
+                          - generic [ref=f37e501]:
+                            - status [ref=f37e503]
+                            - generic [ref=f37e505]:
+                              - generic [ref=f37e506]:
+                                - generic [ref=f37e507]: User
+                                - button "User, remove" [ref=f37e508]
+                              - combobox "Roles" [ref=f37e511]
+                        - cell [ref=f37e516]:
+                          - button "More actions for product Goals" [ref=f37e520] [cursor=pointer]
+                      - row [ref=f37e524]:
+                        - cell [ref=f37e525]:
+                          - link "JIRA_SERVICE_DESK lite-stg" [ref=f37e528] [cursor=pointer]:
+                            - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/products/jira-servicedesk/c78e721e-957f-402c-9b70-1df2227c2739
+                            - generic [ref=f37e536]:
+                              - generic "JIRA_SERVICE_DESK" [ref=f37e539]: Jira Service Management
+                              - generic [ref=f37e541]: lite-stg
+                        - cell "Unavailable" [ref=f37e543]
+                        - cell "Service Collection Standard" [ref=f37e545]
+                        - cell "Customer Customer, remove" [ref=f37e547]:
+                          - generic [ref=f37e549]:
+                            - status [ref=f37e551]
+                            - generic [ref=f37e553]:
+                              - generic [ref=f37e554]:
+                                - generic [ref=f37e555]: Customer
+                                - button "Customer, remove" [ref=f37e556]
+                              - combobox "Roles" [ref=f37e559]
+                        - cell [ref=f37e564]:
+                          - button "More actions for product Jira Service Management" [ref=f37e568] [cursor=pointer]
+                      - row [ref=f37e572]:
+                        - cell [ref=f37e573]:
+                          - link "JIRA_SOFTWARE lite-stg" [ref=f37e576] [cursor=pointer]:
+                            - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/products/jira-software/c78e721e-957f-402c-9b70-1df2227c2739
+                            - generic [ref=f37e584]:
+                              - generic "JIRA_SOFTWARE" [ref=f37e587]: Jira
+                              - generic [ref=f37e589]: lite-stg
+                        - cell "Unavailable" [ref=f37e591]
+                        - cell "Standard" [ref=f37e593]
+                        - cell "User User, remove" [ref=f37e595]:
+                          - generic [ref=f37e597]:
+                            - status [ref=f37e599]
+                            - generic [ref=f37e601]:
+                              - generic [ref=f37e602]:
+                                - generic [ref=f37e603]: User
+                                - button "User, remove" [ref=f37e604]
+                              - combobox "Roles" [ref=f37e607]
+                        - cell [ref=f37e612]:
+                          - button "More actions for product Jira" [ref=f37e616] [cursor=pointer]
+                      - row [ref=f37e620]:
+                        - cell [ref=f37e621]:
+                          - link "PROJECT lite-stg" [ref=f37e624] [cursor=pointer]:
+                            - /url: /o/fdd8df1a-6f36-4bd0-8bbd-62a44179ae4e/products/project/c78e721e-957f-402c-9b70-1df2227c2739
+                            - generic [ref=f37e632]:
+                              - generic "PROJECT" [ref=f37e635]: Projects
+                              - generic [ref=f37e637]: lite-stg
+                        - cell "Unavailable" [ref=f37e639]
+                        - cell "Free" [ref=f37e641]
+                        - cell "User User, remove" [ref=f37e643]:
+                          - generic [ref=f37e645]:
+                            - status [ref=f37e647]
+                            - generic [ref=f37e649]:
+                              - generic [ref=f37e650]:
+                                - generic [ref=f37e651]: User
+                                - button "User, remove" [ref=f37e652]
+                              - combobox "Roles" [ref=f37e655]
+                        - cell [ref=f37e660]:
+                          - button "More actions for product Projects" [ref=f37e664] [cursor=pointer]
+    - generic:
+      - complementary "Aside"

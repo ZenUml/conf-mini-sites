@@ -69,4 +69,45 @@ inclusion/exclusion rules; establish taxonomy v0; test source access.
   fabricate URLs/quotes/metrics; `unknown` when not visible; ≤25-word verbatim excerpts; counterevidence
   recorded with the same care; no posting, no contact, read-only.
 
-*(Later sessions appended below as synthesis progressed.)*
+## Session 1 — Collection wave 1 + midpoint review (brief §15 "Days 2–5")
+
+### Wave-1 results (17-agent sweep)
+
+- 17/17 agents returned; **0 fabricated results** (integrity rule held: starved agents returned empty
+  sets with explicit blockage notes rather than invented evidence).
+- **90 raw demand artifacts** collected across 6 collectors (community ×3 angles, reddit-focus,
+  stackoverflow-focus, youtube). 12 duplicate groups identified (same underlying request found by
+  multiple collectors) → **68 unique underlying artifacts**.
+- Funnel: 90 raw → 15 excluded (vendor-authored context or no discernible job) → 12 excluded as
+  duplicates (first of each group retained) → **48 qualified demand + 7 qualified counterevidence = 55**.
+- **Channel-starvation events (recorded, not compensated by fabrication):**
+  - reddit.com and stackoverflow.com are excluded from the search crawler (hard API 400) — the brief's
+    S2/S5 channels are structurally unreachable this session. Collectors fell back to
+    community/developer-community sources.
+  - A shared WebSearch session budget (200 calls) was exhausted mid-sweep: both Marketplace
+    review-mining agents, the AI-generated-apps agent, the dedicated counterevidence agent, 3 of 4
+    competitor inventory agents, and all 3 SERP agents were starved (zero or near-zero results).
+- Seed-source verification (S1–S12) completed separately: notable — **the Mini Site listing itself has
+  zero organic search footprint** (only zenuml.com/mini-sites is indexed; plural "Mini Sites" is the
+  only name that surfaces); Appfire's HTML Macro shows ~1.9k installs but a **2.9/4 rating (36
+  reviews)**; Tableau for Confluence ~240 installs; Dashboard Hub ~371; Table Filter ~15k (low
+  confidence, single observation). All Marketplace metrics are search-summary-grade, dated 2026-08-02.
+
+### Midpoint gate (brief §15: "≥50 qualified artifacts, source mix not dominated by historical")
+
+- Qualified count: **55 ≥ 50 → PASS**, but two flags:
+  1. **Source balance violation:** Atlassian Community = 75% of qualified (cap: 40%). Cause:
+     reddit/stackoverflow structurally blocked + Marketplace reviews starved. Wave 2 targets
+     non-community channels (reviews, blogs/HN, YouTube handles); the residual imbalance is disclosed
+     rather than papered over.
+  2. Historical share is material in two clusters (J06 calculators — all historical; J07 charts) and
+     those clusters' confidence multipliers are reduced accordingly.
+- Taxonomy v1: 15 bottom-up clusters (J01–J15) built from artifact-level jobs, not from the listing's
+  example list; the listing's "calculator/prototype/dashboard" examples map to clusters whose evidence
+  varies from strong (bundle publishing) to weak-historical (calculators) to disqualified-now
+  (live external BI dashboards) — an explicit check against confirmation bias.
+- Decision: **continue to wave 2** (sequential, budget-capped agents, priority order: review mining →
+  AI angle → SERP → direct competitors + staticView platform risk → security counterevidence →
+  partner handle surfacing), then score and write deliverables.
+
+*(Synthesis and wave-2 results appended below.)*

@@ -35,7 +35,7 @@
 | Score integrity | Removing E075 + E047 drops JTBD-01 below Adjusted 50 with no replacements | Pause — recommendation over-fit to two artifacts |
 | Competitor ships true folder-relative-path + no-public-URL hosting | Narva/OST/Mosaic launch equivalent | Reposition on trust, update UX, or niche vertical (training sims / CI reports) |
 
-**Stress test:** Remove highest-engagement Community post (E075, 21,610 views) — remaining SO multi-file cluster (E022, E045, E065, E073, E111, E115) + Appfire help-system/QA reports (E085, E086) + E047 still support JTBD-01 ≥ Strong hypothesis. Confidence might fall from 1.00 → 0.75 (Adjusted ~60) → gate would become **Reposition and test**. Proceed is **sensitive to continued multi-source multi-file evidence**, not to E075 alone.
+**Stress test:** Remove highest-engagement Community post (E075, 21,610 views) — remaining SO multi-file cluster (E022, E045, E065, E073, E111, E115) + Appfire help-system/QA reports (E085, E086) + E047 still support JTBD-01 ≥ Strong hypothesis. Confidence might fall from 1.00 → 0.75 (Adjusted ~65 on Raw 86.60) → gate would become **Reposition and test**. Proceed is **sensitive to continued multi-source multi-file evidence**, not to E075 alone.
 
 ---
 

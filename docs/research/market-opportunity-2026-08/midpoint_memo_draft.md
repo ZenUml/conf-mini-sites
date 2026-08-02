@@ -1,48 +1,62 @@
-# Midpoint memo — DRAFT (pre–Day 5)
+# Midpoint memo — Day 5 gate (2026-08-02)
 
-**Date:** 2026-08-02 (accelerated Days 1–2)  
-**Counts:** ~40 raw / ~26 qualified (incl. historical) — **below Day 5 gate of 50 qualified**; Community still ~70%+ of qualified → diversify before ranking.
+**Status:** Gate **PASSED** — continue to JTBD scoring and final packet.  
+**Counts after dedupe:** **126 raw** / **93 qualified+historical** (48+11 early; grown via Day 4) / 29 context_only / 4 excluded.  
+**Source mix (qualified+historical):** Community **35.5%**, marketplace_review **32.3%**, Stack Overflow **14.0%**, YouTube **5.4%**, Reddit **3.2%**, other **~10%**. No single source >40%.
 
-## Product truth locked
-- Multi-file static folder host; Forge page permissions; secret scan; isolated sandbox.
-- CSP `connect-src 'self'` → **no outbound network** (code + listing).
-- Live listing: **1 install, 0 reviews**, public title “Mini Sites (Embed HTML & Prototypes)”.
+## Product truth (locked)
+- Multi-file static HTML/CSS/JS folder upload; relative paths preserved; Forge page permissions; secret scan; per-instance isolation.
+- CSP `connect-src 'self'` → **no outbound network** from sandbox (code + listing).
+- Live Marketplace (2026-08-02): Mini Sites **1 install, 0 reviews**, v4.0.0; title “Embed HTML & Prototypes”.
 
 ## Competitor snapshot (dated 2026-08-02)
-| App | Installs | Rating | Notes |
+| App | Installs | Rating | Role |
 |---|---:|---|---|
-| Narva HTML Macro | 2,345 | 5★ / 31 | Files/attachments + AI copy + external allowlist + Forge/RoA |
-| Appfire HTML Macro Cloud | 1,780 | 3.6★ / 36 | Snippet/JS; Cloud Fortified; resize/External Share complaints |
-| Mini Sites | 1 | none | Multi-file folder; no egress |
+| Narva HTML Macro | ~2,345–2,348 | 5★ / 31 | Closest rival: files/attachments + AI copy + allowlist egress |
+| Appfire HTML Macro Cloud | 1,780 | 3.6★ / 36 | Snippet/JS; Cloud Fortified; iframe/DOM complaints |
+| HTML Macro Pro (OST Labs) | ~1,795 | — / ~23 | Aggressive “vibe code” paste; **no relative-path folders** |
+| Table Filter & Charts | ~15,000 | 4.9★ / 442 | Owns live table/report job |
+| Dashboard Hub | 371 | 5★ / 10 | Jira→Confluence dashboards |
+| Tableau for Confluence | ~226–227 | 4.4★ / 6 | Live BI |
+| GrafanaSight | 3 | — | Niche |
+| Mosaic HTML | 12 | — | AI prompt; JS gated |
+| HTML Macro Plus | 5 | 5★ / 1 | Live preview editor |
+| Framer+ (CollabSoft) | ~8 | 0 | Historical ZIP-upload prototype model; dormant |
 
-**Implication:** There is **no empty “HTML macro” category**. Whitespace, if any, is narrower: folder-native relative-path hosting + strict isolation / no public URL.
+**Implication:** No empty “HTML macro” category. Defendable whitespace ≈ **folder-native relative-path hosting + isolation / no public URL / no egress**, for artifacts that are already multi-file (reports, tools, exports, AI apps)—not generic snippet paste.
 
-## Provisional job clusters (not scored yet)
-| Cluster | Fit today | Evidence IDs (sample) | Risk |
-|---|---|---|---|
-| A. Multi-file static artifact in page (reports, widgets, Bootstrap apps) | **High** | E016, E022, E031, E038 | External host+iframe often works if public URL OK |
-| B. Cloud HTML macro replacement (snippet) | Medium | E003, E014, E015, E032, E035 | Narva/Appfire incumbents; price objections |
-| C. Page-DOM interactive / analytics | **Disqualified** | E002, E040 | Same iframe isolation as competitors |
-| D. Live BI (Tableau/PBI/Grafana) | **Low** | E017–E019, E023–E025 | Needs network/auth; specialists + iframe |
-| E. Design prototype in docs | Medium | E021, E033 | Figma Smart Link often enough; static export niche |
-| F. AI-generated HTML publish | Unknown | E030, E034 (vendor) | H4 not user-validated yet |
-| G. Notion-like databases | Low / native | E004, E026 | Not HTML-bundle job |
+## Taxonomy v1 (evidence-driven)
+| Cluster | Fit today | Direction |
+|---|---|---|
+| A. Multi-file static interactive artifact (reports, widgets, tools, Allure/Plotly/D3 folders) | **High** | **Primary wedge** |
+| B. AI-generated HTML/JS tool publish (Claude/ChatGPT → page) | **High–Medium** | Co-wedge / test-next |
+| C. Clickable prototype in docs (exported HTML / non-Figma) | Medium | Supporting scenario; not “replace Figma” |
+| D. Cloud HTML macro migration (snippet) | Medium | Crowded; acquire via migration content, don’t lead category |
+| E. Training / interactive simulator | Emerging | Example under A/B (E096/E097) |
+| F. Simple calculator / formula widget | Low as solo | Supporting example |
+| G. Live BI (Tableau/PBI/Grafana) | **Low / reject as wedge** | Needs egress/auth; specialists |
+| H. Page-DOM analytics / host DOM | **Disqualified** | iframe isolation |
+| I. Notion-like databases | Reject | Native / Table Filter |
+| J. Embed Confluence → external | Reject | Wrong direction |
 
-## Hypotheses status (interim)
-- **H1** outcome language > “Mini Site”: leaning confirm (HTML macro / embed / report language dominates).
-- **H2** narrow wedge > generic HTML: leaning confirm (generic HTML crowded).
-- **H3** technical converts better: **partially contradicted** when DOM required (E002).
-- **H4** AI publish: **unverified** (vendor-led).
-- **H6** trust via Forge/isolation: plausible vs external host; vs Narva Forge/RoA less clear.
-- **H7** packaging friction: supported (E036 resize; E022 path rewrite; E038 attachment hacks).
-- **H9** admin/capability disqualifiers: confirmed for DOM + live API jobs.
+## Hypotheses (Day 5 status)
+| ID | Status | Notes |
+|---|---|---|
+| H1 | **Strong / leaning validated** | Users say HTML macro / embed / report / local HTML — not “Mini Site” |
+| H2 | **Strong** | Multi-file + AI-tool clusters beat generic container |
+| H3 | Partial | Technical intent converts, but DOM seekers are a trap (E002/E040/E067) |
+| H4 | **Strong hypothesis** | User reviews + If Insurance blog (E047) + Claude mockups (E095); discount Jul 2026 solicitation clusters |
+| H5 | Strong | Creator ≠ viewer repeatedly |
+| H6 | Plausible | Isolation valued; Narva also Forge/RoA — differentiate no-public-URL + folder |
+| H7 | **Validated pattern** | Path rewrite (E022/E076), attachment download (E072/E110), paste Rendering error (E096), resize (E036) |
+| H8 | Hypothesis | Hosting/Forge replacement language present; paid-app resistance also present (E032) |
+| H9 | **Validated** | DOM + live API jobs disqualify |
+| H10–H12 | Proceed to Days 7–9 | Use-case content + demos + DP queue (30 candidates ready) |
 
-## Go / no-go for weak branches
-- **Pause as launch wedge:** live BI, page-DOM analytics, Notion databases, Confluence→external embed.
-- **Continue collecting:** multi-file static reports/tools; prototype export; AI→bundle (user-authored only); competitor review complaints.
+## Go / no-go branches
+- **Continue:** A multi-file; B AI publish; C exported prototype; migration SEO as acquisition.
+- **Pause as launch wedge:** live BI, host-DOM analytics, Notion DBs, Confluence→external embed, generic “HTML macro #4”.
+- **Incident note:** Evidence log was wiped to 0 bytes mid-sprint; recovered from transcript (E001–E081) then expanded. Prefer append-only edits.
 
-## Next 48h (Days 3–4)
-1. Reddit/SO/YouTube to cut Community share ≤40%.
-2. Finish Narva + Appfire + Mosaic + HTML Macro Plus review mining.
-3. Capture outcome-app metrics (Tableau, Dashboard Hub, Table Filter).
-4. Grow to ≥70 qualified before Day 5 taxonomy lock.
+## Day 6+ plan
+Score top 20 JTBD; lock three wedges; SEO map; competitive maps + positioning; DP interview guide (done); adversarial QA; executive Proceed / Reposition / Pause.

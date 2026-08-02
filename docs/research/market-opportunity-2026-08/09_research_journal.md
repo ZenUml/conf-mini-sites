@@ -254,3 +254,121 @@ Replayed initial Write + append scripts from cloud-agent transcript `bc-69ff2ad1
 
 ### Decision
 Commit CSV immediately; do not re-truncate. Prefer append-only edits going forward.
+
+---
+
+## Day 5 — Midpoint gate lock (2026-08-02, consolidated)
+
+### Counts (post-recovery + Day 4–5 diversification; aligns with midpoint memo)
+- Raw **126** / qualified **78** + qualified_historical **15** = **93** / context_only **29** / excluded **4**
+- Source mix among qualified+historical: Community **35.5%**, marketplace_review **32.3%**, SO **14.0%**, YouTube **5.4%**, Reddit **3.2%**, other **~9.6%** — **no source >40%** (Day 5 balance bar met after review/SO/YouTube fill)
+- Design partners: **30** candidates in `04_design_partner_candidates.csv` (waves 1/2/3 + 1 exclude); all `DISCOVERY ONLY — DO NOT CONTACT`
+- Competitor dated metrics captured (Narva ~2345, Appfire 1780, OST ~1795, Table Filter ~15017, etc.) — see midpoint + `05_competitive_landscape.md`
+
+### Taxonomy v1 lock (evidence-driven)
+| Cluster | Fit | Decision |
+|---|---|---|
+| A Multi-file static interactive artifact | High | **Primary wedge** |
+| B AI-generated HTML/JS tool publish | High–Medium | Co-wedge / test-next |
+| C Clickable prototype (exported / non-Figma) | Medium | Supporting — not replace Figma |
+| D Cloud HTML macro migration (snippet) | Medium | Acquisition content only |
+| E Training / interactive simulator | Emerging | Example under A/B |
+| F Simple calculator widget | Low solo | Supporting under A/B |
+| G Live BI | Low | **Reject as wedge** |
+| H Page-DOM analytics | Disqualified | Reject |
+| I Notion-like databases | Reject | Native / Table Filter |
+| J Embed Confluence → external | Reject | Wrong direction |
+
+### Midpoint gate
+- **PASSED** — ≥50 qualified (actually 93 with historical), source mix not historical-tech dominated, continue to scoring and final packet.
+- Incident: evidence log wipe → transcript recovery; PARTIAL_RECOVERY rows flagged for re-verify.
+
+### Decisions
+- Do not lead as generic HTML macro (Narva/Appfire own category).
+- Defendable whitespace: folder-native relative-path hosting + isolation / no public URL / no egress.
+- Discount Jul 2026 Narva/OST 5★ clusters as prevalence; keep as language/outcome.
+
+---
+
+## Day 6 — JTBD scoring decisions (2026-08-02)
+
+### Inputs
+- `02_jtbd_top20.md` still **provisional pre–Day 6 draft** (scores ~60 / ~55 / ~51 at confidence 0.75).
+- Scoring formula per brief §11; confidence multipliers Validated 1.00 / Strong 0.75 / Unverified 0.45.
+
+### Locked top three (for exec packet)
+
+| ID | Job | Dims (F U V P D R W X) | Conf | Adjusted | Call |
+|---|---|---|---:|---:|---|
+| JTBD-01 | Multi-file static interactive artifact on page | 5 3 4 5 4 3 3 4 | **1.00** Validated (5+ artifacts, Community+SO+reviews+blog; counterevidence checked) | **80** | Own now |
+| JTBD-03 | AI-generated HTML/JS tool in Confluence | 3 4 4 5 4 4 2 4 | 0.75 | **~55** | Test next / co-wedge |
+| JTBD-02 | Clickable prototype in docs (exported HTML) | 3 3 4 5 3 4 2 3 | 0.75 | **~51** | Supporting |
+
+### Scoring rationale notes
+- JTBD-01 confidence upgraded from draft 0.75 → 1.00 because independent multi-file demand now clearly exceeds five artifacts across ≥2 channels (E016, E022, E031, E038, E045, E047, E075, E084, E086, E110, E111, E115, …) with counterevidence logged (E078, E068, external-host-OK cases).
+- W kept at 3 (not 5): Narva attachment/file path partially overlaps.
+- P=5 only after capability check (folder + relative paths + CSP `connect-src 'self'` via E029 / listing docs).
+- Rejects not scored into top 20 as wedges: DOM, live BI, Notion DB, outward embed, generic snippet macro.
+
+### Persona map (locked for packet)
+Creator = developer/analyst/QA/devops · Viewer = teammates/PM/stakeholders · Buyer/Admin = Confluence admin (paid-app sensitive, E032).
+
+---
+
+## Day 7–8 — SEO / competitive (status for journal)
+
+### SEO
+- `03_seo_content_map.csv` remains a **schema shell** at packet time — not blocking gate; blocks content production.
+- Working acquisition phrases from evidence: “embed HTML,” “HTML macro,” “paste HTML,” multi-file/report/Allure/Plotly, AI widget language from vendors — **not** “Mini Site.”
+
+### Competitive
+- `05_competitive_landscape.md` draft inventory dated 2026-08-02 stands.
+- Differentiation hypothesis unchanged: multi-file relative-path + no public URL + no egress vs Narva files/AI allowlist egress vs OST snippet paste vs Table Filter live tables.
+- Framer+ (E079) validates ZIP-upload prototype job historically; now dormant — not active threat.
+- `06_positioning_recommendation.md` still draft; **exec one-liner is authoritative** for 30 days.
+
+---
+
+## Day 9 — Design partners (status)
+
+- 30 public candidates scored; interview guide written (`design_partner_interview_guide.md`).
+- Wave 1 priority learning: DP06 (If Insurance AI trees), DP12 (complex mini-app Rendering error), DP13 (training sims), DP18 (Render HTML 21k views), DP04/DP14 (Plotly / multi-script).
+- **No outreach performed** — authorization unchanged.
+
+---
+
+## Day 10 — Adversarial QA + final gate (2026-08-02)
+
+### Adversarial notes
+- Disconfirming passes run for H1–H9 and top JTBDs (see `10_adversarial_qa.md`): iframe-enough, Figma-native, Narva overlap, paid resistance, DOM trap, Reddit 403 gap, solicitation bias.
+- Proceed is falsifiable by DP folder-preference failure (≥3/5 not switching) or egress dependence.
+- Stress: removing E075 alone does not kill JTBD-01; removing E075+E047 without replacements would drop confidence → Reposition territory.
+- Link integrity: PARTIAL_RECOVERY rows must be re-fetched before external decks.
+
+### Final gate call
+**Proceed with wedge** — primary = multi-file static interactive artifacts (folder + relative paths + no public URL / no egress); pair with **30-day validation** on AI-publish co-wedge.
+
+Day 10 rule mapping:
+- JTBD-01 Adjusted **80** ≥ 70, ≥2 source types, product fit today, reachable DP path → Proceed.
+- JTBD-03 Adjusted **~55** → Reposition-and-test lane as co-wedge only.
+- Pause rejected: multiple jobs clear 50; natives do not cover folder-relative-path hosting without public URL.
+
+### Deliverables written/overwritten this day
+- `00_executive_readout.md` (final)
+- `08_open_questions.md` (uncertainty register refresh)
+- `10_adversarial_qa.md` (new)
+- `09_research_journal.md` (this append)
+- Midpoint memo retained as Day 5 artifact (`midpoint_memo_draft.md`)
+
+### Known incomplete vs brief §13
+- `02_jtbd_top20.md` not expanded to full 20 polished cards (top 3 locked in exec + this journal).
+- `03_seo_content_map.csv` / `06_positioning_recommendation.md` shells — follow-on, not gate blockers.
+
+---
+
+## Day 10 — Final gate lock (2026-08-02)
+
+- Canonical scores locked in `02_jtbd_top20.md`: JTBD-01 **86.60** Validated; JTBD-02 **57.75**; JTBD-03 **50.32**.
+- Exec readout + adversarial QA aligned to those numbers (removed stale “provisional draft” contradiction).
+- Section 13 packet complete; DP queue = 30; interview guide present.
+- **Gate: Proceed with wedge** (multi-file static hosting). AI-publish = 30-day co-wedge test. No prospects contacted.

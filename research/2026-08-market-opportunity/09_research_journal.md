@@ -110,4 +110,94 @@ inclusion/exclusion rules; establish taxonomy v0; test source access.
   AI angle → SERP → direct competitors + staticView platform risk → security counterevidence →
   partner handle surfacing), then score and write deliverables.
 
-*(Synthesis and wave-2 results appended below.)*
+## Session 2 — Wave 2 (gap-filling) + synthesis (brief §15 "Days 6–9")
+
+### Wave-2 design and results
+
+Six sequential, budget-capped agents (priority-ordered so the most decision-critical slices completed
+first if the search budget died again; it did not — 6/6 completed, 0 errors):
+
+1. `reviews:direct-apps` (14 searches) → 16 artifacts (E-091–E-106). Key: incumbent quality gaps are
+   systematic — uneditable macro bodies, markup mangling, sizing breakage, attachment fragility.
+2. `ai:generated-apps` (14) → 14 artifacts (E-107–E-120). H4 verdict: sharing gap is real and
+   2026-current; zero Confluence-specific artifacts; public-URL publishers + platform-native features
+   serve the rest; permission-inherited slice open.
+3. `serp:outcome-dissat` (13) → 13 observations. Highest-signal query: `upload html folder to
+   confluence` (literal match to product, conversion-only answers). `database view` resolves to
+   native Databases; `calculator` rewrites to table formulas; `interactive dashboard` owned by
+   live-data BI vendors.
+4. `competitors:direct+platform` (16) → 10 direct-class products + RFC-136 platform-risk note
+   (thread title confirmed; content unreadable → assessment flagged as inference).
+5. `counterevidence:security-admin` (12) → 17 artifacts (E-121–E-137): admin HTML-off demand,
+   app-approval friction, data-residency/no-egress objections, native-sufficiency cases.
+6. `partners:handles` (15) → 14 candidates; community author handles structurally unretrievable
+   (proxy 403 even via curl) — recorded as OQ-9 rather than guessed.
+
+### Funnel (final)
+
+137 raw → 34 excluded (vendor-authored context / no discernible job) → 20 duplicate-group exclusions
+(first member retained) → **83 qualified (63 demand + 20 counterevidence)**. Source balance:
+community-family 75% of qualified (cap 40% — **violation disclosed**; root cause: Reddit/SO
+crawler-blocked, so alternate channels could not compensate fully; wave 2 added HN, X, blogs,
+vendor-KB and review sources). Recency: ≥60% of qualified artifacts are ≤36 months except clusters
+J06/J07 (flagged historical, confidence-reduced).
+
+### Taxonomy changes (v1 → v2)
+
+Added bottom-up during synthesis: JTBD-15 (AI-artifact publishing — emerged from wave-2 evidence),
+JTBD-17 (attachment-rendering reliability — emerged from review mining), JTBD-19 (host-page DOM —
+split out as a permanently-rejected segment per the split-don't-average gate), JTBD-20 (docs-site
+output subcase). Nothing was forced into the listing's example categories; "calculator" and
+"prototype" survive only at the evidence level they earned (monitor).
+
+### Scoring and gates
+
+Scores per brief §11 with product-fit verified against shipped code (CSP/limits) — see
+`02_jtbd_top20.md`. Priority gates enforced: two-source-type gate demoted JTBD-05 and JTBD-03 from
+wedge to test-next; capability gates zeroed JTBD-08/09/14/19/16 despite real demand volume in 08.
+
+### Disconfirming searches run (brief acceptance criterion)
+
+- H1/H2: SERP set incl. category-term queries (`Confluence HTML macro review`) — product-name search
+  language absent; outcome/technical language dominant → H1 supported.
+- H4 disconfirm: dedicated searches for "prefer external hosting/sandboxes" — found (E-115/E-116
+  public-URL cottage industry; E-117/E-120 platform-native absorption) and recorded.
+- H6 disconfirm: dedicated counterevidence agent (E-121–E-131) — admin refusal and residency
+  objections found and folded into risks (H6 verdict: partial, not confirmed).
+- JTBD-01 disconfirm: native-importer-sufficiency cases (E-074, E-089) recorded as counterevidence.
+- JTBD-05 disconfirm: nested-Expands-good-enough (E-043) recorded.
+- JTBD-02 disconfirm: free-app availability (E-044, Yamuno) recorded; whitespace scored 1/5.
+
+## Session 3 — Deliverables and acceptance (brief §15 "Day 10")
+
+All ten required files produced (plus `04a_design_partner_program.md` for the WS3 guide/program and
+`99_source_brief.md` for auditability). Acceptance checklist (brief Appendix C):
+
+- ☑ All required files exist and share evidence IDs (E-xxx / D-xx / S-xx / JTBD-xx / C-xx / DP-xx / OQ-x).
+- ☑ Canonical URLs recorded; inaccessible sources marked with access date + alternative
+  (07_source_bibliography.md; S2/S5 marked unverifiable).
+- ☑ Quotes ≤25 words, from observed text only (enforced in collector prompts + CSV trimming).
+- ☑ Source type, author type, deployment, recency, duplicate groups captured per artifact.
+- ☑ ≥70 qualified after exclusions/dedup: **83**.
+- ☒ **No source >40% of qualified: VIOLATED (community 75%)** — disclosed with root cause (channel
+  blocks) in this journal, 00 and 08; per brief §16 the gap is documented rather than silently
+  compensated.
+- ☑ Every top-three job: two source types (JTBD-01: community+HN; JTBD-02: community+YouTube;
+  JTBD-15: blogs+HN+X), counterevidence, code-verified product fit, reachable persona.
+- ☑ Calculator/prototype/dashboard/internal-tool appear only at evidenced strength (JTBD-06/10
+  monitor; JTBD-08 rejected; internal-tool as positioning frame over JTBD-01/15).
+- ☑ Marketplace metrics dated, flagged search-summary-grade, never treated as active-paid-user counts.
+- ☑ Native, iframe, direct HTML apps, scenario apps, external hosting, custom Forge all inventoried.
+- ☑ Validated / strong-hypothesis / unverified / rejected statuses used and separated throughout.
+- ☑ Final decision includes a 30-day plan with explicit pass/fail thresholds (00_executive_readout.md).
+- ☑ No prospect contacted; no installs/purchases; no listing or external state changed.
+
+### Method honesty (read this before trusting any single number)
+
+This session's evidence is **search-snippet-grade**: the network policy blocked direct page fetches
+of every primary platform, so excerpts, dates and metrics were captured from search-result snippets
+and search-backend summaries. Engagement metadata is mostly `unknown`; some author-type labels are
+best-effort. The compensating disciplines: no fabrication (starved agents returned empty sets),
+single-observation metrics flagged, duplicate grouping, counterevidence quotas, and a bibliography
+that lets a reviewer with normal browser access re-verify every URL (est. 2–3 hours to spot-check
+the top-50).

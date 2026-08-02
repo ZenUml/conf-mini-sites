@@ -231,3 +231,26 @@ See Appendix B of brief. Seed dimensions: artifact, core job, creator, interacti
 - YouTube video **comments** still uncaptured (videos accessible but comment sections require scrolling).
 - Source mix: Community ~44% vs target ≤40% — improving; need 2-3 more non-community sources.
 - Appfire HTML Macro reviews still partially un-mined (only E036–E037 from Appfire).
+
+---
+
+## Incident recovery — evidence log wipe (2026-08-02, continued after workspace remount)
+
+### What happened
+During Day 4/5 audit dedupe, a failed Python rewrite truncated `01_evidence_log.csv` to **0 bytes**. Recovery scripts in `/tmp` were lost on workspace remount to `/workspace`.
+
+### Recovery method
+Replayed initial Write + append scripts from cloud-agent transcript `bc-69ff2ad1-038b-468b-a606-d03e53432d64` → reconstructed **E001–E081**.
+- **Fully recovered:** E001–E059
+- **Nearly complete:** E075–E077, E081
+- **Thin/partial (journal-enriched):** E060–E074, E078–E080 — URLs/quotes need live re-verify when collecting Day 4+ gap fill
+- Fixed corrupted `qualification_status` values that had leaked VF-06/VF-07 notes (E007–E012 → `context_only`)
+
+### Post-recovery counts
+- Raw: **81**
+- Qualified: **48** + qualified_historical **11** = **59** (target ≥70)
+- Excluded: 4 · context_only: 18
+- Community share still elevated — continue non-Community diversification
+
+### Decision
+Commit CSV immediately; do not re-truncate. Prefer append-only edits going forward.

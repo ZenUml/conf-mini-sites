@@ -43,7 +43,16 @@ including relative `fetch()` calls to JSON under `data/`.
 2. Choose the report folder that **directly** contains `index.html`.
 3. Validate & publish, then publish the Confluence page.
 
+![Publisher modal: folder selected, ready to Validate & publish](/img/mini-sites/publish-folder.jpg)
+
+![GIF: publish a multi-file folder and see it live on the Confluence page](/img/mini-sites/publish-to-live.gif)
+
 That’s it. No public URL. Access follows the Confluence page.
+
+![Multi-file release-readiness dashboard (HTML + CSS + JS + JSON + SVG) live inside a Confluence page](/img/mini-sites/release-dashboard-on-confluence.jpg)
+
+*Same shape as an Allure/static QA report: nested relative paths, interactive filters, data loaded from `data/`.*
+
 
 ### Sample bundle
 

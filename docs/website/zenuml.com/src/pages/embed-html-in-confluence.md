@@ -18,6 +18,11 @@ unlisted: false
 Confluence Cloud removed the built-in HTML macro that Server and Data Center users remember, so "embed some
 HTML" now means picking one of four options. Here is what each one actually does, and where each one breaks.
 
+![Interactive mini-site running inside a Confluence Cloud page next to the written decision](/img/mini-sites/live-on-confluence-page.jpg)
+
+*Goal state: multi-file HTML/CSS/JS running **on** the Confluence page — not downloaded, not hosted elsewhere.*
+
+
 | Approach | Multi-file? | JavaScript runs? | Needs external hosting? | Access control |
 |---|---|---|---|---|
 | Iframe / embed macro | No — points at a URL | Yes, on the remote site | **Yes** | Whatever the remote site does |

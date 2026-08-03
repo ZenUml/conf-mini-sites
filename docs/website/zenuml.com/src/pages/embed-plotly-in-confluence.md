@@ -22,7 +22,10 @@ the export expects sibling assets or a CDN.
 2. Rewrite any `https://cdn…` script tags to **local** copies inside the folder.
 3. Publish the folder with [Mini Sites](/mini-sites).
 
+![Interactive multi-file chart dashboard live on a Confluence page](/img/mini-sites/release-dashboard-on-confluence.jpg)
+
 Relative `fetch('data/…')` works inside the sandbox because it is same-origin to the mini site.
+
 
 ## What does not work
 

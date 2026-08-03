@@ -21,6 +21,11 @@ a small tool — and the snippet macro is the only tool they have found so far.
 
 If that is you, the honest answer is that you want a different shape of app.
 
+![A live interactive prototype embedded on a Confluence PRD page — votes and chart updating in place](/img/mini-sites/live-on-confluence-page.jpg)
+
+![GIF: publish a folder and see the mini-site live on Confluence](/img/mini-sites/publish-to-live.gif)
+
+
 ## The two shapes
 
 **A snippet macro** takes markup you paste into a field and renders it. One file's worth of content. Anything

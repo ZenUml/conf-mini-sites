@@ -9,7 +9,7 @@
 
 A Cloudflare quick-tunnel preview was built from this package on **2026-08-03**:
 
-**https://sec-martha-paths-loading.trycloudflare.com/**
+**https://contracts-eyed-hall-merit.trycloudflare.com/**
 
 Example paths:
 - `/mini-sites/`
@@ -57,6 +57,18 @@ git commit -m "content: Mini Sites SEO pillars (Allure, migration, security, AI,
 git push -u origin HEAD
 gh pr create --title "Mini Sites SEO content pillars" --body "Adds research-backed SEO pages for Mini Sites. Source: conf-mini-sites docs/website/zenuml.com."
 ```
+
+## Media assets
+
+Under `static/img/mini-sites/` (served as `/img/mini-sites/…`):
+
+| File | Shows |
+|---|---|
+| `live-on-confluence-page.jpg` | Interactive prototype **on a Confluence page** (chrome + PRD) |
+| `release-dashboard-on-confluence.jpg` | Multi-file dashboard on Confluence (relative paths) |
+| `publish-folder.jpg` / `validated-scanned.jpg` | Publisher modal |
+| `publish-to-live.gif` | Folder → publish → live (~6s loop) |
+| YouTube `vQfuQDDDXs8` | 35s real capture (also Marketplace hero) |
 
 ## Research mapping
 

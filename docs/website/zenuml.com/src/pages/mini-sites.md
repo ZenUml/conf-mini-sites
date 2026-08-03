@@ -21,7 +21,16 @@ small internal tool — the real thing running on the page, not a screenshot of 
 
 [Install Mini Sites from the Atlassian Marketplace](https://marketplace.atlassian.com/apps/4169123443/mini-sites-embed-html-prototypes-for-confluence)
 
+![A Confluence page with a live interactive mini-site embedded under the Candidate features heading — Feature Prioritisation prototype with votes and a results chart](/img/mini-sites/live-on-confluence-page.jpg)
+
+*Real Confluence page: the mini-site runs inline under the PRD — clickable, not a screenshot.*
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/vQfuQDDDXs8" title="Embed a live HTML prototype in a Confluence page" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+![GIF: choose a folder in the publisher, validate & publish, then the interactive mini-site live on the Confluence page](/img/mini-sites/publish-to-live.gif)
+
+*Folder → Validate & publish → live on the page (about 6 seconds).*
+
 
 ## The problem it solves
 

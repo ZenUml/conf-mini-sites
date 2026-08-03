@@ -44,8 +44,11 @@ The Mini Sites sandbox has **no outbound network**. Before you publish:
 2. Choose the folder (not a single file).
 3. Validate & publish.
 
+![GIF: AI or hand-built folder published to a live Confluence mini-site](/img/mini-sites/publish-to-live.gif)
+
 Sample multi-file demo (filters + nested JSON):  
 [samples/static-qa-report](https://github.com/ZenUml/conf-mini-sites/tree/master/samples/static-qa-report)
+
 
 ## When not to use Mini Sites for AI output
 

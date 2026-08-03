@@ -53,7 +53,14 @@ Mini Sites (no public URL required).
 
 1. Grab the sample: [static-qa-report](https://github.com/ZenUml/conf-mini-sites/tree/master/samples/static-qa-report)
 2. Publish the folder with Mini Sites.
-3. Confirm the on-page badge reads **paths OK** (CSS, `widgets/chart.js`, and `data/*.json` all loaded).
+3. Confirm nested CSS/JS/JSON resolve on the page.
+
+![Publisher: multi-file folder ready to validate & publish](/img/mini-sites/publish-folder.jpg)
+
+![Multi-file mini-site (relative `data/metrics.json` + assets) live on Confluence](/img/mini-sites/release-dashboard-on-confluence.jpg)
+
+![GIF: folder publish → live Confluence page](/img/mini-sites/publish-to-live.gif)
+
 
 ## Related
 

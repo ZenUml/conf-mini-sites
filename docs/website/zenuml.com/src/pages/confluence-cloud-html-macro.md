@@ -32,6 +32,9 @@ Ask what you actually need on the page:
    public host  
    → publish the **folder** with [Mini Sites for Confluence](/mini-sites).
 
+![What “folder on the page” looks like in Confluence — interactive dashboard with relative assets](/img/mini-sites/release-dashboard-on-confluence.jpg)
+
+
 4. **Access to the Confluence page DOM** (custom analytics, restyling the wiki chrome, reading other macros)  
    → **none** of the sandboxed HTML apps will do this on Cloud — including Mini Sites. That requirement is a
    disqualifier; look at Forge Custom UI or accept the limit.

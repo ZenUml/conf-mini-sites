@@ -40,7 +40,8 @@
 ## Cheapest tests ranked
 
 1. Five wave-1 DP interviews (Q8, Q5, Q2, Q10) — **highest information per hour**  
-2. One Allure/Plotly folder demo on lite-dev (Q4 edge cases, Q11)  
+2. ~~Build Allure-style folder demo~~ → `samples/static-qa-report/` + `PUBLISH.md` (local paths OK). Remaining: publish on lite-dev (Q4/Q11) when credentials present  
+
 3. Re-verify PARTIAL_RECOVERY URLs (Q13)  
 4. Browser Reddit capture (Q12)  
 5. SERP pass for multi-file / embed HTML / AI tool phrases (Q6)

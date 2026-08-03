@@ -5,6 +5,23 @@
 
 > The conf-mini-sites cloud agent **cannot push** to `ZenUml/docs` (403). Land these with a human or a docs-repo agent that has write access.
 
+## Preview (ephemeral)
+
+A Cloudflare quick-tunnel preview was built from this package on **2026-08-03**:
+
+**https://sec-martha-paths-loading.trycloudflare.com/**
+
+Example paths:
+- `/mini-sites/`
+- `/embed-allure-report-in-confluence/`
+- `/confluence-cloud-html-macro/`
+- `/mini-sites-security-and-limits/`
+- `/publish-chatgpt-html-to-confluence/`
+- `/fix-broken-html-embed-in-confluence/`
+- `/embed-plotly-in-confluence/`
+
+This URL dies when the agent tunnel stops — it is **not** zenuml.com staging. Production still needs a PR to `ZenUml/docs`.
+
 ## Already live (updated here — replace in docs)
 
 | Site URL | File |

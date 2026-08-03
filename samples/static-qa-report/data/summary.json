@@ -1,0 +1,12 @@
+{
+  "title": "checkout-service · build #1842",
+  "generatedAt": "2026-08-02T16:00:00Z",
+  "totals": { "total": 128, "passed": 119, "failed": 6, "broken": 3 },
+  "suites": [
+    { "name": "auth", "passed": 22, "failed": 0, "broken": 0, "status": "passed" },
+    { "name": "cart", "passed": 31, "failed": 2, "broken": 1, "status": "failed" },
+    { "name": "checkout", "passed": 28, "failed": 3, "broken": 1, "status": "failed" },
+    { "name": "payments", "passed": 18, "failed": 1, "broken": 1, "status": "failed" },
+    { "name": "inventory", "passed": 20, "failed": 0, "broken": 0, "status": "passed" }
+  ]
+}

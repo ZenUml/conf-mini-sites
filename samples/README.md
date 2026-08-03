@@ -2,6 +2,15 @@
 
 Pick one of these **folders** in the macro's "Add mini-site → Choose a folder" dialog.
 
+## `static-qa-report/` *(research wedge demo — JTBD-01 / JTBD-04)*
+Allure-style **multi-file static QA report** used as the packaging-activation proof from the Aug 2026 market-opportunity packet.
+
+- Nested tree: `index.html`, `styles.css`, `app.js`, `data/*.json`, `widgets/chart.js`, `assets/mark.svg`
+- Relative `fetch()` of JSON + relative `<script>` / `<link>` / `<img>`
+- Interactive suite filters (proves JS ran inside the served iframe)
+
+**Publish in ≤3 steps:** see [`static-qa-report/PUBLISH.md`](static-qa-report/PUBLISH.md).
+
 ## `release-dashboard/`
 An interactive "Release readiness" dashboard — deliberately exercises the hard parts of the host:
 

@@ -1,0 +1,44 @@
+{
+  "suites": [
+    {
+      "name": "auth",
+      "status": "passed",
+      "passed": 22,
+      "failed": 0,
+      "broken": 0,
+      "cases": ["login_ok", "logout_ok", "token_refresh"]
+    },
+    {
+      "name": "cart",
+      "status": "failed",
+      "passed": 31,
+      "failed": 2,
+      "broken": 1,
+      "cases": ["add_item", "qty_update", "coupon_reject"]
+    },
+    {
+      "name": "checkout",
+      "status": "failed",
+      "passed": 28,
+      "failed": 3,
+      "broken": 1,
+      "cases": ["address_validate", "shipping_quote", "confirm_order"]
+    },
+    {
+      "name": "payments",
+      "status": "failed",
+      "passed": 18,
+      "failed": 1,
+      "broken": 1,
+      "cases": ["card_ok", "3ds_challenge", "refund_path"]
+    },
+    {
+      "name": "inventory",
+      "status": "passed",
+      "passed": 20,
+      "failed": 0,
+      "broken": 0,
+      "cases": ["stock_read", "reserve", "release"]
+    }
+  ]
+}

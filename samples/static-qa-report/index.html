@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Static QA Report — Mini Sites demo</title>
+  <!-- Relative paths only. This structure mirrors Allure-style multi-file reports
+       that 404 under Confluence HTML-include path rewrite (evidence E022 / E076). -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <img class="logo" src="assets/mark.svg" width="36" height="36" alt="" />
+      <div>
+        <p class="kicker">Multi-file static QA report</p>
+        <h1 id="title">Loading…</h1>
+      </div>
+      <span class="badge" id="load-state">…</span>
+    </header>
+
+    <section class="summary" aria-label="Summary">
+      <div class="tile"><p class="lab">Total</p><p class="val" id="m-total">—</p></div>
+      <div class="tile ok"><p class="lab">Passed</p><p class="val" id="m-passed">—</p></div>
+      <div class="tile bad"><p class="lab">Failed</p><p class="val" id="m-failed">—</p></div>
+      <div class="tile warn"><p class="lab">Broken</p><p class="val" id="m-broken">—</p></div>
+    </section>
+
+    <div class="toolbar" role="group" aria-label="Filter suites">
+      <button class="chip is-active" data-filter="all">All</button>
+      <button class="chip" data-filter="failed">Failed</button>
+      <button class="chip" data-filter="passed">Passed</button>
+    </div>
+
+    <section class="chart-card">
+      <p class="sec-lab">Results by suite</p>
+      <div id="chart" class="chart" role="img" aria-label="Suite results chart"></div>
+    </section>
+
+    <section>
+      <p class="sec-lab">Suites</p>
+      <ul id="suites" class="suites"></ul>
+    </section>
+
+    <footer class="foot">
+      <code>index.html · styles.css · app.js · data/* · widgets/* · assets/*</code>
+      <span id="path-proof">relative paths</span>
+    </footer>
+  </main>
+
+  <script src="widgets/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

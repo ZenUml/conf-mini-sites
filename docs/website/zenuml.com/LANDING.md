@@ -44,19 +44,29 @@ This URL dies when the agent tunnel stops — it is **not** zenuml.com staging. 
 
 Docusaurus maps `src/pages/foo.md` → `https://zenuml.com/foo/`.
 
-## One-shot land command (on a machine with docs write access)
+## One-shot land (requires write access to `ZenUml/docs`)
+
+From a checkout of **conf-mini-sites** that has this folder:
+
+```bash
+docs/website/zenuml.com/land-to-docs.sh
+```
+
+Or apply the checked-in patch / bundle onto a fresh docs clone:
 
 ```bash
 git clone git@github.com:ZenUml/docs.git && cd docs
 git checkout -b cursor/mini-sites-seo-pages-2d64
-SRC=/path/to/conf-mini-sites/docs/website/zenuml.com
-cp "$SRC"/src/pages/*.md src/pages/
-cp "$SRC"/docs/products/mini-sites-for-confluence.md docs/products/
-git add src/pages docs/products/mini-sites-for-confluence.md
-git commit -m "content: Mini Sites SEO pillars (Allure, migration, security, AI, path-404)"
+git am /path/to/conf-mini-sites/docs/website/zenuml.com/zenuml-docs-seo.patch
+# alternative: git pull /path/to/.../zenuml-docs-seo.bundle cursor/mini-sites-seo-pages-2d64
 git push -u origin HEAD
-gh pr create --title "Mini Sites SEO content pillars" --body "Adds research-backed SEO pages for Mini Sites. Source: conf-mini-sites docs/website/zenuml.com."
+gh pr create --base main --title "Mini Sites SEO content pillars (screenshots + GIF)" \
+  --body "Source: ZenUml/conf-mini-sites → docs/website/zenuml.com/"
 ```
+
+Then **merge to `main`** and wait for the docs deploy → https://zenuml.com/mini-sites/
+
+> Cloud agent `cursor[bot]` gets **403** on push/PR to `ZenUml/docs`. Grant write access or run the script locally to finish the release.
 
 ## Media assets
 

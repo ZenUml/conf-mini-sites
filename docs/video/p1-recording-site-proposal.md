@@ -1,8 +1,10 @@
-# P-1 recording-site proposal — Owner decision required
+# P-1 recording-site design — approved, provisioning blocked
 
 Prepared: 2026-08-04
 
 Decision scope: tenant name and space topology only
+
+Owner decision: **approved 2026-08-04 — use the recommended neutral tenant naming order and three separate spaces (`PRODUCT`, `QUALITY`, `WEB`)**
 
 Execution status: **blocked — no Atlassian site, app installation, space, page, account, or permission change is authorized by this document**
 
@@ -50,7 +52,7 @@ Structure rules:
 
 This is a review checklist, not an authorization to execute:
 
-1. Owner confirms the preferred/fallback tenant name and per-episode-space topology.
+1. **Complete:** Owner froze the preferred/fallback tenant naming order and three-space topology on 2026-08-04.
 2. Owner separately authorizes an operator to check tenant availability and create the selected site under `minisites-prod`.
 3. Owner separately authorizes installation of the production Mini Sites app.
 4. The operator creates only the approved spaces/pages and records the exact site/app versions.
@@ -62,12 +64,12 @@ This is a review checklist, not an authorization to execute:
 
 One shared space named `Work Artifacts` with three episode roots would reduce setup. It is not recommended because unrelated episode names would appear in the page tree during capture, making privacy depend more heavily on masking and increasing reset mistakes between takes.
 
-## Owner decision requested
+## Owner decision — 2026-08-04
 
-Approve one of these design choices only:
+The Owner selected the recommended design:
 
-1. **Recommended:** `work-artifacts-demo.atlassian.net` (fallbacks in the listed order), with separate `PRODUCT`, `QUALITY`, and `WEB` spaces.
-2. **Lower-setup alternative:** the same tenant naming order, with one shared `WORK` space and one root per episode.
-3. Request a different neutral tenant name or topology.
+- Try `work-artifacts-demo.atlassian.net` first, then the two documented fallback names in order, but only after a separate availability-check authorization.
+- Use three independent spaces: `PRODUCT`, `QUALITY`, and `WEB`.
+- Do not use the lower-setup shared `WORK` space alternative.
 
-Approval of this proposal does **not** authorize site creation, login, app installation, permission changes, or any other cloud action.
+This decision freezes the design only. It does **not** authorize checking name availability, registering or logging in to an Atlassian site, creating the tenant, installing the app, creating spaces or pages, changing permissions, capturing an episode, or making any other cloud or public change.

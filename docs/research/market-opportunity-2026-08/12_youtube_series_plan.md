@@ -79,7 +79,7 @@ mini-sites-growth                demo-video-producer               mini-sites-de
 
 ## 5. 前置任务(拍第一集之前)
 
-- **P-1 录制站点**:公开视频不能出现 `Mini-Site (Development)` 标签与 lite-dev 租户痕迹(promo/README "Known gaps" 已记录)。在 minisites-prod org(support@zenuml.com 为 org admin)下备一个租户名中性的干净站点,装 **production** 版应用,建演示 space。所有 wave 0 剧集共用。
+- **P-1 录制站点**:公开视频不能出现 `Mini-Site (Development)` 标签与 lite-dev 租户痕迹(promo/README "Known gaps" 已记录)。Owner 于 2026-08-04 批准推荐设计:首选 `work-artifacts-demo.atlassian.net`，不可用时依次考虑 `team-artifacts-demo.atlassian.net`、`interactive-work-demo.atlassian.net`；分设 `PRODUCT`、`QUALITY`、`WEB` 三个独立 space，共用同一干净录制租户与 **production** 版应用。当前只冻结命名与拓扑；查名、登录、建站、安装应用、建 space/page、改权限等 cloud provisioning 均未获授权，必须另行批准。
 - **P-2 fixture 库**:每集 fixture 是真实、可下载、可复跑的工件,入库 `docs/fixtures/`(或独立目录),同一份文件三用:视频素材、pillar 页下载、discovery outreach 样品。
 - **P-3 流水线适配**:按《pitch-demo-video》提案完成 a0 流水线的 Mini Sites 适配 —— 补写 workflow/safety 两份 reference(R1 阻塞项)、门禁裁剪(删 HubSpot 合规项,保留脚本审批/Picture Lock/上传授权三道)、字幕沿用 promo 的 Avenir + 靛蓝底板风格。
 - **P-4 CodexLoom 整备**:① 建 Topic "youtube-series-xxx-on-confluence"(成员:growth/video/dev);② 三个 agent 的 Profile 目前为空,补写(video 的 Profile 内嵌本方案 §2 口径约束与 §4 门禁);③ 建两个 Schedule:双周制作 tick、月度 metrics readout。

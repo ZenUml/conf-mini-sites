@@ -2,7 +2,7 @@
 
 Prepared: 2026-08-04
 
-Status: fixture rejected on 2026-08-04; Owner gate ① remains blocked pending an unmodified exporter that passes current CSP, or a separately approved CSP compatibility change
+Status: Owner authorized the local CSP compatibility implementation and tests on 2026-08-04; implementation and verification are pending, no deployment is authorized, and Owner gate ① remains blocked
 
 Series basis: `docs/research/market-opportunity-2026-08/12_youtube_series_plan.md` at approved commit `57e863b`
 
@@ -125,7 +125,22 @@ W0-2 may enter Owner gate ① only after one of these paths succeeds:
 1. A separately approved engineering change—candidate: `font-src 'self' data:`—passes security review plus unit, API/E2E, product-CSP, and same-checksum dev publish/render verification; or
 2. A different unmodified real Allure exporter passes the complete matrix under the existing CSP.
 
-The first option is the smallest compatibility hypothesis because it keeps runtime fonts local and does not add an outbound origin, but it is a CSP/security product decision, not authorized by this brief. The second preserves the existing CSP but no passing exporter is known yet.
+The first option is the smallest compatibility hypothesis because it keeps runtime fonts local and does not add an outbound origin. It required the separate CSP/security decision recorded below. The second preserves the existing CSP but no passing exporter is known yet.
+
+Owner decision — 2026-08-04:
+
+- **Selected path:** authorize mini-sites-dev to implement `font-src 'self' data:` locally, add narrowly scoped security/regression tests, and rerun the product-shaped Allure verification.
+- **Explicitly not authorized:** push, PR, deployment, Forge/Cloudflare change, online dev publish, production action, episode capture, or public claim.
+- The directive must not add `*`, `blob:`, an external font origin, or any other CSP relaxation. All existing directives and response hardening remain unchanged.
+- Do not promote `/private/tmp/w02` into `docs/fixtures/`; redistribution/licence review and a final reproducible snapshot are still required.
+
+This decision does not accept the fixture. W0-2 may enter gate ① only after all of the following are true:
+
+1. the local CSP change and its regression tests pass;
+2. the same product-shaped Allure journey records 0 outbound requests, 0 failed local requests, and 0 console errors;
+3. the validator and secret scan still pass without generated-source repair;
+4. growth accepts a final reproducible/licence-reviewed fixture and checksum; and
+5. after separate deployment authorization, that same checksum passes the dev Mini Sites publish/render journey.
 
 ## 5. CTA
 

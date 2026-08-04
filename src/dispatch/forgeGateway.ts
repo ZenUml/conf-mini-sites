@@ -163,7 +163,7 @@ function withSecurityHeaders(res: Response, deps: ForgeGatewayDeps): Response {
   const frameAncestors = deps.embedAncestors ?? 'https://*.atlassian.net';
   headers.set(
     'content-security-policy',
-    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; ` +
+    `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; ` +
       `img-src 'self' data:; connect-src 'self'; frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'none'`,
   );
   headers.set('x-content-type-options', 'nosniff');

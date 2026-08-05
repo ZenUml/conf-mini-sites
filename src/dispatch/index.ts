@@ -29,6 +29,8 @@ export interface Env {
   /** Mixpanel project token (a Cloudflare secret) — render_succeeded/failed for the entrypoint-
    *  document serve outcome. Optional: sendMiniSiteEvents no-ops silently when unset. */
   MIXPANEL_TOKEN?: string;
+  /** DEVELOPMENT | STAGING | PRODUCTION — per-env [vars]; stamped onto render events. */
+  ENVIRONMENT_TYPE?: string;
   [binding: string]: unknown;
 }
 
@@ -59,6 +61,7 @@ export default {
       // Fire-and-forget: handleForgeServe never awaits this, so a Mixpanel outage adds no latency to a
       // real viewer's page load. ctx.waitUntil keeps the isolate alive long enough for the send to land.
       track: (event) => ctx.waitUntil(sendMiniSiteEvents([event], { token: env.MIXPANEL_TOKEN })),
+      environmentType: env.ENVIRONMENT_TYPE,
     };
     return handleForgeServe(request, deps);
   },

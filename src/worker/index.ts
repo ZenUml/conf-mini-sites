@@ -51,6 +51,8 @@ export interface Env {
    *  provision outcomes). Optional: sendMiniSiteEvents no-ops silently when unset, so an unconfigured
    *  token never blocks a publish. */
   MIXPANEL_TOKEN?: string;
+  /** DEVELOPMENT | STAGING | PRODUCTION — per-env [vars]; stamped onto every Worker-side event. */
+  ENVIRONMENT_TYPE?: string;
   /** D1 database for uninstall-driven GC bookkeeping (ProvisionedInstance). Optional: when unbound (dev not yet
    *  provisioned), all GC bookkeeping is a graceful no-op and the Worker behaves exactly as before. */
   DB?: D1Database;
@@ -155,6 +157,10 @@ export default {
         cloudId: pubCloudId || undefined,
         accountId: typeof ctxAccountId === 'string' ? ctxAccountId : undefined,
         instanceId,
+        // From the per-env [vars] in wrangler-remote.toml. Without it every Worker-side event lands as
+        // unknown_environment_type and dev/staging/prod cannot be told apart in Mixpanel — which is
+        // exactly what the first staging run found.
+        environmentType: env.ENVIRONMENT_TYPE,
       };
       const track = (event: MiniSiteAnalyticsEvent): void => {
         const mpEvent = buildMiniSiteEvent(event, analyticsCtx, { now: Date.now, insertId: () => crypto.randomUUID() });

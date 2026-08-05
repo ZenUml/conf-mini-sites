@@ -6,6 +6,8 @@ main = "src/worker/index.ts"
 compatibility_date = "2026-06-16"
 
 [vars]
+# Stamped onto every analytics event so dev/staging/prod are separable in Mixpanel.
+ENVIRONMENT_TYPE = "DEVELOPMENT"
 # Forge app ids allowed to provision (comma-separated, last ARI segment). Our app id from manifest.yml.
 ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
 # Cloudflare account + dispatch namespace the per-instance Workers are uploaded into.
@@ -73,6 +75,7 @@ DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-dev.zenuml.workers.dev"
 name = "conf-mini-sites-remote-staging"
 
 [env.staging.vars]
+ENVIRONMENT_TYPE = "STAGING"
 # Forge app ids + Cloudflare account unchanged across envs (same app, same account).
 ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
 WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"
@@ -94,6 +97,7 @@ DISPATCH_BASE_URL = "https://conf-mini-sites-dispatch-staging.zenuml.workers.dev
 name = "conf-mini-sites-remote-production"
 
 [env.production.vars]
+ENVIRONMENT_TYPE = "PRODUCTION"
 # Forge app ids + Cloudflare account unchanged across envs (same app, same account).
 ALLOWED_FORGE_APP_IDS = "2efdb7d9-ee5a-4294-b56a-b514e36e1a98"
 WFP_ACCOUNT_ID = "8d5fc7ce04adc5096f52485cce7d7b3d"

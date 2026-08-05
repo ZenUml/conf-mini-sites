@@ -13,6 +13,8 @@ binding = "MINISITES"
 namespace = "mini-sites-dev"
 
 [vars]
+# Stamped onto every analytics event so dev/staging/prod are separable in Mixpanel.
+ENVIRONMENT_TYPE = "DEVELOPMENT"
 # CSP frame-ancestors — the mini-site iframe is nested INSIDE the Forge Custom UI iframe, whose origin is a
 # Forge CDN domain (not *.atlassian.net). Allow the Confluence + Forge runtime domains so the browser doesn't
 # block the embed. Tighten to the exact Custom-UI origin once observed live (read it from the CSP violation /
@@ -56,6 +58,7 @@ binding = "MINISITES"
 namespace = "mini-sites-staging"
 
 [env.staging.vars]
+ENVIRONMENT_TYPE = "STAGING"
 # Same CSP frame-ancestors policy as dev (see the top-level [vars] note above).
 EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*.atl-paas.net"
 
@@ -67,5 +70,6 @@ binding = "MINISITES"
 namespace = "mini-sites-prod"
 
 [env.production.vars]
+ENVIRONMENT_TYPE = "PRODUCTION"
 # Same CSP frame-ancestors policy as dev (see the top-level [vars] note above).
 EMBED_ANCESTORS = "https://*.atlassian.net https://*.atlassian-dev.net https://*.atl-paas.net"

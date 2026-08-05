@@ -139,6 +139,45 @@ shipped nothing.
 3. **spot-check** skill — targeted coverage of **what shipped this release** (reuse the Step 3 prev→new delta;
    exercise the changed surfaces, not keyword→skill matching). Triage every commit `behavioral` /
    `instrumentation` / `infra-test-docs`; only declare `N/A` if every commit is `infra/test/docs`.
+4. **Installed version ≠ deployed version** — run `forge install list` and read the production row's
+   **App version** and **Status**. `forge deploy` publishes a version; it does not move installs across a
+   **major** boundary. A row reading `Outdated app` means the Forge half of this release is NOT running on the
+   production site even though every deploy step was green. See "Propagating a major version" below.
+
+### Step 6b: Propagating a major version to existing installs (`forge version bulk-upgrade`)
+
+Minor bumps auto-roll to installs. A **major** bump does not — the install stays on its old major until
+something moves it. The Forge CLI command for this is `forge version bulk-upgrade` (CLI ≥ 12.22.0), a
+subcommand of `forge version`, NOT of `forge install`:
+
+```bash
+forge version list -e production                     # majors + their egress/scopes/remotes/module counts
+forge version compare -e production                  # what differs between two majors
+forge version bulk-upgrade start -e production \
+  --from-version 3 --to-version 4 --non-interactive  # move installs; -l/--limit caps how many
+forge version bulk-upgrade list -e production        # status of past upgrade requests
+forge version bulk-upgrade cancel -e production      # abort one in progress
+```
+
+Interactive `start` lists each major with its **installation count**; the top row (newest) is preselected, so
+pressing Enter without arrowing down selects the newest as the *source* and yields "no upgrade paths
+available" — that message usually means a wrong source, not a blocked path.
+
+**What actually blocks a path** (observed 2026-08-05 on this app, identical on CLI 12.22.0 and 13.3.0):
+
+- `Error: Target version includes additional egress compared to the source version.` — the target major added
+  an `external.fetch`/`frames` address the source lacks. v0.3.0 added `api.mixpanel.com` plus the two staging
+  Worker URLs, so production 3.4.0 → 4.1.0 is refused. Adding egress needs admin consent, and bulk-upgrade
+  will not carry consent for the customer.
+- A target that adds a consent-requiring OAuth scope is not offered as a target at all.
+
+`forge install --upgrade … -e production` is not a substitute — as the app owner it fails with
+`Upgrade error: Authorization failed: Principal has insufficient permissions`, because the caller is not a
+site admin of the installed site.
+
+When both are refused, the install moves only by (1) publishing a new **Marketplace** version, which needs the
+partner portal and a 2SV login, or (2) the site admin updating the app in Confluence → Manage apps. Report the
+gap; do not describe the Forge half of the release as live.
 
 ### Step 7: Report
 
@@ -150,6 +189,7 @@ shipped nothing.
   (or: SKIPPED — <which> creds absent → no-op; deploy did NOT happen)
 - Prod smoke (e2e happy-path): PASS | FAIL | self-skipped
 - check-version: Forge <ver> · control <ver> · dispatch <ver>
+- Prod install: <site> on <installed ver> — UP TO DATE | OUTDATED (deployed <ver>; Forge half not live)
 - Spot check (this delta): <check>: PASS|FAIL|SKIPPED  (or N/A — <justification>)
 ```
 
@@ -163,6 +203,9 @@ Then flip any related tracker tickets (e.g. mark Multica issues as done if they 
   as NOT released. Fix the prerequisites, then re-run `release.yml` (re-publish or `gh run rerun <id>`).
 - **Smoke fails** — a post-deploy production issue; report and investigate. Do not auto-rollback.
 - **check-version mismatch** — the live build isn't the expected tag; investigate before declaring success.
+- **Install shows `Outdated app`** — a major-version gap, not a failed deploy. Follow Step 6b; if
+  `forge version bulk-upgrade` refuses on added egress, say so with the exact CLI error and name the two
+  remaining routes (Marketplace version, or site admin).
 
 ## Important Notes
 

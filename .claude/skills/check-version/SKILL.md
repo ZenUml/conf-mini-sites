@@ -32,6 +32,17 @@ forge deployments list -e development   # or -e production
 
 Match the latest deployment's version/time against the build you expect (the commit/PR you just deployed). After `forge deploy`, the development environment updates immediately; an installed site picks it up on the next load (or after `forge install --upgrade`).
 
+> `forge deployments list` does not exist on CLI 12.22.0/13.3.0. Use `forge version list -e <env>` for the
+> deployed majors and `forge install list` for what each site actually runs.
+
+**Read the Status column, not just the version.** `forge install list` marks a site `Outdated app` when its
+install sits on an older **major** than the deployed one. Minor bumps auto-roll; majors do not. Moving them is
+`forge version bulk-upgrade start -e <env> --from-version <n> --to-version <m> --non-interactive` — a
+subcommand of `forge version`, not `forge install`. It refuses with `Target version includes additional egress
+compared to the source version` when the newer major added an `external.fetch`/`frames` address, and
+`forge install --upgrade` fails for a non-site-admin with `Authorization failed: Principal has insufficient
+permissions`. Full rules: the `release-app` skill, Step 6b.
+
 ## 2. Control + dispatch Worker versions
 
 The two Cloudflare Workers are deployed independently of the Forge app. Confirm each is the build you expect via Wrangler (reading only — never deploy here):

@@ -1,0 +1,179 @@
+:root {
+  --bg: #f4f6fb;
+  --card-bg: #ffffff;
+  --border: #e2e6ef;
+  --ink: #1a2233;
+  --ink-muted: #5b6478;
+  --accent: #2563eb;
+  --accent-soft: #eaf0ff;
+  --good: #0c8a56;
+  --good-soft: #e6f7ef;
+  --shadow: 0 10px 30px rgba(20, 29, 56, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #eef2fb 0%, #f7f9fd 320px, var(--bg) 320px);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 40px 20px 60px;
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.header h1 {
+  font-size: 34px;
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  color: var(--ink-muted);
+  font-size: 15px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 32px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 32px;
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  margin-bottom: 26px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.field .unit {
+  font-weight: 400;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.field input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #fbfcfe;
+  color: var(--ink);
+}
+
+.field input[type="number"]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric {
+  background: var(--accent-soft);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.metric.highlight {
+  background: var(--good-soft);
+}
+
+.metric-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-value {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.metric.highlight .metric-value {
+  color: var(--good);
+}
+
+.footer-note {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.page-footer {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.page-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}

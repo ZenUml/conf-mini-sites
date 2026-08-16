@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cloud Migration ROI Calculator</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <p class="eyebrow">Cloud Migration Proposal</p>
+      <h1>ROI Calculator</h1>
+      <p class="sub">Adjust the numbers below to see payback period, savings, and 3-year ROI update live.</p>
+    </header>
+
+    <section class="card">
+      <div class="grid">
+        <div class="inputs">
+          <div class="field">
+            <label for="currentCost">Current infrastructure cost <span class="unit">/ year</span></label>
+            <input type="number" id="currentCost" min="0" step="1000" value="480000" />
+            <input type="range" id="currentCostRange" min="0" max="3000000" step="1000" value="480000" />
+          </div>
+
+          <div class="field">
+            <label for="migrationCost">Migration cost <span class="unit">one-time</span></label>
+            <input type="number" id="migrationCost" min="0" step="1000" value="150000" />
+            <input type="range" id="migrationCostRange" min="0" max="1500000" step="1000" value="150000" />
+          </div>
+
+          <div class="field">
+            <label for="annualSavings">Expected annual savings <span class="unit">/ year</span></label>
+            <input type="number" id="annualSavings" min="0" step="1000" value="180000" />
+            <input type="range" id="annualSavingsRange" min="0" max="1500000" step="1000" value="180000" />
+          </div>
+        </div>
+
+        <div class="outputs">
+          <div class="metric">
+            <p class="metric-label">Payback period</p>
+            <p class="metric-value" id="paybackPeriod">--</p>
+          </div>
+          <div class="metric">
+            <p class="metric-label">Annual savings</p>
+            <p class="metric-value" id="annualSavingsOut">--</p>
+          </div>
+          <div class="metric highlight">
+            <p class="metric-label">3-year ROI</p>
+            <p class="metric-value" id="threeYearRoi">--</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note" id="footnote"></div>
+    </section>
+
+    <footer class="page-footer">
+      <p>Built with <a href="https://marketplace.atlassian.com" target="_blank" rel="noopener">Mini Sites for Confluence</a> — turn a formula in your document into something your team can actually use.</p>
+    </footer>
+  </main>
+
+  <script src="calculator.js"></script>
+</body>
+</html>

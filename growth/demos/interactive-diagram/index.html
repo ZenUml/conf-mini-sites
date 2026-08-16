@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Interactive Architecture Diagram</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="app-header__title">
+        <span class="app-header__badge">Live diagram</span>
+        <h1>Mini Sites — Request Path</h1>
+      </div>
+      <p class="app-header__subtitle">
+        Click any service or data-flow arrow to see its owner, protocol, dependencies, and known risks —
+        inline, without leaving this page. This is a real interactive diagram, not a static image.
+      </p>
+    </header>
+
+    <main class="stage-wrap">
+      <div class="stage" aria-label="Architecture diagram">
+        <svg id="diagram" viewBox="0 0 1000 560" role="group" aria-label="Service diagram">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" class="arrow-head"></path>
+            </marker>
+          </defs>
+
+          <!-- Edges (drawn first, under nodes) -->
+          <g id="edges">
+            <path id="edge-macro-control" class="edge" data-edge="macro-control"
+              d="M230,90 C330,90 330,90 380,90" marker-end="url(#arrow)"></path>
+            <path id="edge-control-dispatch" class="edge" data-edge="control-dispatch"
+              d="M500,140 C500,220 500,220 500,280" marker-end="url(#arrow)"></path>
+            <path id="edge-dispatch-instance" class="edge" data-edge="dispatch-instance"
+              d="M620,330 C700,330 700,330 780,330" marker-end="url(#arrow)"></path>
+            <path id="edge-control-d1" class="edge" data-edge="control-d1"
+              d="M440,140 C300,220 260,300 300,400" marker-end="url(#arrow)"></path>
+            <path id="edge-instance-viewer" class="edge" data-edge="instance-viewer"
+              d="M850,380 C850,460 700,480 620,470" marker-end="url(#arrow)"></path>
+          </g>
+
+          <!-- Edge hit areas (wider, invisible, for easy clicking) -->
+          <g id="edge-hits">
+            <path class="edge-hit" data-edge="macro-control" d="M230,90 C330,90 330,90 380,90"></path>
+            <path class="edge-hit" data-edge="control-dispatch" d="M500,140 C500,220 500,220 500,280"></path>
+            <path class="edge-hit" data-edge="dispatch-instance" d="M620,330 C700,330 700,330 780,330"></path>
+            <path class="edge-hit" data-edge="control-d1" d="M440,140 C300,220 260,300 300,400"></path>
+            <path class="edge-hit" data-edge="instance-viewer" d="M850,380 C850,460 700,480 620,470"></path>
+          </g>
+
+          <!-- Nodes -->
+          <g class="node" data-node="viewer" tabindex="0" role="button" aria-label="Confluence viewer">
+            <rect x="40" y="55" width="190" height="70" rx="10"></rect>
+            <text x="135" y="85" text-anchor="middle" class="node-title">Confluence Page</text>
+            <text x="135" y="105" text-anchor="middle" class="node-sub">Mini-Site macro (Custom UI)</text>
+          </g>
+
+          <g class="node" data-node="control" tabindex="0" role="button" aria-label="Control Worker">
+            <rect x="380" y="55" width="190" height="80" rx="10"></rect>
+            <text x="475" y="88" text-anchor="middle" class="node-title">Control Worker</text>
+            <text x="475" y="108" text-anchor="middle" class="node-sub">validate · provision · sign grant</text>
+          </g>
+
+          <g class="node" data-node="dispatch" tabindex="0" role="button" aria-label="Dispatch Worker">
+            <rect x="405" y="280" width="215" height="80" rx="10"></rect>
+            <text x="512" y="313" text-anchor="middle" class="node-title">Dispatch Worker</text>
+            <text x="512" y="333" text-anchor="middle" class="node-sub">verify grant · route bytes</text>
+          </g>
+
+          <g class="node" data-node="instance" tabindex="0" role="button" aria-label="Per-instance Worker">
+            <rect x="780" y="290" width="190" height="80" rx="10"></rect>
+            <text x="875" y="323" text-anchor="middle" class="node-title">ms-&lt;instanceId&gt;</text>
+            <text x="875" y="343" text-anchor="middle" class="node-sub">serves bundle bytes</text>
+          </g>
+
+          <g class="node node--data" data-node="d1" tabindex="0" role="button" aria-label="D1 database">
+            <rect x="205" y="375" width="190" height="70" rx="10"></rect>
+            <text x="300" y="405" text-anchor="middle" class="node-title">D1 (SQLite)</text>
+            <text x="300" y="425" text-anchor="middle" class="node-sub">instance + grant records</text>
+          </g>
+        </svg>
+      </div>
+
+      <aside id="detail" class="detail" aria-live="polite">
+        <div class="detail__empty">
+          <p>Click a service box or an arrow to inspect it.</p>
+          <p class="detail__hint">Try: Control Worker, or the arrow from Dispatch → ms-&lt;instanceId&gt;.</p>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="app-footer">
+      Built with Mini Sites. This whole diagram — SVG, styling, and click behavior — is one self-contained
+      bundle, uploaded once and served inline on a Confluence page.
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

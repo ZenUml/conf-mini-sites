@@ -1,0 +1,447 @@
+:root {
+  --paper: #f2f1ec;
+  --paper-raised: #fbfaf7;
+  --paper-inset: #e7e5dd;
+  --ink: #262521;
+  --ink-muted: #6b6a62;
+  --rule: #d6d4ca;
+  --rule-strong: #b3b1a4;
+  --accent: #2f4a52;
+  --accent-strong: #1e343a;
+  --accent-soft: #e3e9ea;
+  --accent-ink: #eef2f2;
+  --margin-rule: #a9b5b7;
+  --shadow: 0 12px 28px rgba(38, 37, 33, 0.08);
+
+  --font-serif: "Source Serif 4", Georgia, "Iowan Old Style", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  font-family: var(--font-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1a1d1e;
+    --paper-raised: #212527;
+    --paper-inset: #16191a;
+    --ink: #e7e6e0;
+    --ink-muted: #9a9890;
+    --rule: #35393a;
+    --rule-strong: #4a4e4f;
+    --accent: #7fa6ad;
+    --accent-strong: #a3c4ca;
+    --accent-soft: #223035;
+    --accent-ink: #1a2528;
+    --margin-rule: #3d4a4d;
+    --shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #1a1d1e;
+  --paper-raised: #212527;
+  --paper-inset: #16191a;
+  --ink: #e7e6e0;
+  --ink-muted: #9a9890;
+  --rule: #35393a;
+  --rule-strong: #4a4e4f;
+  --accent: #7fa6ad;
+  --accent-strong: #a3c4ca;
+  --accent-soft: #223035;
+  --accent-ink: #1a2528;
+  --margin-rule: #3d4a4d;
+  --shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  background-image:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.015) 0px, rgba(0, 0, 0, 0.015) 1px, transparent 1px, transparent 34px);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 48px 20px 60px;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+
+.header h1 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 40px;
+  margin: 0 0 14px;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.brief {
+  position: relative;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  box-shadow: var(--shadow);
+  padding: 34px 34px 34px 46px;
+}
+
+.brief::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 26px;
+  width: 2px;
+  background: var(--margin-rule);
+  opacity: 0.55;
+}
+
+.brief-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 40px;
+}
+
+@media (max-width: 780px) {
+  .brief-grid {
+    grid-template-columns: 1fr;
+  }
+  .brief {
+    padding: 28px 22px 28px 34px;
+  }
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.section-title.score-table-title {
+  margin-top: 34px;
+  padding-top: 22px;
+  border-top: 1px dashed var(--rule-strong);
+}
+
+.section-hint {
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.section-hint-inline {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.field {
+  margin-bottom: 22px;
+}
+
+.field:last-of-type {
+  margin-bottom: 0;
+}
+
+.field label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.field-name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.field .unit {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--accent-strong);
+  font-size: 13px;
+  background: var(--accent-soft);
+  padding: 1px 9px;
+  min-width: 14px;
+  text-align: center;
+}
+
+/* Custom slider — a ruled tick line with a squared marker, not a default track. */
+.field input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background:
+    linear-gradient(var(--rule-strong), var(--rule-strong)) left center / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--rule-strong) 0, var(--rule-strong) 1px, transparent 1px, transparent 20%);
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  border: 2px solid var(--paper-raised);
+  box-shadow: 0 0 0 1px var(--accent-strong);
+  margin-top: 0;
+  cursor: pointer;
+}
+
+.field input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--rule-strong);
+}
+
+.field input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  border: 2px solid var(--paper-raised);
+  box-shadow: 0 0 0 1px var(--accent-strong);
+  cursor: pointer;
+}
+
+.score-table {
+  font-size: 13px;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1fr repeat(4, 52px);
+  align-items: center;
+  column-gap: 4px;
+  border-bottom: 1px solid var(--rule);
+  padding: 9px 0;
+}
+
+.score-row:first-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  padding-bottom: 10px;
+}
+
+.score-row .option-name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 14px;
+  padding-right: 8px;
+}
+
+.score-row input[type="number"] {
+  width: 44px;
+  padding: 4px 4px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-inset);
+  color: var(--ink);
+  text-align: center;
+  justify-self: center;
+}
+
+.score-row input[type="number"]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.outputs {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-label.ranking-label {
+  font-family: var(--font-mono);
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Default row style — used for the runners-up (#2, #3, ...). Deliberately quiet
+   so the #1 verdict card (below) is the only loud element on the page. */
+.rank-card {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rank-position {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.rank-body {
+  min-width: 0;
+}
+
+.rank-name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.rank-bar-track {
+  height: 3px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.rank-bar-fill {
+  height: 100%;
+  background: var(--ink-muted);
+  transition: width 200ms ease;
+}
+
+.rank-score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  min-width: 38px;
+  text-align: right;
+}
+
+/* The verdict — #1 gets a headline treatment, not a highlighted row. */
+.rank-card.rank-1 {
+  display: block;
+  position: relative;
+  order: -1;
+  background: var(--accent-ink);
+  border: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  padding: 20px 20px 22px;
+  margin-bottom: 6px;
+}
+
+.rank-1 .rank-position {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.rank-1 .rank-position::before {
+  content: "Leading — ";
+}
+
+.rank-1 .rank-body {
+  margin-bottom: 14px;
+}
+
+.rank-1 .rank-name {
+  font-size: 26px;
+  line-height: 1.15;
+  padding-right: 90px;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+
+.rank-1 .rank-bar-track {
+  height: 5px;
+  margin-right: 100px;
+  background: var(--accent-soft);
+}
+
+.rank-1 .rank-bar-fill {
+  background: var(--accent);
+}
+
+.rank-1 .rank-score {
+  position: absolute;
+  bottom: 18px;
+  right: 20px;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 0;
+}
+
+.footer-note {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--rule-strong);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.page-footer {
+  text-align: center;
+  margin-top: 30px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.page-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+}
+
+.page-footer a:hover {
+  color: var(--accent-strong);
+}

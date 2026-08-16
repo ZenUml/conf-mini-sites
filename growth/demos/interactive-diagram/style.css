@@ -1,0 +1,348 @@
+:root {
+  /* Blueprint navy ground — dark is the default drawing sheet. */
+  --bg: #0d1b33;
+  --bg-wash: #0a1628;
+  --panel: #0f2140;
+  --panel-2: #142a4d;
+  --border: #2c4670;
+  --border-dim: #1c3355;
+  --text: #dce7f5;
+  --text-dim: #82a0c4;
+  --accent: #ffb454;      /* amber highlighter pen */
+  --accent-2: #5fd6d1;    /* cyan drafting ink, secondary highlight */
+  --risk: #ff7a5c;        /* warm coral-amber, distinct from --accent */
+  --grid-line: rgba(140, 175, 220, 0.09);
+  --grid-dot: rgba(140, 175, 220, 0.22);
+  --shadow: 0 18px 40px rgba(3, 8, 20, 0.55);
+  --font-mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Technical-paper ground — warm off-white sheet, navy ink. */
+    --bg: #f1ecdd;
+    --bg-wash: #e9e2cd;
+    --panel: #faf7ee;
+    --panel-2: #f2ecda;
+    --border: #b9ac87;
+    --border-dim: #d3c8a8;
+    --text: #23324a;
+    --text-dim: #5c6b85;
+    --accent: #b6631a;
+    --accent-2: #0d7a72;
+    --risk: #a8402a;
+    --grid-line: rgba(40, 55, 80, 0.09);
+    --grid-dot: rgba(40, 55, 80, 0.22);
+    --shadow: 0 18px 34px rgba(60, 50, 20, 0.14);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    linear-gradient(var(--bg-wash), var(--bg-wash)),
+    repeating-linear-gradient(0deg, var(--grid-line) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(90deg, var(--grid-line) 0 1px, transparent 1px 32px);
+  background-blend-mode: normal;
+  color: var(--text);
+  min-height: 100vh;
+  font-family: var(--font-mono);
+}
+
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.app-header {
+  margin-bottom: 24px;
+}
+
+.app-header__title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.app-header__badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  padding: 4px 9px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.app-header__subtitle {
+  margin: 0;
+  max-width: 780px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.stage-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .stage-wrap { grid-template-columns: 1fr; }
+}
+
+.stage {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 10px;
+}
+
+/* Drafting registration ticks at the sheet's corners — the diagram's frame marks. */
+.stage__tick {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 2;
+}
+.stage__tick--tl { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.stage__tick--tr { top: -1px; right: -1px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.stage__tick--bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.stage__tick--br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+
+#diagram {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.diagram-grid {
+  pointer-events: none;
+}
+
+.grid-line {
+  fill: none;
+  stroke: var(--grid-line);
+  stroke-width: 1;
+}
+
+.grid-dot {
+  fill: var(--grid-dot);
+}
+
+.node-frame {
+  fill: var(--panel-2);
+  stroke: var(--border);
+  stroke-width: 1.25;
+  transition: stroke 0.15s ease, fill 0.15s ease;
+}
+
+.node.node--data .node-frame {
+  fill: var(--panel-2);
+  stroke: var(--border);
+  stroke-dasharray: 5 3;
+}
+
+.node-corner {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.25;
+  opacity: 0;
+  transition: opacity 0.15s ease, stroke 0.15s ease;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.node:hover .node-frame,
+.node:focus .node-frame,
+.node.is-active .node-frame {
+  stroke: var(--accent);
+  fill: var(--panel-2);
+}
+
+.node:hover .node-corner,
+.node:focus .node-corner,
+.node.is-active .node-corner {
+  opacity: 1;
+  stroke: var(--accent);
+}
+
+.node.is-active .node-frame {
+  stroke-width: 1.75;
+}
+
+.node:focus {
+  outline: none;
+}
+
+.node-kicker {
+  fill: var(--accent-2);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.node-title {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.node-sub {
+  fill: var(--text-dim);
+  font-size: 10.5px;
+}
+
+.title-block__line {
+  fill: var(--text-dim);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+.edge.is-active {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.arrow-head {
+  fill: var(--border);
+}
+
+.edge.is-active + .arrow-head,
+.edge-hit.is-active ~ .arrow-head {
+  fill: var(--accent);
+}
+
+.edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: pointer;
+}
+
+.detail {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 22px 20px;
+  min-height: 300px;
+}
+
+.detail__tick {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.detail__tick--tl { top: -1px; left: -1px; border-top: 2px solid var(--accent-2); border-left: 2px solid var(--accent-2); }
+.detail__tick--br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent-2); border-right: 2px solid var(--accent-2); }
+
+.detail__empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail__hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.detail__kicker {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin: 0 0 6px;
+}
+
+.detail__title {
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.detail__field {
+  margin-bottom: 15px;
+}
+
+.detail__field-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 5px;
+}
+
+.detail__field-value {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.detail__field-value.risk {
+  color: var(--risk);
+}
+
+.detail__deps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detail__deps li {
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 3px 8px;
+}
+
+.app-footer {
+  margin-top: 28px;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+}

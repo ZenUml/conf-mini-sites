@@ -213,6 +213,21 @@ These erode the "~$25/mo, solo-buildable" premise — re-cost honestly.
 
 > **2026-06-17 — demand-to-pay gate REMOVED by decision.** The former gate 2 ("≥3 paying prospects beyond the anchor team who pre-approved the external-processor architecture") is **waived**. We are listing on the Marketplace as the demand-validation instrument itself (list-first, validate with real installs) rather than gating the listing on pre-secured paid commitments. Privacy / residency / DPA disclosures are still required *within* the listing, but they no longer block publishing.
 
+> **2026-08-16 — free-first pricing, and the mechanism that keeps the return to paid cheap.** The listing goes to $0 to remove the price barrier during demand validation, with the intent to charge once installs accumulate. **Do this as a price change inside the existing "Paid via Atlassian" model — set the tier amounts to 0. Do NOT switch the payment model to "Free", and do NOT remove `licensing: enabled: true` from `forge-app/manifest.yml`.** The two paths look identical to a visitor and differ enormously on the way back:
+>
+> | Path back to paid | What it costs |
+> |---|---|
+> | Prices raised inside "Paid via Atlassian" | A price edit. Live within 24h. No Marketplace approval, no Forge major-version bump, no customer consent. Existing customers get a 60-day price override. |
+> | Payment model "Free" → "Paid via Atlassian" | Marketplace approval **and** a Forge **major version** increment. Every install's admin must manually approve the upgrade before the app keeps working. `release.yml` does not run `forge install --upgrade`, so nothing rolls out on its own. |
+>
+> Source: developer.atlassian.com — "The major version is incremented … when you specify increase/changed scopes, and/or when you update licensing from free to paid"; "Your listing changes from free to paid: Your change triggers a Marketplace approval"; price adjustments "take effect within 24 hours". Verified 2026-08-16.
+>
+> **No code change is required for the free period.** `licenseInactive()` in `forge-app/src/index.js` is `context?.license != null && context.license.active === false` — a $0 subscription yields an active license, so the EAG-92 publish gate never fires and the `LICENSE_INACTIVE` copy in `ui-src/publisher.js` never renders. Leave both intact; they are what enforces the price when it returns.
+>
+> **Known cost of charging later, accepted going in:** every tenant that installs during the free period holds a $0 subscription. Raising the price does not auto-charge them — they must actively subscribe, and until they do, `license.active === false` makes the EAG-92 gate 402 their *new* publishes. Serving is never gated by design, so their existing embeds keep rendering. Plan that conversion as a customer-facing campaign, not a listing edit.
+>
+> **Cross-constraint:** adding the still-pending `storage:app` scope also forces a Forge major version and the same per-install consent. If that scope is still wanted, it belongs in one consent window taken now at low install count, not after a free listing has raised the count.
+
 If the gates don't pass → ship the next ZenUML feature instead.
 
 ## Positioning (one line)

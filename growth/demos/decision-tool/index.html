@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Decision Tool</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <p class="eyebrow">Vendor Selection Decision</p>
+      <h1>Decision Tool</h1>
+      <p class="sub">Adjust how much each criterion matters to you — the weighted score and ranking below recompute live, so the recommendation is something you can see being produced, not just told.</p>
+    </header>
+
+    <section class="card">
+      <div class="grid">
+        <div class="inputs">
+          <h2 class="section-title">Weight each criterion</h2>
+          <p class="section-hint">Higher weight means the criterion matters more to your decision. Weights don't need to add up to anything in particular.</p>
+
+          <div class="field">
+            <label for="weightCost">Cost <span class="unit" id="weightCostVal">3</span></label>
+            <input type="range" id="weightCost" min="0" max="5" step="1" value="3" />
+          </div>
+
+          <div class="field">
+            <label for="weightImpact">Impact <span class="unit" id="weightImpactVal">4</span></label>
+            <input type="range" id="weightImpact" min="0" max="5" step="1" value="4" />
+          </div>
+
+          <div class="field">
+            <label for="weightRisk">Risk <span class="unit" id="weightRiskVal">3</span></label>
+            <input type="range" id="weightRisk" min="0" max="5" step="1" value="3" />
+          </div>
+
+          <div class="field">
+            <label for="weightEffort">Effort <span class="unit" id="weightEffortVal">2</span></label>
+            <input type="range" id="weightEffort" min="0" max="5" step="1" value="2" />
+          </div>
+
+          <h2 class="section-title score-table-title">Per-option scores <span class="section-hint-inline">(1 = worst, 10 = best, editable)</span></h2>
+          <div class="score-table" id="scoreTable" role="table" aria-label="Per-option criterion scores"></div>
+        </div>
+
+        <div class="outputs">
+          <p class="metric-label ranking-label">Live ranking</p>
+          <div class="ranking" id="ranking"></div>
+          <div class="footer-note" id="footnote"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <p>Built with <a href="https://marketplace.atlassian.com" target="_blank" rel="noopener">Mini Sites for Confluence</a> — turn a decision document into a decision tool.</p>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -17,6 +17,7 @@ can interrogate — inline, without leaving the page.
 | ROI Calculator | `demos/roi-calculator/` | `landing/roi-calculator.md` | `prompts/roi-calculator.md` | `social/roi-calculator-linkedin.md` | `hypotheses/roi-calculator.md` |
 | Interactive Architecture Diagram | `demos/interactive-diagram/` | `landing/interactive-diagram.md` | `prompts/interactive-diagram.md` | `social/interactive-diagram-linkedin.md` | `hypotheses/interactive-diagram.md` |
 | Product Configurator | `demos/product-configurator/` | `landing/product-configurator.md` | `prompts/product-configurator.md` | `social/product-configurator-linkedin.md` | `hypotheses/product-configurator.md` |
+| Interactive Decision Tool | `demos/decision-tool/` | `landing/decision-tool.md` | `prompts/decision-tool.md` | `social/decision-tool-linkedin.md` | `hypotheses/decision-tool.md` |
 
 Deliberately **not** built this batch, per the strategy brief's screening criteria: Interactive
 Database and Kanban/Task Management (Atlassian is actively closing these gaps — Confluence

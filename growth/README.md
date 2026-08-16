@@ -9,6 +9,12 @@ Mini Sites is not "upload HTML to Confluence." It's making an otherwise-static C
 run: a prototype someone can click, a calculator someone can feed real numbers, a diagram someone
 can interrogate — inline, without leaving the page.
 
+## Entry page
+
+`landing/interactive-demo.md` is the umbrella page linking to all 5 scenarios below — per the
+strategy brief, it deliberately carries no demo of its own ("more suited as the overall entry
+page" than a standalone template).
+
 ## Phase 1 experiments (this batch)
 
 | Scenario | Demo | Landing | Prompt | LinkedIn | Hypothesis |

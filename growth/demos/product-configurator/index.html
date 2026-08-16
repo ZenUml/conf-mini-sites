@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Product Configurator</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <p class="eyebrow">Solution Architecture Guide</p>
+      <h1>Product Configurator</h1>
+      <p class="sub">Pick a region, plan, user count, storage, and integrations — the recommended architecture, estimated cost, and feature availability update live below.</p>
+    </header>
+
+    <section class="card">
+      <div class="grid">
+        <div class="inputs">
+          <div class="field">
+            <label for="region">Deployment region</label>
+            <select id="region">
+              <option value="us" selected>United States</option>
+              <option value="eu">European Union</option>
+              <option value="apac">Asia-Pacific</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="users">Users <span class="unit" id="usersUnit">50</span></label>
+            <input type="range" id="users" min="1" max="1000" step="1" value="50" />
+          </div>
+
+          <div class="field">
+            <label for="plan">Plan tier</label>
+            <select id="plan">
+              <option value="starter">Starter</option>
+              <option value="business" selected>Business</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="storage">Storage tier</label>
+            <select id="storage">
+              <option value="standard" selected>Standard (100 GB pooled)</option>
+              <option value="extended">Extended (1 TB pooled)</option>
+              <option value="unlimited">Unlimited (metered)</option>
+            </select>
+          </div>
+
+          <fieldset class="field checkboxes">
+            <legend>Integrations</legend>
+            <label class="checkbox">
+              <input type="checkbox" id="intSso" checked />
+              <span>SSO / SAML</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="intApi" />
+              <span>API access</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="intAudit" />
+              <span>Audit log export</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="intDataResidency" />
+              <span>Data residency controls</span>
+            </label>
+          </fieldset>
+        </div>
+
+        <div class="outputs">
+          <div class="metric">
+            <p class="metric-label">Recommended architecture</p>
+            <p class="metric-value metric-value--text" id="architectureOut">--</p>
+          </div>
+          <div class="metric highlight">
+            <p class="metric-label">Estimated cost</p>
+            <p class="metric-value" id="costOut">--</p>
+          </div>
+          <div class="metric">
+            <p class="metric-label">Feature availability</p>
+            <ul class="feature-list" id="featureList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note" id="footnote"></div>
+    </section>
+
+    <footer class="page-footer">
+      <p>Built with <a href="https://marketplace.atlassian.com" target="_blank" rel="noopener">Mini Sites for Confluence</a> — stop explaining every configuration, let people explore it themselves.</p>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

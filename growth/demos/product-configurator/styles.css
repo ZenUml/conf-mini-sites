@@ -1,0 +1,258 @@
+:root {
+  --bg: #f4f6fb;
+  --card-bg: #ffffff;
+  --border: #e2e6ef;
+  --ink: #1a2233;
+  --ink-muted: #5b6478;
+  --accent: #2563eb;
+  --accent-soft: #eaf0ff;
+  --good: #0c8a56;
+  --good-soft: #e6f7ef;
+  --warn: #b45309;
+  --warn-soft: #fdf1e0;
+  --shadow: 0 10px 30px rgba(20, 29, 56, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #eef2fb 0%, #f7f9fd 320px, var(--bg) 320px);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 40px 20px 60px;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.header h1 {
+  font-size: 34px;
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  color: var(--ink-muted);
+  font-size: 15px;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 32px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  margin-bottom: 26px;
+  border: none;
+  padding: 0;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field label,
+.field legend {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.field .unit {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: var(--ink);
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%), linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric {
+  background: var(--accent-soft);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.metric.highlight {
+  background: var(--good-soft);
+}
+
+.metric-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-value {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.metric-value--text {
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.metric.highlight .metric-value {
+  color: var(--good);
+}
+
+.feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.feature-list .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.feature-list .dot--yes {
+  background: var(--good);
+}
+
+.feature-list .dot--no {
+  background: var(--ink-muted);
+  opacity: 0.35;
+}
+
+.feature-list .dot--warn {
+  background: var(--warn);
+}
+
+.feature-list li.unavailable {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+}
+
+.footer-note {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.page-footer {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.page-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}

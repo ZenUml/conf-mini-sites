@@ -1,8 +1,6 @@
 (function () {
   "use strict";
 
-  var STORAGE_KEY = "feature-prioritizer-demo-v1";
-
   var seed = [
     { id: id(), title: "One-click CSV export", impact: 7, effort: 3, votes: 4 },
     { id: id(), title: "Dark mode", impact: 4, effort: 2, votes: 2 },
@@ -11,7 +9,7 @@
     { id: id(), title: "Custom branding", impact: 3, effort: 7, votes: 1 }
   ];
 
-  var state = load() || seed;
+  var state = seed;
 
   var gridEl = document.getElementById("matrixGrid");
   var rankListEl = document.getElementById("rankList");
@@ -49,29 +47,11 @@
       votes: 0
     });
     ideaInput.value = "";
-    save();
     render();
   }
 
   function id() {
     return "f_" + Math.random().toString(36).slice(2, 10);
-  }
-
-  function save() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-      /* ignore storage errors (e.g. sandboxed iframe) */
-    }
-  }
-
-  function load() {
-    try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      return null;
-    }
   }
 
   function quadrantOf(item) {
@@ -163,7 +143,6 @@
       if (!dragging) return;
       dragging = false;
       dot.classList.remove("dragging");
-      save();
       renderRankList();
     }
 
@@ -177,7 +156,6 @@
     // Click on matrix background also drops the nearest new position (simple UX affordance)
     dot.addEventListener("dblclick", function () {
       item.votes += 1;
-      save();
       render();
     });
   }
@@ -218,7 +196,6 @@
       voteBtn.innerHTML = '<span>▲ vote</span><span class="vote-btn__count">' + item.votes + "</span>";
       voteBtn.addEventListener("click", function () {
         item.votes += 1;
-        save();
         render();
       });
 
@@ -228,7 +205,6 @@
       removeBtn.textContent = "×";
       removeBtn.addEventListener("click", function () {
         state = state.filter(function (s) { return s.id !== item.id; });
-        save();
         render();
       });
 

@@ -20,6 +20,9 @@ hard constraints:
 4. The page must work fully offline and never make a network request.
 5. Every output value must recompute live, on every input change — no submit
    button, no page reload.
+6. Do NOT use localStorage, sessionStorage, IndexedDB, or cookies — Mini Sites serves the bundle
+   in a sandboxed iframe with an opaque origin, where all of those throw or silently no-op. Keep
+   all state in plain JS variables; it's fine if it resets on reload.
 
 Here is the configurator I need:
 

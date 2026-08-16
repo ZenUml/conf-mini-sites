@@ -18,6 +18,9 @@ these hard constraints:
 3. All JavaScript must be vanilla (no frameworks). All CSS must be plain CSS
    (no preprocessors).
 4. The page must work fully offline and never make a network request.
+5. Do NOT use localStorage, sessionStorage, IndexedDB, or cookies — Mini Sites serves the bundle
+   in a sandboxed iframe with an opaque origin, where all of those throw or silently no-op. Keep
+   all state in plain JS variables; it's fine if it resets on reload.
 
 Here is the decision tool I need:
 

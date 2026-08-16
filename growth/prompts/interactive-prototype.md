@@ -33,8 +33,10 @@ HARD REQUIREMENTS
    above.
 6. Make sure it's responsive enough to look reasonable in a Confluence page's content column width
    (roughly 700–900px wide) — avoid fixed pixel widths that overflow.
-7. Do not require any login, backend, database, or account system. All state can live in memory or
-   localStorage; it does not need to persist across different users or devices.
+7. Do not require any login, backend, database, or account system. State lives in memory (plain JS
+   variables) only. Do NOT use localStorage, sessionStorage, IndexedDB, or cookies — Mini Sites serves
+   the bundle in a sandboxed iframe with an opaque origin, where all of those throw or silently no-op.
+   It's fine if state resets on reload; it does not need to persist across users or devices.
 
 DELIVERABLE
 Give me the complete contents of each file (index.html, and any .css/.js files), ready to save directly

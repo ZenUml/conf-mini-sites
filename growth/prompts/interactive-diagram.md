@@ -27,6 +27,9 @@ HARD REQUIREMENTS
 - Must work when opened as a plain file (file://) or served via `python3 -m http.server` — so use
   relative paths only (no leading slash) for style.css and app.js.
 - Keyboard-accessible: each clickable node should be reachable by Tab and activatable with Enter/Space.
+- Do NOT use localStorage, sessionStorage, IndexedDB, or cookies — Mini Sites serves the bundle in
+  a sandboxed iframe with an opaque origin, where all of those throw or silently no-op. Keep all
+  state in plain JS variables; it's fine if it resets on reload.
 - Visually polished: clear typography, consistent spacing, a real color system (not default browser
   styles), hover/focus/active states on clickable elements, and a responsive layout that doesn't
   break under ~900px width.

@@ -10,39 +10,44 @@
   <div class="app">
     <header class="app-header">
       <div class="app-header__title">
-        <span class="app-header__badge">Prototype</span>
+        <span class="app-header__badge">Working session</span>
         <h1>Feature Prioritizer</h1>
       </div>
       <p class="app-header__subtitle">
-        Add ideas, score Impact vs. Effort, drag them on the matrix, and vote for what ships next.
+        Add ideas, score Impact vs. Effort, drag them on the board, and vote for what ships next.
         Every action here updates the ranked list live — this is a real interactive tool, not a mockup.
       </p>
     </header>
 
     <section class="add-panel" aria-label="Add a feature idea">
-      <input id="ideaInput" type="text" placeholder="e.g. One-click CSV export" maxlength="60" />
+      <div class="add-panel__field">
+        <label class="add-panel__label" for="ideaInput">New idea</label>
+        <input id="ideaInput" type="text" placeholder="e.g. One-click CSV export" maxlength="60" />
+      </div>
       <div class="add-panel__scores">
-        <label>
-          Impact
+        <label class="score-field">
+          <span class="score-field__label">Impact</span>
           <input id="impactInput" type="range" min="1" max="10" value="6" />
-          <output id="impactOut">6</output>
+          <output id="impactOut" class="score-field__value">6</output>
         </label>
-        <label>
-          Effort
+        <label class="score-field">
+          <span class="score-field__label">Effort</span>
           <input id="effortInput" type="range" min="1" max="10" value="4" />
-          <output id="effortOut">4</output>
+          <output id="effortOut" class="score-field__value">4</output>
         </label>
       </div>
-      <button id="addBtn" class="btn btn--primary">Add idea</button>
+      <button id="addBtn" class="btn btn--primary">Pin it to the board</button>
     </section>
 
     <main class="workspace">
       <section class="matrix-panel" aria-label="Impact vs Effort matrix">
-        <h2>Impact vs. Effort</h2>
-        <p class="hint">Drag any dot to re-score it. Top-left is the sweet spot.</p>
+        <div class="panel-heading">
+          <h2>Impact vs. Effort</h2>
+          <p class="hint">Drag any note to re-score it. Top-left is the sweet spot.</p>
+        </div>
         <div id="matrix" class="matrix">
-          <div class="matrix__axis-label matrix__axis-label--y">Impact →</div>
-          <div class="matrix__axis-label matrix__axis-label--x">Effort →</div>
+          <div class="matrix__axis-label matrix__axis-label--y">Impact</div>
+          <div class="matrix__axis-label matrix__axis-label--x">Effort</div>
           <div class="matrix__quadrant matrix__quadrant--tl">Quick wins</div>
           <div class="matrix__quadrant matrix__quadrant--tr">Big bets</div>
           <div class="matrix__quadrant matrix__quadrant--bl">Fill-ins</div>
@@ -52,7 +57,10 @@
       </section>
 
       <section class="rank-panel" aria-label="Ranked list">
-        <h2>Ranked by votes, then Impact/Effort score</h2>
+        <div class="panel-heading">
+          <h2>Ranked by votes, then score</h2>
+          <p class="hint">Impact ÷ Effort, votes break ties.</p>
+        </div>
         <ol id="rankList" class="rank-list"></ol>
         <p id="emptyState" class="empty-state">No ideas yet — add one above to see it plotted and ranked.</p>
       </section>

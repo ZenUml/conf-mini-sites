@@ -85,7 +85,7 @@
     state.forEach(function (item) {
       var q = quadrantOf(item);
       var dot = document.createElement("div");
-      dot.className = "dot";
+      dot.className = "dot dot--" + q.cls;
       dot.dataset.id = item.id;
       dot.style.background = q.color;
       dot.style.left = (item.effort / 10) * 100 + "%";
@@ -124,6 +124,7 @@
       dot.style.top = 100 - (item.impact / 10) * 100 + "%";
       var q = quadrantOf(item);
       dot.style.background = q.color;
+      dot.className = "dot dragging dot--" + q.cls;
       dot.title = item.title + " — Impact " + item.impact + " / Effort " + item.effort;
     }
 
@@ -184,7 +185,7 @@
       var meta = document.createElement("div");
       meta.className = "rank-item__meta";
       meta.innerHTML =
-        '<span class="rank-item__quadrant" style="color:' + q.color + '">' + q.name + "</span>" +
+        '<span class="rank-item__quadrant rank-item__quadrant--' + q.cls + '" style="color:' + q.color + '">' + q.name + "</span>" +
         " · Impact " + item.impact + " / Effort " + item.effort;
 
       body.appendChild(title);

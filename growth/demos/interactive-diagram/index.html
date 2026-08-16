@@ -10,23 +10,37 @@
   <div class="app">
     <header class="app-header">
       <div class="app-header__title">
-        <span class="app-header__badge">Live diagram</span>
+        <span class="app-header__badge">&#9633; Live schematic</span>
         <h1>Mini Sites — Request Path</h1>
       </div>
       <p class="app-header__subtitle">
-        Click any service or data-flow arrow to see its owner, protocol, dependencies, and known risks —
-        inline, without leaving this page. This is a real interactive diagram, not a static image.
+        Click any block or signal line to open its spec sheet — owner, protocol, dependencies, and known
+        risk — inline, without leaving this drawing. This is a real interactive diagram, not a static image.
       </p>
     </header>
 
     <main class="stage-wrap">
       <div class="stage" aria-label="Architecture diagram">
+        <span class="stage__tick stage__tick--tl" aria-hidden="true"></span>
+        <span class="stage__tick stage__tick--tr" aria-hidden="true"></span>
+        <span class="stage__tick stage__tick--bl" aria-hidden="true"></span>
+        <span class="stage__tick stage__tick--br" aria-hidden="true"></span>
+
         <svg id="diagram" viewBox="0 0 1000 560" role="group" aria-label="Service diagram">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" class="arrow-head"></path>
             </marker>
+            <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+              <path d="M24,0 L0,0 0,24" class="grid-line"></path>
+            </pattern>
+            <pattern id="gridDots" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="0" cy="0" r="1" class="grid-dot"></circle>
+            </pattern>
           </defs>
+
+          <rect class="diagram-grid" x="0" y="0" width="1000" height="560" fill="url(#grid)"></rect>
+          <rect class="diagram-grid" x="0" y="0" width="1000" height="560" fill="url(#gridDots)"></rect>
 
           <!-- Edges (drawn first, under nodes) -->
           <g id="edges">
@@ -53,41 +67,56 @@
 
           <!-- Nodes -->
           <g class="node" data-node="viewer" tabindex="0" role="button" aria-label="Confluence viewer">
-            <rect x="40" y="55" width="190" height="70" rx="10"></rect>
-            <text x="135" y="85" text-anchor="middle" class="node-title">Confluence Page</text>
-            <text x="135" y="105" text-anchor="middle" class="node-sub">Mini-Site macro (Custom UI)</text>
+            <rect class="node-frame" x="40" y="55" width="190" height="70" rx="2"></rect>
+            <path class="node-corner" d="M40,63 L40,55 L48,55 M222,55 L230,55 L230,63 M230,117 L230,125 L222,125 M48,125 L40,125 L40,117"></path>
+            <text x="135" y="82" text-anchor="middle" class="node-kicker">CLIENT</text>
+            <text x="135" y="99" text-anchor="middle" class="node-title">Confluence Page</text>
+            <text x="135" y="115" text-anchor="middle" class="node-sub">Mini-Site macro (Custom UI)</text>
           </g>
 
           <g class="node" data-node="control" tabindex="0" role="button" aria-label="Control Worker">
-            <rect x="380" y="55" width="190" height="80" rx="10"></rect>
-            <text x="475" y="88" text-anchor="middle" class="node-title">Control Worker</text>
-            <text x="475" y="108" text-anchor="middle" class="node-sub">validate · provision · sign grant</text>
+            <rect class="node-frame" x="380" y="55" width="190" height="80" rx="2"></rect>
+            <path class="node-corner" d="M380,63 L380,55 L388,55 M562,55 L570,55 L570,63 M570,127 L570,135 L562,135 M388,135 L380,135 L380,127"></path>
+            <text x="475" y="82" text-anchor="middle" class="node-kicker">SERVICE</text>
+            <text x="475" y="100" text-anchor="middle" class="node-title">Control Worker</text>
+            <text x="475" y="118" text-anchor="middle" class="node-sub">validate · provision · sign grant</text>
           </g>
 
           <g class="node" data-node="dispatch" tabindex="0" role="button" aria-label="Dispatch Worker">
-            <rect x="405" y="280" width="215" height="80" rx="10"></rect>
-            <text x="512" y="313" text-anchor="middle" class="node-title">Dispatch Worker</text>
-            <text x="512" y="333" text-anchor="middle" class="node-sub">verify grant · route bytes</text>
+            <rect class="node-frame" x="405" y="280" width="215" height="80" rx="2"></rect>
+            <path class="node-corner" d="M405,288 L405,280 L413,280 M612,280 L620,280 L620,288 M620,352 L620,360 L612,360 M413,360 L405,360 L405,352"></path>
+            <text x="512" y="307" text-anchor="middle" class="node-kicker">SERVICE</text>
+            <text x="512" y="325" text-anchor="middle" class="node-title">Dispatch Worker</text>
+            <text x="512" y="343" text-anchor="middle" class="node-sub">verify grant · route bytes</text>
           </g>
 
           <g class="node" data-node="instance" tabindex="0" role="button" aria-label="Per-instance Worker">
-            <rect x="780" y="290" width="190" height="80" rx="10"></rect>
-            <text x="875" y="323" text-anchor="middle" class="node-title">ms-&lt;instanceId&gt;</text>
-            <text x="875" y="343" text-anchor="middle" class="node-sub">serves bundle bytes</text>
+            <rect class="node-frame" x="780" y="290" width="190" height="80" rx="2"></rect>
+            <path class="node-corner" d="M780,298 L780,290 L788,290 M962,290 L970,290 L970,298 M970,362 L970,370 L962,370 M788,370 L780,370 L780,362"></path>
+            <text x="875" y="317" text-anchor="middle" class="node-kicker">PER-TENANT</text>
+            <text x="875" y="335" text-anchor="middle" class="node-title">ms-&lt;instanceId&gt;</text>
+            <text x="875" y="353" text-anchor="middle" class="node-sub">serves bundle bytes</text>
           </g>
 
           <g class="node node--data" data-node="d1" tabindex="0" role="button" aria-label="D1 database">
-            <rect x="205" y="375" width="190" height="70" rx="10"></rect>
-            <text x="300" y="405" text-anchor="middle" class="node-title">D1 (SQLite)</text>
-            <text x="300" y="425" text-anchor="middle" class="node-sub">instance + grant records</text>
+            <rect class="node-frame" x="205" y="375" width="190" height="70" rx="2"></rect>
+            <text x="300" y="400" text-anchor="middle" class="node-kicker">DATA STORE</text>
+            <text x="300" y="417" text-anchor="middle" class="node-title">D1 (SQLite)</text>
+            <text x="300" y="433" text-anchor="middle" class="node-sub">instance + grant records</text>
+          </g>
+
+          <g class="title-block" aria-hidden="true">
+            <text x="1000" y="548" text-anchor="end" class="title-block__line">DWG NO. MS-001 · REV C · SCALE NTS</text>
           </g>
         </svg>
       </div>
 
       <aside id="detail" class="detail" aria-live="polite">
+        <span class="detail__tick detail__tick--tl" aria-hidden="true"></span>
+        <span class="detail__tick detail__tick--br" aria-hidden="true"></span>
         <div class="detail__empty">
-          <p>Click a service box or an arrow to inspect it.</p>
-          <p class="detail__hint">Try: Control Worker, or the arrow from Dispatch → ms-&lt;instanceId&gt;.</p>
+          <p>Select a block or a signal line to inspect it.</p>
+          <p class="detail__hint">Try: Control Worker, or the line from Dispatch &rarr; ms-&lt;instanceId&gt;.</p>
         </div>
       </aside>
     </main>

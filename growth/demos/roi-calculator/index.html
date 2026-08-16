@@ -4,55 +4,75 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Cloud Migration ROI Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="wrap">
     <header class="header">
-      <p class="eyebrow">Cloud Migration Proposal</p>
+      <p class="eyebrow">Cloud Migration &mdash; Business Case</p>
       <h1>ROI Calculator</h1>
-      <p class="sub">Adjust the numbers below to see payback period, savings, and 3-year ROI update live.</p>
+      <p class="sub">Enter the figures below the line. Payback period, annual savings, and 3-year ROI are carried forward automatically.</p>
     </header>
 
-    <section class="card">
-      <div class="grid">
-        <div class="inputs">
-          <div class="field">
-            <label for="currentCost">Current infrastructure cost <span class="unit">/ year</span></label>
-            <input type="number" id="currentCost" min="0" step="1000" value="480000" />
-            <input type="range" id="currentCostRange" min="0" max="3000000" step="1000" value="480000" />
-          </div>
+    <section class="ledger">
+      <div class="ledger-inputs">
+        <p class="ledger-heading">Line items</p>
 
-          <div class="field">
-            <label for="migrationCost">Migration cost <span class="unit">one-time</span></label>
-            <input type="number" id="migrationCost" min="0" step="1000" value="150000" />
-            <input type="range" id="migrationCostRange" min="0" max="1500000" step="1000" value="150000" />
+        <div class="field">
+          <div class="field-head">
+            <label for="currentCost">Current infrastructure cost</label>
+            <span class="unit">/ year</span>
           </div>
-
-          <div class="field">
-            <label for="annualSavings">Expected annual savings <span class="unit">/ year</span></label>
-            <input type="number" id="annualSavings" min="0" step="1000" value="180000" />
-            <input type="range" id="annualSavingsRange" min="0" max="1500000" step="1000" value="180000" />
-          </div>
+          <input type="number" id="currentCost" min="0" step="1000" value="480000" />
+          <input type="range" id="currentCostRange" min="0" max="3000000" step="1000" value="480000" />
         </div>
 
-        <div class="outputs">
-          <div class="metric">
-            <p class="metric-label">Payback period</p>
-            <p class="metric-value" id="paybackPeriod">--</p>
+        <div class="field">
+          <div class="field-head">
+            <label for="migrationCost">Migration cost</label>
+            <span class="unit">one-time</span>
           </div>
-          <div class="metric">
-            <p class="metric-label">Annual savings</p>
-            <p class="metric-value" id="annualSavingsOut">--</p>
+          <input type="number" id="migrationCost" min="0" step="1000" value="150000" />
+          <input type="range" id="migrationCostRange" min="0" max="1500000" step="1000" value="150000" />
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="annualSavings">Expected annual savings</label>
+            <span class="unit">/ year</span>
           </div>
-          <div class="metric highlight">
-            <p class="metric-label">3-year ROI</p>
-            <p class="metric-value" id="threeYearRoi">--</p>
-          </div>
+          <input type="number" id="annualSavings" min="0" step="1000" value="180000" />
+          <input type="range" id="annualSavingsRange" min="0" max="1500000" step="1000" value="180000" />
         </div>
       </div>
 
-      <div class="footer-note" id="footnote"></div>
+      <div class="ledger-result">
+        <p class="ledger-heading">Result</p>
+
+        <div class="hero-metric">
+          <p class="hero-label">3-year ROI</p>
+          <p class="hero-value" id="threeYearRoi">&ndash;&ndash;</p>
+        </div>
+
+        <div class="sub-metrics">
+          <div class="metric">
+            <p class="metric-label">Payback period</p>
+            <p class="metric-value" id="paybackPeriod">&ndash;&ndash;</p>
+          </div>
+          <div class="metric">
+            <p class="metric-label">Annual savings</p>
+            <p class="metric-value" id="annualSavingsOut">&ndash;&ndash;</p>
+          </div>
+        </div>
+
+        <div class="footer-note" id="footnote"></div>
+      </div>
     </section>
 
     <footer class="page-footer">

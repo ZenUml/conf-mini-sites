@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mini Sites — Market Opportunity Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Sora:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify/themes/vue.css" />
+  <style>
+    :root {
+      --theme-color: #1f4d3a;
+      --theme-color-secondary: #8fad9a;
+    }
+    .app-name-link img { display: none; }
+    .sidebar {
+      background: linear-gradient(180deg, #eef3ef 0%, #e4ebe6 100%);
+      border-right: 1px solid rgba(20, 32, 28, 0.12);
+    }
+    .sidebar .app-name {
+      font-family: "Fraunces", serif;
+      font-size: 1.05rem;
+      color: #1f4d3a;
+      font-weight: 600;
+    }
+    .sidebar-nav li strong {
+      font-family: "Sora", sans-serif;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #3a4a44;
+      margin-top: 1rem;
+    }
+    .markdown-section {
+      font-family: "Sora", sans-serif;
+      max-width: 920px;
+    }
+    .markdown-section h1, .markdown-section h2 {
+      font-family: "Fraunces", serif;
+      color: #1f4d3a;
+    }
+    .markdown-section table { font-size: 0.88rem; }
+    .markdown-section code { color: #c45c26; }
+
+    .csv-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      align-items: center;
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      background: #eef3ef;
+      border: 1px solid rgba(20, 32, 28, 0.12);
+      border-radius: 8px;
+    }
+    .csv-search {
+      flex: 1 1 220px;
+      padding: 0.45rem 0.65rem;
+      border: 1px solid rgba(20, 32, 28, 0.2);
+      border-radius: 6px;
+      font: inherit;
+    }
+    .csv-meta { font-size: 0.82rem; color: #3a4a44; }
+    .csv-dl {
+      font-size: 0.82rem;
+      color: var(--theme-color);
+      text-decoration: none;
+      border: 1px solid rgba(31, 77, 58, 0.35);
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+    }
+    .csv-dl:hover { background: rgba(31, 77, 58, 0.08); }
+    .csv-scroll {
+      overflow: auto;
+      max-height: 72vh;
+      border: 1px solid rgba(20, 32, 28, 0.12);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .csv-table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+    .csv-table th {
+      position: sticky;
+      top: 0;
+      background: #1f4d3a;
+      color: #fff;
+      text-align: left;
+      padding: 0.45rem 0.55rem;
+      white-space: nowrap;
+      z-index: 1;
+    }
+    .csv-table td {
+      padding: 0.35rem 0.55rem;
+      border-bottom: 1px solid rgba(20, 32, 28, 0.08);
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+    .csv-table tr:nth-child(even) td { background: #f7faf8; }
+    .csv-table tr:hover td { background: #e8f0eb; }
+    .csv-loading, .csv-error { color: #3a4a44; }
+  </style>
+</head>
+<body>
+  <div id="app">Loading research packet…</div>
+  <script src="csv-viewer.js?v=6"></script>
+  <script>
+    (function () {
+      var DEMO_ANCHORS = { scores: 1, promise: 1, evidence: 1, market: 1, next: 1 };
+      function redirectDemoAnchor() {
+        var part = location.hash.replace(/^#\/?/, '').split('?')[0];
+        if (DEMO_ANCHORS[part]) {
+          location.replace('readout-demo.html#' + part);
+        }
+      }
+      redirectDemoAnchor();
+      window.addEventListener('hashchange', redirectDemoAnchor);
+    })();
+  </script>
+  <script>
+    const csvPlugins = (window.$docsify && window.$docsify.plugins) || [];
+    window.$docsify = {
+      name: 'Market Opportunity',
+      repo: 'https://github.com/ZenUml/conf-mini-sites/pull/9',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      homepage: '00_executive_readout.md',
+      executeScript: true,
+      search: { placeholder: 'Search packet…', depth: 3 },
+      pagination: { previousText: '← Prev', nextText: 'Next →', crossChapter: true },
+      plugins: csvPlugins,
+    };
+  </script>
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/docsify.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+</body>
+</html>

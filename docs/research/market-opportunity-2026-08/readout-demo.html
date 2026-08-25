@@ -21,16 +21,20 @@
     }
 
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+      color-scheme: light;
+    }
     body {
       margin: 0;
       color: var(--ink);
-      font-family: "Sora", sans-serif;
+      font-family: "Sora", system-ui, -apple-system, sans-serif;
       background:
         radial-gradient(1200px 700px at 10% -10%, #f7fbf8 0%, transparent 55%),
         radial-gradient(900px 600px at 90% 0%, #dce9e1 0%, transparent 50%),
         linear-gradient(180deg, #e9f0eb 0%, var(--paper) 38%, #e4ebe6 100%);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
     body::before {
@@ -64,38 +68,36 @@
     }
 
     .brand {
-      font-family: "Fraunces", serif;
+      font-family: "Fraunces", Georgia, "Times New Roman", serif;
       font-weight: 700;
       font-size: clamp(3.4rem, 9vw, 6.4rem);
       line-height: 0.92;
       letter-spacing: -0.03em;
-      color: var(--forest);
+      color: #0f3325;
       margin: 0;
-      animation: rise 900ms cubic-bezier(.2,.8,.2,1) both;
     }
 
     .brand span {
       display: block;
-      color: var(--ink);
+      color: #14201c;
     }
 
     .hero h1 {
-      font-family: "Fraunces", serif;
-      font-weight: 500;
+      font-family: "Sora", system-ui, -apple-system, sans-serif;
+      font-weight: 700;
       font-size: clamp(1.45rem, 3.2vw, 2.15rem);
-      line-height: 1.25;
-      max-width: 18ch;
+      line-height: 1.3;
+      max-width: 22ch;
       margin: 0.4rem 0 0;
-      animation: rise 900ms 120ms cubic-bezier(.2,.8,.2,1) both;
+      color: #14201c;
     }
 
     .hero-support {
       max-width: 42rem;
       font-size: 1.05rem;
       line-height: 1.55;
-      color: var(--ink-soft);
+      color: #2a3b35;
       margin: 0.35rem 0 0;
-      animation: rise 900ms 220ms cubic-bezier(.2,.8,.2,1) both;
     }
 
     .cta-row {
@@ -103,27 +105,43 @@
       flex-wrap: wrap;
       gap: 0.75rem 1rem;
       margin-top: 1.5rem;
-      animation: rise 900ms 320ms cubic-bezier(.2,.8,.2,1) both;
     }
 
     .cta {
       appearance: none;
       border: 0;
       text-decoration: none;
-      font: inherit;
-      font-weight: 600;
+      font-family: "Sora", system-ui, -apple-system, sans-serif;
+      font-weight: 700;
       font-size: 0.95rem;
       padding: 0.9rem 1.25rem;
       border-radius: 0.4rem;
-      background: var(--forest);
-      color: #f4faf6;
+      background: #0f3325;
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(20, 32, 28, 0.18);
       transition: transform 180ms ease, background 180ms ease;
     }
-    .cta:hover { transform: translateY(-2px); background: #16382a; }
+    a.cta,
+    a.cta:visited,
+    a.cta:hover,
+    a.cta:active,
+    a.cta:focus-visible {
+      color: #ffffff;
+      text-decoration: none;
+    }
+    .cta:hover { transform: translateY(-2px); background: #0a241b; }
     .cta.secondary {
-      background: transparent;
-      color: var(--forest);
-      box-shadow: inset 0 0 0 1.5px var(--forest);
+      background: #ffffff;
+      color: #0f3325;
+      box-shadow: inset 0 0 0 2px #0f3325;
+    }
+    a.cta.secondary,
+    a.cta.secondary:visited,
+    a.cta.secondary:hover,
+    a.cta.secondary:active,
+    a.cta.secondary:focus-visible {
+      color: #0f3325;
+      background: #ffffff;
     }
 
     .gate-strip {
@@ -134,7 +152,6 @@
       grid-template-columns: auto 1fr;
       gap: 1rem 1.5rem;
       align-items: baseline;
-      animation: rise 900ms 420ms cubic-bezier(.2,.8,.2,1) both;
     }
 
     .gate-label {
@@ -153,15 +170,14 @@
       width: 100%;
       height: 2px;
       background: var(--signal);
-      transform-origin: left;
-      animation: draw 1.1s 700ms cubic-bezier(.2,.8,.2,1) both;
     }
 
     .gate-text {
-      font-family: "Fraunces", serif;
+      font-family: "Fraunces", Georgia, "Times New Roman", serif;
       font-size: clamp(1.2rem, 2.4vw, 1.55rem);
       margin: 0;
       max-width: 36rem;
+      color: #14201c;
     }
 
     /* —— Sections —— */
@@ -210,12 +226,8 @@
       align-items: baseline;
       padding: 1.15rem 0;
       border-bottom: 1px solid var(--line);
-      opacity: 0;
-      transform: translateY(12px);
     }
     .score-list li.in {
-      opacity: 1;
-      transform: none;
       transition: opacity 500ms ease, transform 500ms ease;
     }
 
@@ -363,13 +375,11 @@
       color: var(--ink);
     }
 
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(18px); }
-      to { opacity: 1; transform: none; }
-    }
-    @keyframes draw {
-      from { transform: scaleX(0); }
-      to { transform: scaleX(1); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
     }
 
     @media (max-width: 640px) {
@@ -391,8 +401,9 @@
         Gate call: proceed with a narrow wedge.
       </p>
       <div class="cta-row">
-        <a class="cta" href="#scores">See ranked jobs</a>
-        <a class="cta secondary" href="#promise">Positioning</a>
+        <a class="cta" href="readout-demo.html#scores">See ranked jobs</a>
+        <a class="cta secondary" href="readout-demo.html#promise">Positioning</a>
+        <a class="cta secondary" href="index.html#/02_jtbd_top20.md">Full JTBD scoreboard</a>
       </div>
       <div class="gate-strip">
         <div class="gate-label">Gate · Proceed</div>
@@ -508,6 +519,7 @@
 
     <footer>
       <p>
+        <a href="index.html" style="color:#0f3325;font-weight:600">← Full research packet</a><br />
         Research packet · <code>docs/research/market-opportunity-2026-08/</code><br />
         Start with <code>00_executive_readout.md</code> · PR
         <a href="https://github.com/ZenUml/conf-mini-sites/pull/9">ZenUml/conf-mini-sites#9</a><br />

@@ -4,6 +4,7 @@
 // Opening an already-published instance jumps straight to preview. Reuses the design's manifest/checklist/
 // progress/toast visual language; the data is real (selected files, real validation result, real serve URL).
 import { invoke, view, router } from '@forge/bridge';
+import { startSessionReplay } from './sessionReplay';
 
 const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (id) => document.getElementById(id);
@@ -16,6 +17,12 @@ const $ = (id) => document.getElementById(id);
 function track(name, properties) {
   invoke('trackEvent', { name, properties }).catch(() => {});
 }
+
+// The Publisher is where both known trial abandonments happened, so it records too. Same rules as
+// view.js: fetched lazily, never awaited, never able to block a publish.
+invoke('getAnalyticsConfig')
+  .then((cfg) => startSessionReplay({ ...cfg, surface: 'publisher' }))
+  .catch(() => {});
 
 /* ---------- helpers (ported from the design) ---------- */
 const GLYPH = {

@@ -34,6 +34,12 @@
 // unit-testable without mocking Date/crypto globals.
 
 export const MINI_SITE_EVENT_NAMES = [
+  // Install-level heartbeat. Every other event needs a macro on a page first, so an install that never
+  // gets one is indistinguishable from an install where the app failed to load — both are silence.
+  // Measured 2026-09-09: homebace installed the app on 09-06 and emitted zero events in three days,
+  // and nothing in the product could tell which of the two happened. Emitted from the Forge
+  // `avi:forge:installed:app` lifecycle trigger, so it does not depend on the user reaching a macro.
+  'app_installed',
   'macro_viewed',
   'publisher_opened',
   'folder_selected',
@@ -65,6 +71,12 @@ export interface MiniSiteEventContext {
 // Discriminated per-event property shapes — keeps call sites honest about what each event carries, and
 // keeps the "never file names/contents" rule enforced at the type level (there is no `path` field).
 export type MiniSiteAnalyticsEvent =
+  | {
+      readonly name: 'app_installed';
+      /** No properties of its own: the install carries no user action to describe, and the common
+       *  dimensions (cloud_id, environment_type) are exactly the question it answers. */
+      readonly properties: Record<string, never>;
+    }
   | {
       readonly name: 'macro_viewed';
       readonly properties: { readonly has_published_site: boolean; readonly license_active?: boolean };

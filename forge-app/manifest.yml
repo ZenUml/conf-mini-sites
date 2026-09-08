@@ -22,11 +22,24 @@ modules:
   preUninstall:
     - key: mini-site-pre-uninstall
       function: pre-uninstall
+  # Install-level heartbeat. Every other event in the catalog needs a macro on a page first, so an install
+  # that never gets one looks exactly like an install where the app failed to load — both are silence.
+  # Measured 2026-09-09: one trial tenant installed on 09-06 and emitted nothing for three days, and no
+  # signal in the product could separate the two. A lifecycle trigger fires without the user reaching a
+  # macro, which is the whole point. Adding a trigger module on a lifecycle event is a MINOR version bump
+  # (the major list is scopes, dynamic web triggers, licensing/providers/remotes) — no admin re-consent.
+  trigger:
+    - key: mini-site-app-installed
+      function: app-installed
+      events:
+        - avi:forge:installed:app
   function:
     - key: resolver
       handler: index.handler
     - key: pre-uninstall
       handler: index.preUninstall
+    - key: app-installed
+      handler: index.appInstalled
 
 resources:
   - key: view
@@ -99,6 +112,18 @@ permissions:
         - address: https://conf-mini-sites-remote-dev.zenuml.workers.dev
         - address: https://conf-mini-sites-remote-staging.zenuml.workers.dev
         - address: https://conf-mini-sites-remote-production.zenuml.workers.dev
+        # Session Replay. The recorder has to run in the iframe, so unlike every other event in this app
+        # it talks to Mixpanel from the browser: *.mixpanel.com for ingestion, cdn.mxpnl.com for the
+        # recorder bundle the SDK fetches on first record. Same host set conf-app declares for the same
+        # feature. See forge-app/ui-src/sessionReplay.js.
+        - address: https://*.mixpanel.com
+        - address: https://cdn.mxpnl.com
+        - address: https://*.cdn.mxpnl.com
+    # CSP script-src for the Session Replay recorder, which the Mixpanel SDK loads at first record
+    # rather than bundling. Without it the SDK initialises and the recording silently never starts.
+    scripts:
+      - https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js
+      - https://cdn.mxpnl.com/libs/mixpanel-recorder.min.js
     frames:
       - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev
         # Staging dispatch Worker — the nested mini-site iframe in the staging Custom UI.

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { E2E } from '../helpers/env';
-import { uploadGrant, uploadBundle, serveUrl, deleteInstance, dispatchGet, freshInstanceId, sampleFiles } from '../helpers/workers';
+import { uploadGrant, uploadBundle, serveUrl, deleteInstance, dispatchGet, freshInstanceId, sampleFiles, b64 } from '../helpers/workers';
 
 // Direct-upload publish (the ~5 MB Forge invoke cap workaround): /upload-grant mints a short-lived grant for
 // an authorized caller, and /upload accepts the bundle carrying ONLY that grant — no FIT, no shared secret.
@@ -77,4 +77,38 @@ test('a grant minted for instance A cannot publish to instance B', async () => {
   expect(up.body.ok).toBe(false);
   expect(up.body.code).toBe('UNAUTHORIZED');
   expect(up.body.reason).toBe('instance-mismatch');
+});
+
+// Regression for the production incident of 2026-09-08 (v0.4.0): a bundle file that is ONE text-like
+// multi-megabyte line made the secret scanner's base64-run regex exhaust the call stack, the throw
+// escaped the fetch handler, and Cloudflare's bare 500 (no CORS headers) reached the browser as a CORS
+// error — which the Publisher reported as the old 413 invoke cap. Nothing in CI covered it: this api
+// suite published two tiny files, and `ui/large-bundle.spec.ts` fills its asset with `randomBytes`, so
+// `isTextLike` skips it and the scanner never runs. Size here is the reported case, not the smallest
+// size that clears Forge's invoke cap.
+test('a bundle whose file is one 7.2 MB text line publishes and serves', async () => {
+  const instanceId = freshInstanceId();
+  const line = 'a'.repeat(7200 * 1024);
+  const files = [
+    { path: 'index.html', b64: b64('<!doctype html><title>t</title><h1>long-line</h1><script src="app.min.js"></script>') },
+    { path: 'app.min.js', b64: b64(line) },
+  ];
+  try {
+    const g = await uploadGrant(instanceId);
+    expect(g.status).toBe(200);
+    expect(g.body.ok).toBe(true);
+
+    const up = await uploadBundle(g.body.url, files);
+    expect(up.status, `publish failed: ${JSON.stringify(up.body).slice(0, 200)}`).toBe(200);
+    expect(up.body.ok).toBe(true);
+    expect(up.body.files).toBe(2);
+
+    const serve = await serveUrl(instanceId);
+    expect(serve.status).toBe(200);
+    const index = await dispatchGet(serve.body.url);
+    expect(index.status).toBe(200);
+    expect(index.text).toContain('long-line');
+  } finally {
+    await deleteInstance(instanceId);
+  }
 });

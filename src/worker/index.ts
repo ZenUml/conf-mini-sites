@@ -220,170 +220,187 @@ async function runPublish(
   return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));
 }
 
+// Every browser-facing route answers through cors(); an UNCAUGHT throw does not. Cloudflare turns one
+// into a bare 500 with no `access-control-allow-origin`, which a browser reports as a CORS failure
+// rather than a server error — on 2026-09-08 that is exactly how a stack overflow in the secret
+// scanner reached the user as the pre-fix "413 invoke cap" message, hiding a server fault for a day.
+// So the handler body lives in `handle` and this wrapper converts any escape into a CORS-wrapped 500.
+async function handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const url = new URL(request.url);
+  if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
+  if (url.pathname === '/healthz') return cors(json({ ok: true, service: 'conf-mini-sites-control' }));
+
+  // POST /publish?instanceId=ID  body: { files: [{ path, b64 }] } → validate + scan + provision per-instance Worker.
+  if (request.method === 'POST' && url.pathname === '/publish') {
+    const auth = await authorize(request, env);
+    if (!auth.ok) return auth.res;
+
+    const instanceId = url.searchParams.get('instanceId') ?? '';
+    if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+
+    let body: { files?: Array<{ path: string; b64: string }> };
+    try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
+    const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
+
+    const publishAccountId = (auth.context.payload as Record<string, any>)?.context?.accountId;
+    return runPublish(
+      files,
+      {
+        instanceId,
+        cloudId: url.searchParams.get('cloudId') ?? '',
+        accountId: typeof publishAccountId === 'string' ? publishAccountId : '',
+      },
+      env,
+      ctx,
+    );
+  }
+
+  // POST /upload-grant?instanceId=ID&cloudId=CID → mint the short-lived credential the BROWSER uses to POST
+  // a bundle straight here. WHY: Forge caps a front-end invoke() payload at ~5 MB, so the Custom UI cannot
+  // relay a real prototype through the resolver (it 413s). The resolver — which IS authorized (FIT) — asks
+  // for this grant instead and hands the browser a URL. Authorization for this route is exactly /publish's.
+  if (request.method === 'POST' && url.pathname === '/upload-grant') {
+    const auth = await authorize(request, env);
+    if (!auth.ok) return auth.res;
+    const instanceId = url.searchParams.get('instanceId') ?? '';
+    if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+    if (!env.K_GRANT) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+    // Prefer the VERIFIED token context; fall back to what the caller passes (shared-secret auth has no
+    // token). These ride inside the signed grant, so /upload cannot be talked into a different tenant/user.
+    const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
+    const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
+    const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
+    const now = Date.now();
+    const grant = await mintUploadGrant(
+      { i: instanceId, cl: cloudId, a: accountId, exp: now + UPLOAD_GRANT_TTL_MS },
+      new TextEncoder().encode(env.K_GRANT),
+      () => now,
+    );
+    const origin = new URL(request.url).origin;
+    const uploadUrl = `${origin}/upload?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}&grant=${encodeURIComponent(grant)}`;
+    return cors(json({ ok: true, instanceId, url: uploadUrl, ttlMs: UPLOAD_GRANT_TTL_MS }));
+  }
+
+  // POST /upload?instanceId=ID&cloudId=CID&grant=TOKEN  body: { files: [{ path, b64 }] } → the browser-direct
+  // publish. Deliberately NO authorize(): this request comes from an iframe that holds neither a Forge
+  // invocation token nor the shared secret. The grant IS the credential — unforgeable (HMAC under a key
+  // derived from K_GRANT, domain-separated from serve grants so a viewer's serve grant can never publish),
+  // bound to this instanceId, and valid for UPLOAD_GRANT_TTL_MS. Everything after auth is the same pipeline.
+  if (request.method === 'POST' && url.pathname === '/upload') {
+    const path = url.pathname;
+    const instanceId = url.searchParams.get('instanceId') ?? '';
+    if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+    if (!env.K_GRANT) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+    const verified = await verifyUploadGrant(
+      url.searchParams.get('grant') ?? '',
+      new TextEncoder().encode(env.K_GRANT),
+      Date.now,
+      instanceId,
+    );
+    if (!verified.ok) {
+      // Auth-path telemetry only — never the grant itself (BACKEND_DESIGN logging ban); `path` excludes the
+      // query string, which is where the token lives.
+      console.log(JSON.stringify({ evt: 'authorize', ok: false, via: 'upload-grant', reason: verified.reason, path }));
+      return cors(json({ ok: false, code: 'UNAUTHORIZED', reason: verified.reason }, 401));
+    }
+    console.log(JSON.stringify({ evt: 'authorize', ok: true, via: 'upload-grant', path }));
+
+    let body: { files?: Array<{ path: string; b64: string }> };
+    try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
+    const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
+    // cloudId/accountId come from the SIGNED grant, not the query string — the query copy is cosmetic.
+    return runPublish(files, { instanceId, cloudId: verified.payload.cl, accountId: verified.payload.a }, env, ctx);
+  }
+
+  // POST /serve-url?instanceId=ID → verify Forge token, mint a short-lived grant, return the dispatch URL.
+  // The resolver derives instanceId from its (server-side) macro context, so a client can't request a grant
+  // for an instance it isn't bound to; this Worker holds K_GRANT and mints — keeping the grant key and the
+  // grant format (shared with the dispatch Worker's verify) in one place.
+  if (request.method === 'POST' && url.pathname === '/serve-url') {
+    const auth = await authorize(request, env);
+    if (!auth.ok) return auth.res;
+    const instanceId = url.searchParams.get('instanceId') ?? '';
+    if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+    if (!env.K_GRANT || !env.DISPATCH_BASE_URL) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+    // Only mint a serve grant if this instance actually has a published bundle. Otherwise the Custom UI would
+    // embed an iframe to a non-existent per-instance Worker (blank 404); returning NOT_PUBLISHED makes it show
+    // the upload panel instead.
+    let exists: boolean;
+    try {
+      exists = await makeClient(env).workerExists(`ms-${instanceId}`);
+    } catch (e) {
+      return cors(json({ ok: false, code: 'CHECK_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+    }
+    if (!exists) return cors(json({ ok: false, code: 'NOT_PUBLISHED', instanceId }));
+
+    const now = Date.now();
+    // Audit-only grant fields (the dispatch Worker verifies i + exp + sig; cl/a/c are for logs). Prefer the
+    // verified token context; fall back to values the resolver passes (shared-secret auth has no token).
+    const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
+    // A live view proves the site is installed and in use → clear any uninstall tombstone so a reinstalled
+    // embed is never collected by the sweep. Best-effort + off the response path (never delays the render).
+    const serveStore = makeInstanceStore(env);
+    if (serveStore && cloudId) ctx.waitUntil(serveStore.recordActive(instanceId, cloudId).catch(() => {}));
+    const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
+    const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
+    const grant = await mintGrant(
+      { i: instanceId, ck: auth.context.appId, c: '', a: accountId, cl: cloudId, exp: now + SERVE_GRANT_TTL_MS },
+      new TextEncoder().encode(env.K_GRANT),
+      () => now,
+    );
+    const base = env.DISPATCH_BASE_URL.replace(/\/+$/, '');
+    return cors(json({ ok: true, instanceId, url: `${base}/v/${encodeURIComponent(instanceId)}/g/${grant}/`, ttlMs: SERVE_GRANT_TTL_MS }));
+  }
+
+  // DELETE /instance?instanceId=ID → tear down the per-instance Worker (macro/page deleted — orphan cleanup).
+  if (request.method === 'DELETE' && url.pathname === '/instance') {
+    const auth = await authorize(request, env);
+    if (!auth.ok) return auth.res;
+    const instanceId = url.searchParams.get('instanceId') ?? '';
+    if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+    try {
+      await makeProvider(env).deleteInstance({ id: instanceId, providerRef: `ms-${instanceId}` });
+    } catch (e) {
+      return cors(json({ ok: false, code: 'DELETE_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+    }
+    return cors(json({ ok: true, instanceId, deleted: true }));
+  }
+
+  // POST /uninstall?cloudId=ID → Forge preUninstall trigger: tombstone every still-active instance of this
+  // site. The scheduled() sweep then deletes their bundles RETENTION_MS (30 days) later. Idempotent: a repeat
+  // won't reset the clock (markUninstalledByCloudId only stamps NULL rows).
+  if (request.method === 'POST' && url.pathname === '/uninstall') {
+    const auth = await authorize(request, env);
+    if (!auth.ok) return auth.res;
+    const cloudId = url.searchParams.get('cloudId') ?? '';
+    if (!cloudId) return cors(json({ ok: false, code: 'BAD_CLOUD_ID' }, 400));
+    const store = makeInstanceStore(env);
+    if (!store) return cors(json({ ok: true, cloudId, tombstoned: 0, note: 'no DB bound' }));
+    try {
+      const tombstoned = await store.markUninstalledByCloudId(cloudId, new Date().toISOString());
+      return cors(json({ ok: true, cloudId, tombstoned }));
+    } catch (e) {
+      return cors(json({ ok: false, code: 'UNINSTALL_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+    }
+  }
+
+  return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
-    if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
-    if (url.pathname === '/healthz') return cors(json({ ok: true, service: 'conf-mini-sites-control' }));
-
-    // POST /publish?instanceId=ID  body: { files: [{ path, b64 }] } → validate + scan + provision per-instance Worker.
-    if (request.method === 'POST' && url.pathname === '/publish') {
-      const auth = await authorize(request, env);
-      if (!auth.ok) return auth.res;
-
-      const instanceId = url.searchParams.get('instanceId') ?? '';
-      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
-
-      let body: { files?: Array<{ path: string; b64: string }> };
-      try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
-      const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
-
-      const publishAccountId = (auth.context.payload as Record<string, any>)?.context?.accountId;
-      return runPublish(
-        files,
-        {
-          instanceId,
-          cloudId: url.searchParams.get('cloudId') ?? '',
-          accountId: typeof publishAccountId === 'string' ? publishAccountId : '',
-        },
-        env,
-        ctx,
-      );
+    try {
+      return await handle(request, env, ctx);
+    } catch (e) {
+      const err = e as { name?: string; message?: string };
+      // Name + message only: never the request body or the grant (BACKEND_DESIGN logging ban), and the
+      // response says nothing beyond INTERNAL so a caller learns nothing about the failure shape.
+      console.log(JSON.stringify({ evt: 'unhandled', path: new URL(request.url).pathname, name: err?.name, message: err?.message }));
+      return cors(json({ ok: false, code: 'INTERNAL' }, 500));
     }
-
-    // POST /upload-grant?instanceId=ID&cloudId=CID → mint the short-lived credential the BROWSER uses to POST
-    // a bundle straight here. WHY: Forge caps a front-end invoke() payload at ~5 MB, so the Custom UI cannot
-    // relay a real prototype through the resolver (it 413s). The resolver — which IS authorized (FIT) — asks
-    // for this grant instead and hands the browser a URL. Authorization for this route is exactly /publish's.
-    if (request.method === 'POST' && url.pathname === '/upload-grant') {
-      const auth = await authorize(request, env);
-      if (!auth.ok) return auth.res;
-      const instanceId = url.searchParams.get('instanceId') ?? '';
-      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
-      if (!env.K_GRANT) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
-
-      // Prefer the VERIFIED token context; fall back to what the caller passes (shared-secret auth has no
-      // token). These ride inside the signed grant, so /upload cannot be talked into a different tenant/user.
-      const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
-      const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
-      const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
-      const now = Date.now();
-      const grant = await mintUploadGrant(
-        { i: instanceId, cl: cloudId, a: accountId, exp: now + UPLOAD_GRANT_TTL_MS },
-        new TextEncoder().encode(env.K_GRANT),
-        () => now,
-      );
-      const origin = new URL(request.url).origin;
-      const uploadUrl = `${origin}/upload?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}&grant=${encodeURIComponent(grant)}`;
-      return cors(json({ ok: true, instanceId, url: uploadUrl, ttlMs: UPLOAD_GRANT_TTL_MS }));
-    }
-
-    // POST /upload?instanceId=ID&cloudId=CID&grant=TOKEN  body: { files: [{ path, b64 }] } → the browser-direct
-    // publish. Deliberately NO authorize(): this request comes from an iframe that holds neither a Forge
-    // invocation token nor the shared secret. The grant IS the credential — unforgeable (HMAC under a key
-    // derived from K_GRANT, domain-separated from serve grants so a viewer's serve grant can never publish),
-    // bound to this instanceId, and valid for UPLOAD_GRANT_TTL_MS. Everything after auth is the same pipeline.
-    if (request.method === 'POST' && url.pathname === '/upload') {
-      const path = url.pathname;
-      const instanceId = url.searchParams.get('instanceId') ?? '';
-      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
-      if (!env.K_GRANT) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
-
-      const verified = await verifyUploadGrant(
-        url.searchParams.get('grant') ?? '',
-        new TextEncoder().encode(env.K_GRANT),
-        Date.now,
-        instanceId,
-      );
-      if (!verified.ok) {
-        // Auth-path telemetry only — never the grant itself (BACKEND_DESIGN logging ban); `path` excludes the
-        // query string, which is where the token lives.
-        console.log(JSON.stringify({ evt: 'authorize', ok: false, via: 'upload-grant', reason: verified.reason, path }));
-        return cors(json({ ok: false, code: 'UNAUTHORIZED', reason: verified.reason }, 401));
-      }
-      console.log(JSON.stringify({ evt: 'authorize', ok: true, via: 'upload-grant', path }));
-
-      let body: { files?: Array<{ path: string; b64: string }> };
-      try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
-      const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
-      // cloudId/accountId come from the SIGNED grant, not the query string — the query copy is cosmetic.
-      return runPublish(files, { instanceId, cloudId: verified.payload.cl, accountId: verified.payload.a }, env, ctx);
-    }
-
-    // POST /serve-url?instanceId=ID → verify Forge token, mint a short-lived grant, return the dispatch URL.
-    // The resolver derives instanceId from its (server-side) macro context, so a client can't request a grant
-    // for an instance it isn't bound to; this Worker holds K_GRANT and mints — keeping the grant key and the
-    // grant format (shared with the dispatch Worker's verify) in one place.
-    if (request.method === 'POST' && url.pathname === '/serve-url') {
-      const auth = await authorize(request, env);
-      if (!auth.ok) return auth.res;
-      const instanceId = url.searchParams.get('instanceId') ?? '';
-      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
-      if (!env.K_GRANT || !env.DISPATCH_BASE_URL) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
-
-      // Only mint a serve grant if this instance actually has a published bundle. Otherwise the Custom UI would
-      // embed an iframe to a non-existent per-instance Worker (blank 404); returning NOT_PUBLISHED makes it show
-      // the upload panel instead.
-      let exists: boolean;
-      try {
-        exists = await makeClient(env).workerExists(`ms-${instanceId}`);
-      } catch (e) {
-        return cors(json({ ok: false, code: 'CHECK_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
-      }
-      if (!exists) return cors(json({ ok: false, code: 'NOT_PUBLISHED', instanceId }));
-
-      const now = Date.now();
-      // Audit-only grant fields (the dispatch Worker verifies i + exp + sig; cl/a/c are for logs). Prefer the
-      // verified token context; fall back to values the resolver passes (shared-secret auth has no token).
-      const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
-      // A live view proves the site is installed and in use → clear any uninstall tombstone so a reinstalled
-      // embed is never collected by the sweep. Best-effort + off the response path (never delays the render).
-      const serveStore = makeInstanceStore(env);
-      if (serveStore && cloudId) ctx.waitUntil(serveStore.recordActive(instanceId, cloudId).catch(() => {}));
-      const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
-      const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
-      const grant = await mintGrant(
-        { i: instanceId, ck: auth.context.appId, c: '', a: accountId, cl: cloudId, exp: now + SERVE_GRANT_TTL_MS },
-        new TextEncoder().encode(env.K_GRANT),
-        () => now,
-      );
-      const base = env.DISPATCH_BASE_URL.replace(/\/+$/, '');
-      return cors(json({ ok: true, instanceId, url: `${base}/v/${encodeURIComponent(instanceId)}/g/${grant}/`, ttlMs: SERVE_GRANT_TTL_MS }));
-    }
-
-    // DELETE /instance?instanceId=ID → tear down the per-instance Worker (macro/page deleted — orphan cleanup).
-    if (request.method === 'DELETE' && url.pathname === '/instance') {
-      const auth = await authorize(request, env);
-      if (!auth.ok) return auth.res;
-      const instanceId = url.searchParams.get('instanceId') ?? '';
-      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
-      try {
-        await makeProvider(env).deleteInstance({ id: instanceId, providerRef: `ms-${instanceId}` });
-      } catch (e) {
-        return cors(json({ ok: false, code: 'DELETE_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
-      }
-      return cors(json({ ok: true, instanceId, deleted: true }));
-    }
-
-    // POST /uninstall?cloudId=ID → Forge preUninstall trigger: tombstone every still-active instance of this
-    // site. The scheduled() sweep then deletes their bundles RETENTION_MS (30 days) later. Idempotent: a repeat
-    // won't reset the clock (markUninstalledByCloudId only stamps NULL rows).
-    if (request.method === 'POST' && url.pathname === '/uninstall') {
-      const auth = await authorize(request, env);
-      if (!auth.ok) return auth.res;
-      const cloudId = url.searchParams.get('cloudId') ?? '';
-      if (!cloudId) return cors(json({ ok: false, code: 'BAD_CLOUD_ID' }, 400));
-      const store = makeInstanceStore(env);
-      if (!store) return cors(json({ ok: true, cloudId, tombstoned: 0, note: 'no DB bound' }));
-      try {
-        const tombstoned = await store.markUninstalledByCloudId(cloudId, new Date().toISOString());
-        return cors(json({ ok: true, cloudId, tombstoned }));
-      } catch (e) {
-        return cors(json({ ok: false, code: 'UNINSTALL_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
-      }
-    }
-
-    return cors(json({ ok: false, code: 'NOT_FOUND' }, 404));
   },
 
   // Cron sweep (wrangler [triggers] crons): delete the bundles of sites uninstalled more than RETENTION_MS ago.

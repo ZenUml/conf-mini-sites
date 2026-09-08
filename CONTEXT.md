@@ -65,7 +65,13 @@ Confluence page
 - **Auth (two distinct checks, neither is a Confluence ACL):** (1) **publish** — the control Worker authenticates
   the caller by the **Forge Invocation Token** (RS256/JWKS, `iss`/`aud`, app-id allowlist — binding whenever a
   bearer token is present) so only our Forge app can provision; the **shared secret** (`x-mini-sites-secret`)
-  is the CI/E2E fallback for calls that carry no token. (2) **serve** —
+  is the CI/E2E fallback for calls that carry no token. Since 2026-09-08 the bundle bytes themselves no
+  longer transit Forge: a Forge front-end `invoke()` payload is capped at ~5 MB (measured; a 7.2 MB trial
+  publish died with a 413 and no telemetry), so the resolver asks the control Worker for a short-lived
+  **upload grant** (`/upload-grant`, FIT-authorized; HMAC under `SHA-256(K_GRANT || ":upload")`, instance-bound,
+  120 s) and the Custom UI POSTs the bundle straight to `/upload`, where that grant is the only credential.
+  The derived key means a serve grant can never publish and an upload grant can never serve. Verified on
+  lite-dev to 20 MB raw; regression spec `tests/e2e/ui/large-bundle.spec.ts`. (2) **serve** —
   the dispatch Worker verifies the **HMAC signed-path grant** minted by the Forge resolver. The resolver only
   runs for a user Forge has already authorized to view the page, so **Confluence permissions are inherited** —
   there is no `permission/check` call and no self-built ACL.

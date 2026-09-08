@@ -1,5 +1,6 @@
 // Publisher modal controller — the "Bold Editorial" design wired to real data.
-// Flow: picker → selected → progress (real invoke('publish')) → preview (real mini-site iframe via getServeUrl).
+// Flow: picker → selected → progress (direct upload to the control Worker) → preview (real mini-site iframe
+// via getServeUrl).
 // Opening an already-published instance jumps straight to preview. Reuses the design's manifest/checklist/
 // progress/toast visual language; the data is real (selected files, real validation result, real serve URL).
 import { invoke, view, router } from '@forge/bridge';
@@ -202,6 +203,13 @@ async function readAll() {
   for (const f of FILES) { const buf = new Uint8Array(await f.file.arrayBuffer()); out.push({ path: f.path, b64: chunkedBase64(buf) }); }
   return out;
 }
+// WHY the browser uploads directly instead of invoke('publish', { files }): a Forge front-end invoke request
+// payload is capped at ~5 MB, so any real prototype (images, video) died with
+// `xen_invocation_service status code is: 413` and the modal showed only "Stopped — NETWORK". So we ask the
+// resolver for a short-lived, instance-scoped upload grant (mintUploadGrant — server-derived instanceId, FIT-
+// authorized) and POST the bundle straight to the control Worker, whose response is byte-identical to
+// /publish's. invoke('publish') remains the ONE-shot fallback for installs whose manifest predates the
+// `external.fetch.client` permission, where the direct fetch is CSP-blocked (a TypeError).
 async function doPublish() {
   showUploadSub('progress');
   buildManifest(); buildChecklist();
@@ -211,7 +219,27 @@ async function doPublish() {
   let res;
   try {
     const files = await readAll();
-    res = await invoke('publish', { files });
+    const g = await invoke('mintUploadGrant');
+    if (g && g.ok && g.url) {
+      let r = null;
+      try {
+        r = await fetch(g.url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files }) });
+      } catch (e) {
+        // A TypeError here is a network/CSP failure (e.g. an install whose manifest predates the client fetch
+        // permission, so connect-src blocks the Worker origin). Fall back ONCE to the old invoke path — small
+        // bundles keep working there. Anything else propagates to the NETWORK shape below.
+        if (!(e instanceof TypeError)) throw e;
+      }
+      if (r) {
+        res = await r.json().catch(() => ({ ok: false, code: 'BAD_RESPONSE', httpStatus: r.status }));
+        if (typeof res.httpStatus !== 'number') res.httpStatus = r.status;
+      } else {
+        res = await invoke('publish', { files });
+      }
+    } else {
+      // The grant call itself failed (LICENSE_INACTIVE, HTTP_*, …) — treat it exactly as a failed publish.
+      res = g || { ok: false, code: 'GRANT_FAILED' };
+    }
   } catch (e) {
     res = { ok: false, code: 'NETWORK', message: String((e && e.message) || e) };
   }

@@ -18,6 +18,7 @@ import { verifyForgeToken, forgeJwks } from '../gateway/forgeToken';
 import type { ForgeTokenContext } from '../gateway/forgeToken';
 import { authorizeControlCall } from '../gateway/authorize';
 import { mintGrant } from '../gateway/grant';
+import { mintUploadGrant, verifyUploadGrant, UPLOAD_GRANT_TTL_MS } from '../gateway/uploadGrant';
 import type { InstanceHandle } from '../hosting/HostingProvider';
 import { D1ProvisionedInstanceStore } from '../db/D1ProvisionedInstanceStore';
 import { runUninstallSweep } from '../lifecycle/uninstallGc';
@@ -38,7 +39,8 @@ export interface Env {
   WFP_NAMESPACE: string;
   /** Cloudflare API token (Workers Scripts:Edit) — a Worker secret. Never logged. */
   WFP_API_TOKEN_PROVISIONING: string;
-  /** K_grant raw key material — the HMAC key shared with the dispatch Worker, to MINT serve grants. Secret. */
+  /** K_grant raw key material — the HMAC key shared with the dispatch Worker, to MINT serve grants. It also
+   *  backs the UPLOAD grants minted here, under a domain-separated key (see gateway/uploadGrant.ts). Secret. */
   K_GRANT: string;
   /** Public base URL of the dispatch Worker, e.g. https://conf-mini-sites-dispatch-dev.zenuml.workers.dev */
   DISPATCH_BASE_URL: string;
@@ -62,11 +64,14 @@ export interface Env {
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-// Forge calls this remote server-to-server; no browser CORS preflight. Lock the allowed origin to the Forge
-// egress and reflect only the methods we expose.
+// Two callers: Forge server-to-server (a remote — no browser CORS), and the Custom UI's BROWSER for the
+// direct-upload publish (/upload-grant is invoked by the resolver, but /upload is POSTed from the iframe and
+// DOES preflight — the OPTIONS 204 at the top of fetch() answers it). `*` is safe here because no route
+// authenticates by cookie: every credential is an explicit header (FIT / shared secret) or an unforgeable
+// signed grant in the URL, so a hostile origin gains nothing by being allowed to send a request it cannot sign.
 const cors = (res: Response): Response => {
   const h = new Headers(res.headers);
-  h.set('access-control-allow-origin', '*'); // Forge remote is server-side; no credentialed browser origin
+  h.set('access-control-allow-origin', '*'); // no cookie auth anywhere; see above
   h.set('access-control-allow-headers', 'authorization, content-type');
   h.set('access-control-allow-methods', 'POST, DELETE, OPTIONS');
   return new Response(res.body, { status: res.status, headers: h });
@@ -126,6 +131,95 @@ async function authorize(request: Request, env: Env): Promise<AuthOk | { ok: fal
   return { ok: true, context: decision.context };
 }
 
+/** The publish pipeline — validate → secret-scan → provision → analytics → GC bookkeeping. Shared verbatim by
+ *  the two ways a bundle can arrive: `POST /publish` (resolver-relayed, FIT/shared-secret authorized) and
+ *  `POST /upload` (browser-direct, upload-grant authorized — the ~5 MB Forge invoke-payload cap workaround).
+ *  The routes differ ONLY in how they authenticate and where cloudId/accountId come from; the responses are
+ *  byte-identical, so nothing downstream has to care which door a bundle came through. */
+async function runPublish(
+  files: RawBundleFile[],
+  ids: { instanceId: string; cloudId: string; accountId: string },
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const { instanceId, cloudId, accountId } = ids;
+  // Publish-funnel analytics (bundle_validated / secret_scan_rejected / publish_succeeded /
+  // publish_failed — see src/analytics/miniSiteEvents.ts). Best-effort + off the response path via
+  // ctx.waitUntil, same posture as the recordActive calls below: a Mixpanel outage or unset
+  // MIXPANEL_TOKEN must never affect whether a publish succeeds.
+  const startedAt = Date.now();
+  const fileCount = files.length;
+  const totalBytes = files.reduce((n, f) => n + f.bytes.byteLength, 0);
+  const analyticsCtx: MiniSiteEventContext = {
+    cloudId: cloudId || undefined,
+    accountId: accountId || undefined,
+    instanceId,
+    // From the per-env [vars] in wrangler-remote.toml. Without it every Worker-side event lands as
+    // unknown_environment_type and dev/staging/prod cannot be told apart in Mixpanel — which is
+    // exactly what the first staging run found.
+    environmentType: env.ENVIRONMENT_TYPE,
+  };
+  const track = (event: MiniSiteAnalyticsEvent): void => {
+    const mpEvent = buildMiniSiteEvent(event, analyticsCtx, { now: Date.now, insertId: () => crypto.randomUUID() });
+    ctx.waitUntil(sendMiniSiteEvents([mpEvent], { token: env.MIXPANEL_TOKEN }));
+  };
+
+  const validated = await validateBundle(files);
+  track({
+    name: 'bundle_validated',
+    properties: validated.ok
+      ? { outcome: 'pass', file_count: fileCount, total_bytes: totalBytes }
+      : { outcome: 'fail', reason: validated.error.code, file_count: fileCount, total_bytes: totalBytes },
+  });
+  if (!validated.ok) {
+    track({
+      name: 'publish_failed',
+      properties: {
+        reason: validated.error.code,
+        http_status: validated.error.status,
+        file_count: fileCount,
+        total_bytes: totalBytes,
+        duration_ms: Date.now() - startedAt,
+      },
+    });
+    return cors(json({ ok: false, code: validated.error.code, message: validated.error.message }, validated.error.status));
+  }
+  const scan = scanForSecrets(files);
+  if (scan.hits.length > 0) {
+    const hit = scan.hits[0]!;
+    track({
+      name: 'secret_scan_rejected',
+      properties: { hit_count: scan.hits.length, first_hit_kind: hit.kind, file_count: fileCount, total_bytes: totalBytes },
+    });
+    track({
+      name: 'publish_failed',
+      properties: { reason: 'SECRET_DETECTED', http_status: 422, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
+    });
+    return cors(json({ ok: false, code: 'SECRET_DETECTED', message: `secret in ${hit.file}:${hit.line} (${hit.kind})` }, 422));
+  }
+
+  const handle: InstanceHandle = { id: instanceId, providerRef: `ms-${instanceId}` };
+  try {
+    await makeProvider(env).createInstance(handle, validated.bundle);
+  } catch (e) {
+    track({
+      name: 'publish_failed',
+      properties: { reason: 'PROVISION_FAILED', http_status: 502, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
+    });
+    return cors(json({ ok: false, code: 'PROVISION_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
+  }
+  track({
+    name: 'publish_succeeded',
+    properties: { file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
+  });
+  // Track the provisioned instance for uninstall-driven GC, clearing any prior tombstone (a publish proves
+  // the site is live). Best-effort + off the response path: provisioning already succeeded; failing to
+  // record only means this instance won't be auto-collected, never that publish fails.
+  const pubStore = makeInstanceStore(env);
+  if (pubStore && cloudId) ctx.waitUntil(pubStore.recordActive(instanceId, cloudId).catch(() => {}));
+  return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -144,83 +238,76 @@ export default {
       try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
       const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
 
-      // Publish-funnel analytics (bundle_validated / secret_scan_rejected / publish_succeeded /
-      // publish_failed — see src/analytics/miniSiteEvents.ts). Best-effort + off the response path via
-      // ctx.waitUntil, same posture as the recordActive calls below: a Mixpanel outage or unset
-      // MIXPANEL_TOKEN must never affect whether a publish succeeds.
-      const startedAt = Date.now();
-      const fileCount = files.length;
-      const totalBytes = files.reduce((n, f) => n + f.bytes.byteLength, 0);
-      const pubCloudId = url.searchParams.get('cloudId') ?? '';
-      const ctxAccountId = (auth.context.payload as Record<string, any>)?.context?.accountId;
-      const analyticsCtx: MiniSiteEventContext = {
-        cloudId: pubCloudId || undefined,
-        accountId: typeof ctxAccountId === 'string' ? ctxAccountId : undefined,
+      const publishAccountId = (auth.context.payload as Record<string, any>)?.context?.accountId;
+      return runPublish(
+        files,
+        {
+          instanceId,
+          cloudId: url.searchParams.get('cloudId') ?? '',
+          accountId: typeof publishAccountId === 'string' ? publishAccountId : '',
+        },
+        env,
+        ctx,
+      );
+    }
+
+    // POST /upload-grant?instanceId=ID&cloudId=CID → mint the short-lived credential the BROWSER uses to POST
+    // a bundle straight here. WHY: Forge caps a front-end invoke() payload at ~5 MB, so the Custom UI cannot
+    // relay a real prototype through the resolver (it 413s). The resolver — which IS authorized (FIT) — asks
+    // for this grant instead and hands the browser a URL. Authorization for this route is exactly /publish's.
+    if (request.method === 'POST' && url.pathname === '/upload-grant') {
+      const auth = await authorize(request, env);
+      if (!auth.ok) return auth.res;
+      const instanceId = url.searchParams.get('instanceId') ?? '';
+      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+      if (!env.K_GRANT) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+      // Prefer the VERIFIED token context; fall back to what the caller passes (shared-secret auth has no
+      // token). These ride inside the signed grant, so /upload cannot be talked into a different tenant/user.
+      const cloudId = auth.context.cloudId ?? url.searchParams.get('cloudId') ?? '';
+      const ctxAccount = (auth.context.payload as Record<string, any>)?.context?.accountId;
+      const accountId = (typeof ctxAccount === 'string' ? ctxAccount : null) ?? url.searchParams.get('accountId') ?? '';
+      const now = Date.now();
+      const grant = await mintUploadGrant(
+        { i: instanceId, cl: cloudId, a: accountId, exp: now + UPLOAD_GRANT_TTL_MS },
+        new TextEncoder().encode(env.K_GRANT),
+        () => now,
+      );
+      const origin = new URL(request.url).origin;
+      const uploadUrl = `${origin}/upload?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}&grant=${encodeURIComponent(grant)}`;
+      return cors(json({ ok: true, instanceId, url: uploadUrl, ttlMs: UPLOAD_GRANT_TTL_MS }));
+    }
+
+    // POST /upload?instanceId=ID&cloudId=CID&grant=TOKEN  body: { files: [{ path, b64 }] } → the browser-direct
+    // publish. Deliberately NO authorize(): this request comes from an iframe that holds neither a Forge
+    // invocation token nor the shared secret. The grant IS the credential — unforgeable (HMAC under a key
+    // derived from K_GRANT, domain-separated from serve grants so a viewer's serve grant can never publish),
+    // bound to this instanceId, and valid for UPLOAD_GRANT_TTL_MS. Everything after auth is the same pipeline.
+    if (request.method === 'POST' && url.pathname === '/upload') {
+      const path = url.pathname;
+      const instanceId = url.searchParams.get('instanceId') ?? '';
+      if (!INSTANCE_ID_RE.test(instanceId)) return cors(json({ ok: false, code: 'BAD_INSTANCE_ID' }, 400));
+      if (!env.K_GRANT) return cors(json({ ok: false, code: 'NOT_CONFIGURED' }, 500));
+
+      const verified = await verifyUploadGrant(
+        url.searchParams.get('grant') ?? '',
+        new TextEncoder().encode(env.K_GRANT),
+        Date.now,
         instanceId,
-        // From the per-env [vars] in wrangler-remote.toml. Without it every Worker-side event lands as
-        // unknown_environment_type and dev/staging/prod cannot be told apart in Mixpanel — which is
-        // exactly what the first staging run found.
-        environmentType: env.ENVIRONMENT_TYPE,
-      };
-      const track = (event: MiniSiteAnalyticsEvent): void => {
-        const mpEvent = buildMiniSiteEvent(event, analyticsCtx, { now: Date.now, insertId: () => crypto.randomUUID() });
-        ctx.waitUntil(sendMiniSiteEvents([mpEvent], { token: env.MIXPANEL_TOKEN }));
-      };
+      );
+      if (!verified.ok) {
+        // Auth-path telemetry only — never the grant itself (BACKEND_DESIGN logging ban); `path` excludes the
+        // query string, which is where the token lives.
+        console.log(JSON.stringify({ evt: 'authorize', ok: false, via: 'upload-grant', reason: verified.reason, path }));
+        return cors(json({ ok: false, code: 'UNAUTHORIZED', reason: verified.reason }, 401));
+      }
+      console.log(JSON.stringify({ evt: 'authorize', ok: true, via: 'upload-grant', path }));
 
-      const validated = await validateBundle(files);
-      track({
-        name: 'bundle_validated',
-        properties: validated.ok
-          ? { outcome: 'pass', file_count: fileCount, total_bytes: totalBytes }
-          : { outcome: 'fail', reason: validated.error.code, file_count: fileCount, total_bytes: totalBytes },
-      });
-      if (!validated.ok) {
-        track({
-          name: 'publish_failed',
-          properties: {
-            reason: validated.error.code,
-            http_status: validated.error.status,
-            file_count: fileCount,
-            total_bytes: totalBytes,
-            duration_ms: Date.now() - startedAt,
-          },
-        });
-        return cors(json({ ok: false, code: validated.error.code, message: validated.error.message }, validated.error.status));
-      }
-      const scan = scanForSecrets(files);
-      if (scan.hits.length > 0) {
-        const hit = scan.hits[0]!;
-        track({
-          name: 'secret_scan_rejected',
-          properties: { hit_count: scan.hits.length, first_hit_kind: hit.kind, file_count: fileCount, total_bytes: totalBytes },
-        });
-        track({
-          name: 'publish_failed',
-          properties: { reason: 'SECRET_DETECTED', http_status: 422, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
-        });
-        return cors(json({ ok: false, code: 'SECRET_DETECTED', message: `secret in ${hit.file}:${hit.line} (${hit.kind})` }, 422));
-      }
-
-      const handle: InstanceHandle = { id: instanceId, providerRef: `ms-${instanceId}` };
-      try {
-        await makeProvider(env).createInstance(handle, validated.bundle);
-      } catch (e) {
-        track({
-          name: 'publish_failed',
-          properties: { reason: 'PROVISION_FAILED', http_status: 502, file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
-        });
-        return cors(json({ ok: false, code: 'PROVISION_FAILED', message: e instanceof Error ? e.message : String(e) }, 502));
-      }
-      track({
-        name: 'publish_succeeded',
-        properties: { file_count: fileCount, total_bytes: totalBytes, duration_ms: Date.now() - startedAt },
-      });
-      // Track the provisioned instance for uninstall-driven GC, clearing any prior tombstone (a publish proves
-      // the site is live). Best-effort + off the response path: provisioning already succeeded; failing to
-      // record only means this instance won't be auto-collected, never that publish fails.
-      const pubStore = makeInstanceStore(env);
-      if (pubStore && pubCloudId) ctx.waitUntil(pubStore.recordActive(instanceId, pubCloudId).catch(() => {}));
-      return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));
+      let body: { files?: Array<{ path: string; b64: string }> };
+      try { body = await request.json(); } catch { return cors(json({ ok: false, code: 'BAD_JSON' }, 400)); }
+      const files: RawBundleFile[] = (body.files ?? []).map((f) => ({ path: f.path, bytes: b64ToBytes(f.b64) }));
+      // cloudId/accountId come from the SIGNED grant, not the query string — the query copy is cosmetic.
+      return runPublish(files, { instanceId, cloudId: verified.payload.cl, accountId: verified.payload.a }, env, ctx);
     }
 
     // POST /serve-url?instanceId=ID → verify Forge token, mint a short-lived grant, return the dispatch URL.

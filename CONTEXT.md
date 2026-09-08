@@ -65,7 +65,13 @@ Confluence page
 - **Auth (two distinct checks, neither is a Confluence ACL):** (1) **publish** — the control Worker authenticates
   the caller by the **Forge Invocation Token** (RS256/JWKS, `iss`/`aud`, app-id allowlist — binding whenever a
   bearer token is present) so only our Forge app can provision; the **shared secret** (`x-mini-sites-secret`)
-  is the CI/E2E fallback for calls that carry no token. (2) **serve** —
+  is the CI/E2E fallback for calls that carry no token. Since 2026-09-08 the bundle bytes themselves no
+  longer transit Forge: a Forge front-end `invoke()` payload is capped at ~5 MB (measured; a 7.2 MB trial
+  publish died with a 413 and no telemetry), so the resolver asks the control Worker for a short-lived
+  **upload grant** (`/upload-grant`, FIT-authorized; HMAC under `SHA-256(K_GRANT || ":upload")`, instance-bound,
+  120 s) and the Custom UI POSTs the bundle straight to `/upload`, where that grant is the only credential.
+  The derived key means a serve grant can never publish and an upload grant can never serve. Verified on
+  lite-dev to 20 MB raw; regression spec `tests/e2e/ui/large-bundle.spec.ts`. (2) **serve** —
   the dispatch Worker verifies the **HMAC signed-path grant** minted by the Forge resolver. The resolver only
   runs for a user Forge has already authorized to view the page, so **Confluence permissions are inherited** —
   there is no `permission/check` call and no self-built ACL.
@@ -212,6 +218,21 @@ These erode the "~$25/mo, solo-buildable" premise — re-cost honestly.
 3. EV comparison vs shipping the next ZenUML feature + a kill criterion stronger than "cheap to build."
 
 > **2026-06-17 — demand-to-pay gate REMOVED by decision.** The former gate 2 ("≥3 paying prospects beyond the anchor team who pre-approved the external-processor architecture") is **waived**. We are listing on the Marketplace as the demand-validation instrument itself (list-first, validate with real installs) rather than gating the listing on pre-secured paid commitments. Privacy / residency / DPA disclosures are still required *within* the listing, but they no longer block publishing.
+
+> **2026-08-16 — free-first pricing, and the mechanism that keeps the return to paid cheap.** The listing goes to $0 to remove the price barrier during demand validation, with the intent to charge once installs accumulate. **Do this as a price change inside the existing "Paid via Atlassian" model — set the tier amounts to 0. Do NOT switch the payment model to "Free", and do NOT remove `licensing: enabled: true` from `forge-app/manifest.yml`.** The two paths look identical to a visitor and differ enormously on the way back:
+>
+> | Path back to paid | What it costs |
+> |---|---|
+> | Prices raised inside "Paid via Atlassian" | A price edit. Live within 24h. No Marketplace approval, no Forge major-version bump, no customer consent. Existing customers get a 60-day price override. |
+> | Payment model "Free" → "Paid via Atlassian" | Marketplace approval **and** a Forge **major version** increment. Every install's admin must manually approve the upgrade before the app keeps working. `release.yml` does not run `forge install --upgrade`, so nothing rolls out on its own. |
+>
+> Source: developer.atlassian.com — "The major version is incremented … when you specify increase/changed scopes, and/or when you update licensing from free to paid"; "Your listing changes from free to paid: Your change triggers a Marketplace approval"; price adjustments "take effect within 24 hours". Verified 2026-08-16.
+>
+> **No code change is required for the free period.** `licenseInactive()` in `forge-app/src/index.js` is `context?.license != null && context.license.active === false` — a $0 subscription yields an active license, so the EAG-92 publish gate never fires and the `LICENSE_INACTIVE` copy in `ui-src/publisher.js` never renders. Leave both intact; they are what enforces the price when it returns.
+>
+> **Known cost of charging later, accepted going in:** every tenant that installs during the free period holds a $0 subscription. Raising the price does not auto-charge them — they must actively subscribe, and until they do, `license.active === false` makes the EAG-92 gate 402 their *new* publishes. Serving is never gated by design, so their existing embeds keep rendering. Plan that conversion as a customer-facing campaign, not a listing edit.
+>
+> **Cross-constraint:** adding the still-pending `storage:app` scope also forces a Forge major version and the same per-install consent. If that scope is still wanted, it belongs in one consent window taken now at low install count, not after a free listing has raised the count.
 
 If the gates don't pass → ship the next ZenUML feature instead.
 

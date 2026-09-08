@@ -1,0 +1,68 @@
+{
+  "$schema": "https://open-design.ai/schemas/plugin.v1.json",
+  "specVersion": "1.0.0",
+  "name": "mini-sites-video-production",
+  "title": "Mini Sites demo video production",
+  "version": "0.1.0",
+  "description": "Evidence-safe ten-stage workflow for producing a Mini Sites product demo from planning through a local MP4 master.",
+  "license": "UNLICENSED",
+  "tags": ["scenario", "video-production", "mini-sites", "product-demo"],
+  "compat": {
+    "agentSkills": [{ "path": "./SKILL.md" }]
+  },
+  "od": {
+    "kind": "scenario",
+    "taskKind": "video-production",
+    "scenario": "mini-sites-video-production",
+    "mode": "scenario",
+    "capabilities": ["prompt:inject", "fs:read", "fs:write", "subprocess"],
+    "inputs": [
+      {
+        "name": "storyPath",
+        "label": "Story file",
+        "type": "file",
+        "required": true,
+        "default": "demo-pipeline/stories/mini-site-launch.story.json"
+      },
+      {
+        "name": "captureEnvironment",
+        "label": "Capture environment",
+        "type": "select",
+        "required": true,
+        "options": ["development"],
+        "default": "development"
+      }
+    ],
+    "videoWorkflow": {
+      "schemaVersion": 1,
+      "id": "mini-sites-product-demo-v1",
+      "title": "Mini Sites product demo",
+      "projectKind": "video",
+      "oneActiveJob": true,
+      "stages": [
+        { "id": "outline", "title": "Outline", "segment": "plan", "artifacts": ["plan/outline.md"], "dependsOn": [] },
+        { "id": "script", "title": "Script breakdown", "segment": "plan", "artifacts": ["plan/script.json"], "dependsOn": ["outline"] },
+        { "id": "storyboard", "title": "Storyboard", "segment": "plan", "artifacts": ["plan/storyboard.json"], "dependsOn": ["script"] },
+        { "id": "narration", "title": "Verbatim narration", "segment": "plan", "artifacts": ["plan/narration.json"], "dependsOn": ["storyboard"] },
+        { "id": "capture", "title": "Capture", "segment": "evidence", "artifacts": ["capture/raw.webm", "capture/actions.jsonl", "capture/capture-manifest.json"], "dependsOn": ["narration"], "adapter": "mini-sites-development-capture" },
+        { "id": "dailies", "title": "Dailies", "segment": "evidence", "artifacts": ["capture/dailies.json"], "dependsOn": ["capture"] },
+        { "id": "voiceover", "title": "Voiceover", "segment": "edit", "artifacts": ["audio/timing-manifest.json", "audio/captions.srt"], "dependsOn": ["dailies"], "adapter": "local-voice" },
+        { "id": "fine-cut", "title": "Fine cut + motion", "segment": "edit", "artifacts": ["edit/timeline.json", "edit/preview.mp4", "edit/render-manifest.json"], "dependsOn": ["voiceover"], "adapter": "ffmpeg-render" },
+        { "id": "qc", "title": "QC", "segment": "verify", "artifacts": ["qc/report.json"], "dependsOn": ["fine-cut"], "adapter": "video-qc" },
+        { "id": "mastering", "title": "Mastering", "segment": "deliver", "artifacts": ["master/final.mp4", "master/delivery-manifest.json"], "dependsOn": ["qc"], "adapter": "ffmpeg-master" }
+      ],
+      "gates": [
+        { "id": "plan-approval", "title": "Approve plan", "afterStage": "narration", "requiredStages": ["outline", "script", "storyboard", "narration"], "authorizesSegment": "evidence" },
+        { "id": "evidence-approval", "title": "Approve evidence", "afterStage": "dailies", "requiredStages": ["capture", "dailies"], "authorizesSegment": "edit" },
+        { "id": "fine-cut-approval", "title": "Approve fine cut", "afterStage": "fine-cut", "requiredStages": ["voiceover", "fine-cut"], "authorizesSegment": "verify" },
+        { "id": "qc-approval", "title": "Approve QC", "afterStage": "qc", "requiredStages": ["qc"], "authorizesSegment": "deliver", "qcPolicy": { "errorsBlock": true, "warningsRequireAcknowledgment": true } }
+      ],
+      "canonicalPaths": {
+        "project": "project.json",
+        "migrationManifest": "migration-manifest.json"
+      },
+      "evidencePolicyPath": "references/evidence-policy.md",
+      "redactionPolicyPath": "references/redaction-policy.md"
+    }
+  }
+}

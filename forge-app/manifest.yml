@@ -88,6 +88,17 @@ permissions:
         # does not require admin re-approval/re-consent, unlike `permissions.scopes` (see the project's
         # storage-scope consent-campaign note) — so this is safe to add post-public-listing.
         - address: https://api.mixpanel.com
+      # Browser-side upload egress (CSP connect-src for the Custom UI iframe). A Forge front-end invoke()
+      # payload is capped at ~5 MB, so the Publisher POSTs the bundle DIRECTLY from the browser to the control
+      # Worker using a short-lived grant minted by the `mintUploadGrant` resolver. Like the Mixpanel entry
+      # above this is a CSP/external-fetch addition, not a scope: per conf-app's manifest.yml (same author,
+      # same pattern), "Modifying content permissions CSP options, external permissions CSP options and URLs,
+      # or fetch permissions options and URLs" does NOT require admin re-approval/re-consent, unlike
+      # `permissions.scopes` — so this is safe to add post-public-listing.
+      client:
+        - address: https://conf-mini-sites-remote-dev.zenuml.workers.dev
+        - address: https://conf-mini-sites-remote-staging.zenuml.workers.dev
+        - address: https://conf-mini-sites-remote-production.zenuml.workers.dev
     frames:
       - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev
         # Staging dispatch Worker — the nested mini-site iframe in the staging Custom UI.

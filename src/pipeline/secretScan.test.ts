@@ -113,3 +113,24 @@ describe('scanForSecrets — file handling', () => {
     expect(scanForSecrets([])).toEqual({ hits: [] });
   });
 });
+
+// Regression (production incident 2026-09-08, v0.4.0): a bundle file whose content is one
+// multi-megabyte line made `scanLine`'s base64-run regex exhaust the call stack. The control Worker
+// threw `RangeError: Maximum call stack size exceeded` and Cloudflare answered with a bare 500 that
+// carried none of `cors()`'s headers, so the browser reported a CORS failure, the Publisher fell back
+// to `invoke('publish')`, and the user saw the pre-fix 413 message again. Minified JS and inline
+// `data:` URIs are exactly this shape, so the scanner must stay bounded per line, not per file.
+describe('very long single lines', () => {
+  it('scans a 6 MB single-line file without exhausting the call stack', () => {
+    const line = 'A'.repeat(6 * 1024 * 1024);
+    expect(() => scanForSecrets([fileOf('bundle.min.js', line)])).not.toThrow();
+  });
+
+  it('still finds a secret that sits inside a very long line', () => {
+    // Shaped like minified JS: the named patterns need word boundaries, so the token is quoted.
+    const secret = 'AKIA' + 'Q'.repeat(16);
+    const line = 'x'.repeat(3 * 1024 * 1024) + ';var k="' + secret + '";' + 'y'.repeat(3 * 1024 * 1024);
+    const res = scanForSecrets([fileOf('app.min.js', line)]);
+    expect(res.hits.map((h) => h.kind)).toContain('aws-access-key-id');
+  });
+});

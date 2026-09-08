@@ -107,7 +107,43 @@ const NAMED_PATTERNS: { kind: string; re: RegExp }[] = [
   { kind: 'generic-assignment', re: GENERIC_ASSIGNMENT },
 ];
 
+/**
+ * Longest slice of one line handed to the regex engine in a single call, plus the overlap carried
+ * between consecutive slices.
+ *
+ * WHY (production incident 2026-09-08, v0.4.0): `line.match(BASE64ISH_RUN)` on a multi-megabyte line
+ * exhausts the call stack — the control Worker threw `RangeError: Maximum call stack size exceeded`
+ * and Cloudflare answered with a bare 500 that carried none of `cors()`'s headers, which the browser
+ * reported as a CORS failure and the Publisher mistook for the old ~5 MB invoke cap. Minified JS and
+ * inline `data:` URIs are single lines of exactly that size, so the scan must be bounded per line.
+ * The overlap is far longer than any pattern it must catch (the longest is a 39-char Google key, and
+ * entropy runs are reported from 40 chars), so no hit can hide across a slice boundary.
+ */
+const LINE_WINDOW = 64 * 1024;
+const LINE_WINDOW_OVERLAP = 512;
+
+/** Scan one line, slicing it into bounded windows when it is longer than the regex engine tolerates. */
 function scanLine(line: string, file: string, lineNo: number, out: SecretHit[]): void {
+  if (line.length <= LINE_WINDOW) {
+    scanWindow(line, file, lineNo, out);
+    return;
+  }
+  // A long line can produce the same kind in window after window (a minified bundle is thousands of
+  // high-entropy runs); the report is per line, so collapse to one hit per kind.
+  const windowHits: SecretHit[] = [];
+  const step = LINE_WINDOW - LINE_WINDOW_OVERLAP;
+  for (let start = 0; start < line.length; start += step) {
+    scanWindow(line.slice(start, start + LINE_WINDOW), file, lineNo, windowHits);
+  }
+  const seen = new Set<string>();
+  for (const hit of windowHits) {
+    if (seen.has(hit.kind)) continue;
+    seen.add(hit.kind);
+    out.push(hit);
+  }
+}
+
+function scanWindow(line: string, file: string, lineNo: number, out: SecretHit[]): void {
   let matchedNamed = false;
   for (const { kind, re } of NAMED_PATTERNS) {
     if (re.test(line)) {

@@ -32,3 +32,21 @@ export function makeLargeBundleDir(rawBytes = 4200 * 1024): string {
   writeFileSync(join(dir, 'assets/photo.bin'), randomBytes(rawBytes));
   return dir;
 }
+
+/**
+ * A bundle whose asset is ONE text-like line of `rawBytes` — the shape that broke production on
+ * 2026-09-08. `makeLargeBundleDir` fills its asset with `randomBytes`, which carries NUL and control
+ * bytes, so `isTextLike` classifies it binary and the secret scanner skips the file: that fixture
+ * could not reach `scanLine` at any size. Minified JS and inline `data:` URIs are text with no
+ * newline for megabytes, which is what this generates. Default size is the reported case (7.2 MB),
+ * not the smallest size that clears Forge's invoke cap.
+ */
+export function makeLongLineBundleDir(rawBytes = 7200 * 1024): string {
+  const dir = mkdtempSync(join(tmpdir(), 'mini-sites-long-line-'));
+  mkdirSync(join(dir, 'assets'));
+  writeFileSync(join(dir, 'index.html'), '<!doctype html><title>long line</title><h1>Long line</h1><script src="assets/app.min.js"></script>');
+  // One line, no newline, printable ASCII: text-like to isTextLike, and a single match target for the
+  // scanner's base64-run regex.
+  writeFileSync(join(dir, 'assets/app.min.js'), 'a'.repeat(rawBytes));
+  return dir;
+}

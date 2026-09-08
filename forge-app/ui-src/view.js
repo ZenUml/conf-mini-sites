@@ -1,6 +1,7 @@
 // Inline macro launcher — compact. Shows a live preview if published, else an "Add mini-site" CTA. Both open
 // the full Publisher in a Forge fullscreen modal; on modal close we re-check state so the inline view updates.
 import { invoke, Modal } from '@forge/bridge';
+import { startSessionReplay } from './sessionReplay';
 
 const $ = (id) => document.getElementById(id);
 
@@ -10,6 +11,12 @@ const $ = (id) => document.getElementById(id);
 function track(name, properties) {
   invoke('trackEvent', { name, properties }).catch(() => {});
 }
+
+// Replay starts alongside the first render and never blocks it: the config fetch, the SDK init and the
+// recorder are all off the critical path for showing the mini-site.
+invoke('getAnalyticsConfig')
+  .then((cfg) => startSessionReplay({ ...cfg, surface: 'view' }))
+  .catch(() => {});
 
 async function refresh() {
   $('loading').hidden = false; $('empty').hidden = true; $('published').hidden = true;

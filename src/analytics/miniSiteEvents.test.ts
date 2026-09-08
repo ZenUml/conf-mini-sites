@@ -96,3 +96,23 @@ describe('buildMiniSiteEvent', () => {
     expect(a.insertId).not.toBe(b.insertId);
   });
 });
+
+describe('app_installed', () => {
+  // The install heartbeat exists so that "installed, never opened a macro" is distinguishable from
+  // "installed, the app failed to load". Both used to be silence — see the catalog comment.
+  it('is in the catalog and carries only the common dimensions', () => {
+    expect(MINI_SITE_EVENT_NAMES).toContain('app_installed');
+
+    const out = buildMiniSiteEvent(
+      { name: 'app_installed', properties: {} },
+      { cloudId: 'cloud-1', environmentType: 'PRODUCTION' },
+      opts,
+    );
+
+    expect(out.event).toBe('app_installed');
+    expect(out.properties.cloud_id).toBe('cloud-1');
+    expect(out.properties.environment_type).toBe('PRODUCTION');
+    // No macro exists at install time, so there is no instance to attribute it to.
+    expect(out.properties.instance_id).toBe('unknown_instance_id');
+  });
+});

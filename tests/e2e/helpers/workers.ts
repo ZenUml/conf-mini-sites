@@ -64,3 +64,18 @@ export function sampleFiles(): PublishFile[] {
     { path: 'app.js', b64: b64('document.body.dataset.ok="1"') },
   ];
 }
+
+/** POST /upload-grant — mint the short-lived grant that lets the BROWSER POST a bundle straight to the
+ *  control Worker (Forge caps a front-end invoke payload at ~5 MB). Returns { url, ttlMs }. */
+export async function uploadGrant(instanceId: string, cloudId = E2E.cloudId, opts: { secret?: string } = {}): Promise<JsonResult> {
+  const headers = opts.secret !== undefined ? { 'content-type': 'application/json', 'x-mini-sites-secret': opts.secret } : authHeaders();
+  const res = await fetch(`${E2E.controlUrl}/upload-grant?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`, { method: 'POST', headers });
+  return asJson(res);
+}
+
+/** POST an upload URL returned by /upload-grant — the direct-upload publish. Deliberately sends NO
+ *  shared-secret header: the grant in the URL is the only credential, exactly as the browser does it. */
+export async function uploadBundle(url: string, files: PublishFile[]): Promise<JsonResult> {
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files }) });
+  return asJson(res);
+}

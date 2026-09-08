@@ -23,6 +23,8 @@ Control Worker  (src/worker/index.ts · wrangler-remote.toml · conf-mini-sites-
    - verify FIT (binding when present) or x-mini-sites-secret (CI) → validate + secret-scan bundle
    - provision per-instance Worker via WfP REST  → /publish
    - mint short-lived HMAC signed-path grant      → /serve-url
+   - mint upload grant (derived key)              → /upload-grant   ┐ browser-direct publish: Forge caps a
+   - verify upload grant → same publish pipeline  → /upload         ┘ front-end invoke() payload at ~5 MB
    - tombstone on uninstall (D1)                  → /uninstall   (+ scheduled 30-day GC sweep)
    ▼
 Dispatch Worker (src/dispatch/index.ts · wrangler-dispatch.toml · conf-mini-sites-dispatch-*)

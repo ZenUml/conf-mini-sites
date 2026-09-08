@@ -128,6 +128,30 @@ resolver.define('publish', async (req) => {
   return { ...data, httpStatus: res.status, instanceId };
 });
 
+// mintUploadGrant — the DIRECT-UPLOAD path's authorization step. A Forge front-end `invoke()` request payload
+// is capped at ~5 MB, so base64-ing a real prototype (images/video) into invoke('publish') fails with
+// `xen_invocation_service status code is: 413`. Instead the browser POSTs the bundle straight to the control
+// Worker; this resolver mints the short-lived, instance-scoped upload grant that authorizes that POST. The
+// grant is minted SERVER-SIDE from this macro's context (same instanceIdFromContext as publish), so a client
+// can never obtain a grant for another instance, and the call rides invokeRemote() so the FIT authorizes it.
+// The `publish` resolver above stays as the fallback path for installs whose manifest predates the client
+// fetch permission (CSP-blocked fetch → the Custom UI retries through invoke once).
+resolver.define('mintUploadGrant', async (req) => {
+  const { instanceId, cloudId } = await instanceIdFromContext(req.context);
+  // Same license gate as `publish`: the grant IS the write path, so refusing it here refuses the publish.
+  if (licenseInactive(req.context)) {
+    await sendMixpanelEvent('license_blocked_publish', {}, analyticsContext(req.context, instanceId, cloudId));
+    return { ok: false, code: 'LICENSE_INACTIVE', httpStatus: 402, instanceId };
+  }
+  const res = await invokeRemote(CONTROL_REMOTE, {
+    path: `/upload-grant?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`,
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ...data, httpStatus: res.status, instanceId };
+});
+
 export const handler = resolver.getDefinitions();
 
 /** Extract the bare Confluence site cloudId from a trigger context. Mirrors instanceIdFromContext's cloudId

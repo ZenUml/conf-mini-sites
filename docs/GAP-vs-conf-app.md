@@ -32,6 +32,10 @@ Legend: 🔴 high · 🟡 medium · 🟢 low · — skip.
 
 ## 2. Claude Skills + Settings (`.claude/`) — none today; ~12 of conf-app's 42 worth porting
 
+> **Status 2026-09-09:** 14 lifecycle/dev-loop skills exist, plus 17 ported from conf-app per decision 2 in
+> `CONTEXT.md` (the exclusion axis is "another product", not "another app id"). The rows below are the
+> original 2026-06 comparison and are kept as the record of what was decided against.
+
 CMS `.claude/` holds only `worktrees/` + `.DS_Store`. conf-app has ~42 skill dirs + `settings.local.json`.
 
 | Gap | Sev | What conf-app has | What to add to conf-mini-sites |

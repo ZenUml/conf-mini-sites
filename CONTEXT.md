@@ -202,6 +202,9 @@ ports (documents and agent tooling; no runtime effect). **B** — the staging pi
 Forge app to staging, `forge install --upgrade` after it, and the E2E target moves dev → staging. **C** — the
 draft-release job plus the `release-app` skill changes that rename/rewrite a draft before publishing. Each
 lands green before the next starts.
+**Status (2026-09-09):** A is DONE — policies + the tenant-name scrub + the `private/` handbook submodule landed
+in #15; the 17 skill ports + `git-workflow.md` + `.claude/**` in `ci.yml`'s `paths-ignore` in the skills-port PR.
+B is blocked on the repo-variables decision (E2E creds); C not started.
 
 Cloudflare and Forge need **no new resources** (verified 2026-09-08): the Forge `staging` environment exists
 and is installed on `lite-stg.atlassian.net`, both staging Workers hold `K_GRANT`, `CONTROL_SHARED_SECRET`

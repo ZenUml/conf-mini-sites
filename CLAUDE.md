@@ -111,9 +111,16 @@ EAG-92 — before Submit-for-review).
 
 ## Project skills (`.claude/skills/`)
 
-`release-app` (prod release), `check-version` (what's live per env), `spot-check` (targeted post-deploy
-coverage), `submit-branch` / `ready-pr` / `babysit-pr` / `land-pr` / `ship-branch` / `validate-branch` (PR
-lifecycle), `forge-tunnel` / `local-dev` / `forge-installs` / `create-test-page` / `repro` (dev loop).
+`release-app` (prod release), `pvt` (post-release "is it alive?" on minisites-prod), `check-version` (what's
+live per env), `spot-check` (targeted post-deploy coverage), `submit-branch` / `ready-pr` / `babysit-pr` /
+`land-pr` / `ship-branch` / `validate-branch` (PR lifecycle), `forge-tunnel` / `local-dev` / `forge-installs` /
+`create-test-page` / `repro` (dev loop).
+
+Ported from conf-app on 2026-09-09 (decision 2 in `CONTEXT.md`): `code-review`, `codebase-design`,
+`domain-modeling`, `implement`, `refactoring`, `resolving-merge-conflicts`, `wayfinder`, `research`, `teach`,
+`wizard`, `wait-what`, `three-agent-harness`, `bug-report-framing` (dev process);
+`atlassian-developer-console`, `forge-functions-cost`, `forge-ps-questionnaire` (Forge / Marketplace
+platform). Policies: `docs/policies/client-privacy.md`, `docs/policies/git-workflow.md`.
 
 ## Safety (in addition to the workspace rules)
 

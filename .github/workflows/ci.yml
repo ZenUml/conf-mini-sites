@@ -33,6 +33,7 @@ on:
       - 'docs/**'
       - 'handbook/**'
       - 'design/**'
+      - '.claude/**'
       - 'samples/**'
   pull_request:
     paths-ignore:
@@ -40,6 +41,7 @@ on:
       - 'docs/**'
       - 'handbook/**'
       - 'design/**'
+      - '.claude/**'
       - 'samples/**'
 
 # Cancel superseded runs: a new push/PR-sync on the same ref kills the in-flight

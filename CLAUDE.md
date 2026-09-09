@@ -46,6 +46,9 @@ Confluence permissions are inherited via Forge (no permission checker of our own
 - `tests/e2e/` — Playwright (`api`, `setup`, `ui` projects) + fixtures + helpers.
 - `migrations/` — D1 SQL · `wrangler-*.toml` — Worker configs (top-level = dev; `[env.staging]`/`[env.production]`).
 - `.github/workflows/` — `ci.yml`, `e2e.yml`, `deploy.yml`, `release.yml`, `smoke-test.yml`, `block-external-prs.yml`.
+- `private/` — git submodule of the **shared private handbook** `ZenUml/conf-app-private` (branch `handbook-ops-console`);
+  Mini Sites material under `private/apps/mini-sites/`. Client names, cloud ids and contacts go there, never here —
+  see `docs/policies/client-privacy.md`.
 
 ## Commands
 
@@ -119,3 +122,5 @@ lifecycle), `forge-tunnel` / `local-dev` / `forge-installs` / `create-test-page`
 - **Never modify cloud resources** (Cloudflare, Forge prod, D1) without confirmation. Reading/listing is fine.
 - **Never use production for tests** — E2E targets the dev stack (`lite-dev`, `*-dev` Workers).
 - A production release is irreversible/externally visible — **confirm with the user before publishing** one.
+- **This repo is public. No client tenant names, cloud ids or contacts in tracked files** — they go in the `private/`
+  submodule (`docs/policies/client-privacy.md`).

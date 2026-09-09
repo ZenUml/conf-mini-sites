@@ -5,7 +5,8 @@ import { deleteInstance } from '../helpers/workers';
 import { openMacro, openPublisher, selectFolder, publishAndAwait, gotoPreview } from '../helpers/forge';
 import { makeLargeBundleDir } from '../helpers/fixtures';
 
-// Regression for the nulirum trial (2026-09-03): a 2-file, 7.2 MB folder was accepted at selection but publish
+// Regression for the first paid trial (2026-09-03; tenant named in private/apps/mini-sites/client-profiles/): a
+// 2-file, 7.2 MB folder was accepted at selection but publish
 // never reached the control Worker. The Custom UI sends the whole base64 bundle in one invoke('publish'); Forge
 // rejects it with 413 from xen_invocation_service and the modal shows only "Stopped — NETWORK". The docs
 // (platform/forge/limits-invocation/) quote 500 KB for a front-end invoke request and 5 MB for an invocation;

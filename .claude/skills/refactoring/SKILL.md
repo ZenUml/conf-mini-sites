@@ -22,7 +22,7 @@ work:
 - Do not add states, fallbacks, telemetry, recovery UI, or other code merely
   to make behavior "better".
 - Preserve only hard requirements such as data integrity,
-  authorization/paywall enforcement, and essential content compatibility.
+  authorization (FIT / shared-secret / grant verification) and licensing enforcement, and essential content compatibility.
 - Success means fewer concepts, fewer branches, and preferably less production
   code — not perfect behavioral equivalence.
 

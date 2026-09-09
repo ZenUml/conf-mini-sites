@@ -33,8 +33,9 @@ User prompt (1-4 sentences)
 
 ## Prerequisites
 
-- Dev server must be running (`pnpm start:local` or `pnpm start:sit`) OR skill will start it
-- Playwright installed (`cd tests/e2e-tests && pnpm install`)
+- Unit tests and typecheck runnable at the root (`pnpm test`, `pnpm typecheck`); Forge UI buildable (`pnpm -C forge-app build:ui`)
+- Playwright installed for the `tests/e2e` suite (`pnpm exec playwright install chromium`); `tests/e2e/.env` filled for the `api` project, `tests/e2e/.auth/state.json` for `ui`
+- For resolver / manifest changes, a `forge tunnel` against `lite-dev` (see the forge-tunnel skill)
 
 ## Step 0: Initialize harness state
 
@@ -58,13 +59,13 @@ Add `.harness/` to `.gitignore` if not already there.
 
 Spawn a **background** Agent (subagent_type: `general-purpose`) with this mission:
 
-> You are the **Planner Agent** in a three-agent harness for the conf-app project (ZenUML Confluence Cloud Add-on).
+> You are the **Planner Agent** in a three-agent harness for the conf-mini-sites project (Mini Sites for Confluence, a Forge app).
 >
 > **Your input**: The user's feature request (provided below).
 >
 > **Your job**: Expand this into a comprehensive product specification. Be ambitious about scope while staying focused on product context and high-level technical design — NOT detailed implementation.
 >
-> **Project context**: Vue 3 + TypeScript frontend, Cloudflare Workers + D1 backend, Confluence Cloud add-on. Supports sequence diagrams (ZenUML/Mermaid), graph diagrams (DrawIO), and OpenAPI specs. Read CLAUDE.md for architecture details.
+> **Project context**: a Forge Confluence app (`forge-app/`: manifest, resolver, vanilla-JS Custom UI) that embeds a multi-file mini-site inline on a page; bundle bytes are hosted on Cloudflare Workers for Platforms behind a control Worker (`src/worker/`, publish / upload / grant minting) and a dispatch Worker (`src/dispatch/`, grant verification + serving), with D1 stores. Read CLAUDE.md, CONTEXT.md and DESIGN.md for architecture and invariants.
 >
 > **Output**: Write the spec to `.harness/spec.md` with these sections:
 > 1. **Goal** — what we're building and why (user value)
@@ -113,7 +114,7 @@ For smaller features, use a single sprint. For larger ones, break into 2-3 sprin
 
 Spawn an Agent (subagent_type: `general-purpose`) for each sprint:
 
-> You are the **Generator Agent** in a three-agent harness for the conf-app project.
+> You are the **Generator Agent** in a three-agent harness for the conf-mini-sites project.
 >
 > **Your input**: Read `.harness/spec.md` for the full specification and `.harness/contract.md` for your sprint deliverables.
 >
@@ -150,7 +151,7 @@ Wait for the Generator to complete. Verify that lint and unit tests pass. If the
 
 Spawn an Agent (subagent_type: `general-purpose`) with fresh context:
 
-> You are the **Evaluator Agent** in a three-agent harness for the conf-app project.
+> You are the **Evaluator Agent** in a three-agent harness for the conf-mini-sites project.
 >
 > **Your role**: You are QA. You are skeptical. You do NOT give the benefit of the doubt. If something is broken, say so clearly.
 >

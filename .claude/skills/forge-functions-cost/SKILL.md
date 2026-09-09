@@ -18,9 +18,9 @@ When an Atlassian "Forge Functions usage" alert fires (free tier: **100,000 GB-s
 ## Billing subtleties that burned us — get these right
 
 - **A product-event `trigger` that forwards to a `remote` endpoint is billed as SYNC compute, not waived async.** The "Async (WAIVED)" bucket on the usage page is only function-based async (e.g. `pageCaptureFn`, `scheduledTrigger`) — do not assume a trigger is "async therefore free".
-- The per-macro `resolver: endpoint: remote-connect` runs on **Cloudflare**, so it does **not** bill Forge Functions GB-seconds. `functions/*` console.logs are Cloudflare cost, not Forge cost.
-- A tenant can be huge in GB-seconds yet show **zero** Mixpanel `macro_viewed` — because (a) `avi:confluence:viewed:page` fires tenant-wide on every page view regardless of our macros, and/or (b) the tenant blocks client-side Mixpanel (server-side events still arrive). Absence of `macro_viewed` is **not** evidence of zero usage.
+- In this app the macro **resolver runs on Forge** (`forge-app/src/index.js`) and is billable; the work it forwards through `invokeRemote()` to the control Worker, and everything the dispatch Worker serves, runs on **Cloudflare** and does **not** bill Forge GB-seconds. The browser-direct `/upload` path never touches a Forge function at all.
+- A tenant can show GB-seconds yet **zero** browser-side Mixpanel events (`publisher_opened`, `folder_selected`) because the tenant blocks client-side Mixpanel; the server-side events (`publish_succeeded`, `publish_failed`, `render_*`, `app_installed`) still arrive from the Workers and the lifecycle trigger. Absence of browser events is **not** evidence of zero usage.
 
-## Historical driver
+## What this app runs on Forge Functions
 
-2026-06: `remote-page-behavior-trigger` (`avi:confluence:viewed:page`) was **~98%** of all invocations and GB-seconds — it fired on every page view across all installs and forwarded to `/forge-user-behavior` (`functions/forge-user-behavior.ts`) only to record low-value, Confluence-wide `page_viewed` telemetry. Disabled in PR #234.
+Only three sources exist (`forge-app/manifest.yml`): the macro **resolver** (one invocation per macro render for `/serve-url`, plus the publish handoff), the **`avi:forge:installed:app`** lifecycle trigger (`app_installed` heartbeat, once per install; added in #14), and **`preUninstall`** (once per uninstall). A usage alert therefore means resolver volume — i.e. page views of pages carrying the macro — and the Developer console's Site breakdown names the tenant. No tenant-wide page-view trigger exists here; do not add one (the conf-app lesson: such a trigger was ~98% of its GB-seconds).

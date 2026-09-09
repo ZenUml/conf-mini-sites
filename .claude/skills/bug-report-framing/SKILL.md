@@ -1,6 +1,6 @@
 ---
 name: bug-report-framing
-description: Structure a conf-app bug report or incident write-up with User-First Trace — user journey first, then runtime evidence, then code path. Use when writing up a customer-reported bug, a production incident, a regression report, or a postmortem for the ZenUML Confluence app. Triggers on "write up this bug", "incident report", "bug report", "postmortem", "how should I frame this issue".
+description: Structure a Conf Mini-Sites bug report or incident write-up with User-First Trace — user journey first, then runtime evidence, then code path. Use when writing up a customer-reported bug, a production incident, a regression report, or a postmortem for the Mini Sites for Confluence app. Triggers on "write up this bug", "incident report", "bug report", "postmortem", "how should I frame this issue".
 ---
 
 # Bug reports: User-First Trace
@@ -13,4 +13,4 @@ Frame bug reports and incident write-ups with **User-First Trace**:
 
 ## State-Surface Framing
 
-Use lower-level techniques such as State-Surface Framing inside this structure when relevant: identify where the data truth lives (published page, draft page, macro config, custom content, D1 mirror) and which UI/runtime surface is reading or writing it (page viewer, viewer modal, native macro config, page editor, fullscreen modal).
+Use lower-level techniques such as State-Surface Framing inside this structure when relevant: identify where the data truth is held (the Confluence page and its macro `localId`, the derived `instanceId`, the per-instance Worker `ms-<instanceId>` in the WfP namespace, the D1 instance/install stores, the signed serve grant) and which surface is reading or writing it (the Forge Custom UI launcher, the Publisher modal, the resolver, the control Worker `/publish` `/upload` `/serve-url`, the dispatch Worker, the nested mini-site iframe). Name tenants only by cloud id or by a profile under `private/`, never by hostname (see `docs/policies/client-privacy.md`).

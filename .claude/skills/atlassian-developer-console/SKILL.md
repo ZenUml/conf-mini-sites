@@ -15,6 +15,12 @@ It is authenticated as `support@zenuml.com`. It contains only `*.atlassian.com`
 browser state; it deliberately excludes Confluence tenant cookies under
 `*.atlassian.net`.
 
+**Unverified for this app (2026-09-09):** the Forge owner of Mini Sites is `eagle.xiao@gmail.com`
+(workspace `CLAUDE.md`, identity map). Whether `support@zenuml.com` sees `com.zenuml.confluence.minisite`
+in the console has not been checked. If the app list lacks it, the profile needs re-seeding from a
+Chrome profile signed in as the owner (`scripts/refresh-profile.sh`), and the account-verification
+grep in that script must be pointed at the owner address.
+
 ## Route the task first
 
 Prefer an API or CLI when it supports the requested operation. Use the Console UI

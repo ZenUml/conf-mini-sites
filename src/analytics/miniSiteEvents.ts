@@ -36,7 +36,8 @@
 export const MINI_SITE_EVENT_NAMES = [
   // Install-level heartbeat. Every other event needs a macro on a page first, so an install that never
   // gets one is indistinguishable from an install where the app failed to load — both are silence.
-  // Measured 2026-09-09: homebace installed the app on 09-06 and emitted zero events in three days,
+  // Measured 2026-09-09: a trial tenant (profile in private/apps/mini-sites/client-profiles/) installed the app
+  // on 09-06 and emitted zero events in three days,
   // and nothing in the product could tell which of the two happened. Emitted from the Forge
   // `avi:forge:installed:app` lifecycle trigger, so it does not depend on the user reaching a macro.
   'app_installed',

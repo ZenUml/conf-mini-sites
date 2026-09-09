@@ -38,6 +38,8 @@ half; bundle bytes do live on Cloudflare, so the external-processor disclosure s
 - **Mini-site / Static bundle** — a self-contained multi-file static web artifact (`index.html` + separate JS/CSS/asset files with **relative paths**). The thing we host. _Distinct from_ a **single-file artifact** (one self-contained `.html`), which existing HTML macros already handle — out of scope.
 - **Macro instance** — one embedded mini-site on one Confluence page.
 - **Auth gateway** — the request path that authenticates the viewer and enforces the Confluence page's permissions before serving a bundle.
+- **Environment triad** — **dev** = the local `forge tunnel` / `local-dev` sandbox, driven by no CI; **staging** = the CI target, redeployed by every push on every branch and E2E-tested on master or a ready PR; **production** = what a published `vX.Y.Z` release ships. A change is only ever promoted dev → staging → production.
+- **Draft release** — an unpublished GitHub Release cut automatically on master and pinned to the exact commit CI tested (`commit: github.sha`). Publishing one is the single act that fires the production deploy; the `release-app` skill renames it and writes its notes first.
 
 ## Architecture (settled — Forge shell + Cloudflare WfP backend)
 
@@ -133,6 +135,88 @@ release notes → publish the `vX.Y.Z` release → wait for `release.yml` → ve
 `check-version` + a targeted `spot-check` of the delta) → report. Releasing the pipeline is **separate** from making
 the Marketplace listing public; a paid app must enforce licensing (EAG-92) before Submit-for-review.
 
+## Deployment + release process — conf-app parity (decided 2026-09-08)
+
+`conf-app` (`/Users/pengxiao/workspaces/zenuml/conf-app`) is the **process source of truth**; this project
+copies its pipeline and its agent skills, minus everything that exists only to serve conf-app's 3-variant
+(lite/full/diagramly/asyncapi) reality. Four decisions govern the copy:
+
+**1. Upstream-first for shared defects.** A process defect both repos share is fixed in **conf-app first**,
+then copied here. Defects unique to conf-mini-sites (e.g. `forge:install:prod` pointing at the dev site) are
+fixed in place. Why: the two pipelines only stay comparable — and `docs/GAP-vs-conf-app.md` only stays
+meaningful — if fixes flow one way.
+
+**2. Skill port scope — 17 skills.** The exclusion axis is **"another product"**, not merely "another app id",
+and a conf-app skill is also skipped when a global skill in `~/.claude/skills/` already covers it (duplicate
+trigger descriptions degrade dispatch accuracy).
+
+- **Dev process (13):** `code-review` (ported despite the built-in `/code-review` command — it adds the
+  "does this follow the repo's documented standards" axis), `codebase-design`, `domain-modeling`, `implement`,
+  `refactoring`, `resolving-merge-conflicts`, `wayfinder`, `research`, `teach`, `wizard`, `wait-what`,
+  `three-agent-harness`, `bug-report-framing`.
+- **Forge/Confluence platform (3):** `atlassian-developer-console`, `forge-functions-cost`,
+  `forge-ps-questionnaire`.
+- **Rewritten (1):** `pvt` — the concept (post-release production validation) transfers; the body changes from
+  "render Mermaid on prod" to "publish a bundle on a prod page and verify it renders".
+- **Skipped as already global:** `diagnosing-bugs` (→ `diagnose`), `to-spec`/`to-tickets` (→ `to-prd`/`to-issues`),
+  `writing-for-agents` (→ `write-a-skill`/`refine-a-skill`), plus `grill-me`, `handoff`, `tdd`, `triage`,
+  `prototype`, `improve-codebase-architecture`, `forge-feature-flag`.
+- **Skipped as another product:** every `pvt-*` variant, `paywall`, `diagramly-admin`, `rendering-perf`,
+  `test-pdf-export`, `query-forensics`, `page-capture`, `schema`, conf-app's `smoke-test` and `health-check`
+  (ZenUML macro / Mixpanel specific), `tenant`, `marketplace`, `macro-count`, `extend-space-license`,
+  `test-space-license`, `joint-debug` (it orchestrates conf-app + Diagramly + ngrok + a local Postgres;
+  `local-dev` and `forge-tunnel` already cover the equivalent here), all six macro-ops skills (they drive the ZenUML macro's editor UI; this app has one
+  `mini-site` macro behind a Publisher modal, already covered by `create-test-page` + `spot-check`), and every
+  growth/marketing skill (`ai-seo`, `*-aeo`, `programmatic-seo`, `competitors`, `client-health`, `income-radar`,
+  `metrics`, `mixpanel*`, `support-queue`, `weekly-meeting`, `new-customers`, `detect-bypassers`).
+
+**3. Staging is the CI target; dev is for tunnelling.** Copying conf-app's `build-test-deploy.yml` shape:
+**every push on every branch** deploys the Forge app *and* both Workers to **staging** (conf-app's
+`staging-lite` job carries no `if:`), E2E runs against staging on master or a ready-for-review PR, and the
+`dev` environment is reserved for `forge-tunnel` / `local-dev`. This inverts today's arrangement, where CI
+E2E targets the **dev** Workers (`tests/e2e/helpers/env.ts` defaults) and staging is deployed but never
+tested. Prerequisites: a Forge `staging` environment, the staging app installed on `lite-stg.atlassian.net`,
+a staging `CONTROL_SHARED_SECRET`, and the `ZENUML_STAGE_USERNAME` / `ZENUML_STAGE_PASSWORD` /
+`ATLASSIAN_OTP` repo **variables** (conf-app stores these as vars, not secrets) — without them the `ui`
+E2E job self-skips, as it always has here.
+
+**4. Draft releases: copy the mechanism, keep semver.** Port two things from conf-app's `draft-release-*`
+job — the trigger (default branch only, `needs:` the staging E2E) and `commit: ${{ github.sha }}`, which
+pins the draft to the tested commit so publishing it later cannot ship a newer merge under this version.
+Do **not** port conf-app's `v{YYYY.MM.DDHHMM}-{variant}` tag scheme or its placeholder body: the timestamp
+exists because four variants cut releases in parallel and cross-variant semver is meaningless. Tags here stay
+**`vX.Y.Z`** with delta-derived notes written by the `release-app` skill.
+
+Because a semver number is unknown at draft time, each master push cuts a **new** draft tagged
+`draft-<sha7>` — conf-app's accumulating shape, kept deliberately, so an older tested commit can still be
+released after master has moved on. `release-app` then picks the newest draft, retags it `vX.Y.Z`, rewrites
+its body with the delta notes, publishes it, and deletes the older `draft-*` drafts it superseded.
+
+**5. Policies.** Port conf-app's `docs/policies/client-privacy.md` (no client tenant names in this **public**
+repo — code, docs, comments, fixtures, tests) and `docs/policies/git-workflow.md` (adapted: `main` → `master`;
+the primary checkout stays on the default branch, feature work goes to a worktree). Skip `forge-only.md` — it
+governs conf-app's Connect-migration leftovers, and this app was born Forge-only.
+
+**6. Delivery order — three PRs, risk ascending.** **A** — policies + the client-name scrub + the 17 skill
+ports (documents and agent tooling; no runtime effect). **B** — the staging pipeline: every push deploys the
+Forge app to staging, `forge install --upgrade` after it, and the E2E target moves dev → staging. **C** — the
+draft-release job plus the `release-app` skill changes that rename/rewrite a draft before publishing. Each
+lands green before the next starts.
+
+Cloudflare and Forge need **no new resources** (verified 2026-09-08): the Forge `staging` environment exists
+and is installed on `lite-stg.atlassian.net`, both staging Workers hold `K_GRANT`, `CONTROL_SHARED_SECRET`
+and `WFP_API_TOKEN_PROVISIONING`, and the WfP namespace `mini-sites-staging` is live. **B is blocked** on one
+thing only: the `ZENUML_STAGE_USERNAME` / `ZENUML_STAGE_PASSWORD` / `ATLASSIAN_OTP` repo variables, which
+copy a shared robot account's credentials into a second public repo's variable store and therefore need
+explicit sign-off. Wherever they are consumed, they may only ever be passed through a reusable workflow's
+`secrets:` block — never `with:`, whose inputs GitHub prints verbatim into a public log.
+
+**Production install stays out of the pipeline** (matching conf-app): Atlassian auto-rolls minor/patch to
+installed sites, while a **major** bump adds scopes and needs each site admin's consent — CI cannot grant it.
+Staging does run `forge install --upgrade` because those sites are ours. Should an install ever fall behind a
+major, catching it up is an **operations** action (ask that site's admin to consent), not a missing CI step.
+Verified 2026-09-08: every production install is Up-to-date on app version 4 — nothing is stranded today.
+
 ## UI — faithfully implements the design (2026-06-17)
 
 The Custom UI now implements **`design/upload-ui/final.html`** (the fireworks-design "Bold Editorial" winner),
@@ -163,8 +247,13 @@ not a bare-DOM placeholder. Built in `forge-app/`:
    `invokeRemote()` so Forge actually attaches the FIT (plain `api.fetch` egress carries none). No `auth:`
    manifest block was needed (`auth.appUserToken` only adds OAuth tokens); `compute` was added to the remotes'
    `operations`.
-4. **CF API token** — the control Worker's `WFP_API_TOKEN` is currently the wrangler OAuth token (expires);
-   mint a dedicated Cloudflare API token (Workers Scripts:Edit) for durable runtime provisioning.
+4. **CF API token — DONE (2026-09-08).** Each control Worker now holds its own dedicated Cloudflare API token
+   (`minisites-provision-dev` / `-staging` / `-production`, "Edit Cloudflare Workers" template, account-scoped, no
+   TTL) as `WFP_API_TOKEN_PROVISIONING`. Before this all three environments and the GitHub deploy step shared one
+   token, so a rate limit or revocation on it took every environment down at once (staging sat on `429/10429` for an
+   hour on 2026-09-08, then on `401/10000` with an invalid value). The GitHub deploy secret
+   `CLOUDFLARE_API_TOKEN_DEPLOY` still carries the old shared token. Tokens were minted by driving the dashboard with
+   Playwright and moved via the page's own Copy button → clipboard → `wrangler secret put` (never printed).
 5. **Launcher debug line** — `view.js` has a tiny `#dbg` status line (aids modal-open debugging); drop it for production.
 
 ## Testing + design catalog (2026-06-17)

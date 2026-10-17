@@ -29,6 +29,27 @@ export function runHostingProviderContract(label: string, make: () => HostingPro
       expect(await res.text()).toContain('hi');
     });
 
+    it('serves an inferred index alias and original HTML with identical bytes and MIME', async () => {
+      const p = make();
+      const { validateBundle } = await import('../pipeline/bundleValidation');
+      const result = await validateBundle([
+        { path: 'dashboard.html', bytes: enc.encode('<script src="assets/app.js"></script>') },
+        { path: 'assets/app.js', bytes: enc.encode('console.log(1)') },
+      ]);
+      if (!result.ok) throw new Error('expected valid bundle');
+      await p.createInstance(handle, result.bundle);
+      const alias = await p.serve(handle, 'index.html', auth);
+      const original = await p.serve(handle, 'dashboard.html', auth);
+      expect(alias.status).toBe(200);
+      expect(original.status).toBe(200);
+      expect(alias.headers.get('content-type')).toBe(original.headers.get('content-type'));
+      expect(await alias.text()).toBe(await original.text());
+      expect(await (await p.serve(handle, 'assets/app.js', auth)).text()).toBe('console.log(1)');
+      await p.updateBundle(handle, bundleOf('index.html', { 'index.html': 'explicit', 'dashboard.html': 'other' }));
+      expect(await (await p.serve(handle, 'index.html', auth)).text()).toBe('explicit');
+      expect(await (await p.serve(handle, 'dashboard.html', auth)).text()).toBe('other');
+    });
+
     it('serves a relative sub-resource with the right content-type', async () => {
       const p = make();
       await p.createInstance(handle, bundleOf('index.html', { 'index.html': 'x', 'app.js': 'console.log(1)' }));

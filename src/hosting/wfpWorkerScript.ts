@@ -36,6 +36,7 @@ export function buildInstanceWorkerSource(bundle: ValidatedBundle): string {
   return `// Auto-generated per-instance mini-site Worker. Do not edit.
 const FILES = ${JSON.stringify(files)};
 const ENTRY = ${JSON.stringify(entrypoint)};
+const ALIASES = ${JSON.stringify(bundle.aliases ?? {})};
 function bytes(b64) {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
@@ -47,7 +48,8 @@ export default {
     const url = new URL(request.url);
     let p = decodeURIComponent(url.pathname).replace(/^\\/+/, '');
     if (p === '') p = ENTRY;
-    const f = FILES[p];
+    const target = Object.hasOwn(FILES, p) ? p : (Object.hasOwn(ALIASES, p) ? ALIASES[p] : p);
+    const f = Object.hasOwn(FILES, target) ? FILES[target] : undefined;
     if (!f) return new Response('not found', { status: 404 });
     return new Response(bytes(f.b64), {
       status: 200,

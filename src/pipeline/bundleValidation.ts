@@ -1,4 +1,4 @@
-// Bundle validation — step 3 (multi-file + root index.html + relative-only paths) and step 4 (size/count
+// Bundle validation — step 3 (non-empty + explicit/inferred entrypoint + relative-only paths) and step 4 (size/count
 // caps) of the shared upload pipeline. See DESIGN.md §3.3 (steps 3-4) and §5.3 (I6/I7 posture this feeds).
 // A bundle that fails here NEVER reaches status=live (§3.3: "fails any step → never reaches live").
 //
@@ -130,7 +130,7 @@ async function contentHashOf(files: ReadonlyArray<RawBundleFile>): Promise<strin
 
 /**
  * Validate a candidate bundle. Pure + deterministic (no clock). Rule order is load-bearing so the surfaced
- * code is stable (§3.3 ordering): structural (multi-file → root index.html) → per-path (absolute/traversal) →
+ * code is stable (§3.3 ordering): non-empty → per-path (absolute/traversal) → entrypoint inference →
  * caps (count → per-file → total). The first failing rule wins.
  */
 export async function validateBundle(
@@ -141,21 +141,25 @@ export async function validateBundle(
   const maxFileBytes = opts.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const maxTotalBytes = opts.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
 
-  // 1. Structural: must be multi-file (>1). A single .html is out of scope ("use the existing HTML macro").
-  if (files.length <= 1) {
-    return fail('BUNDLE_NOT_MULTIFILE', 422, 'a mini-site bundle must contain more than one file');
+  // 1. Structural: require at least one file; a self-contained index.html is valid.
+  if (files.length === 0) {
+    return fail('BUNDLE_NOT_MULTIFILE', 422, 'a mini-site bundle must contain at least one file');
   }
 
-  // 2. Structural: a ROOT index.html entrypoint must exist (page/index.html does not count).
-  if (!files.some((f) => f.path === ENTRYPOINT)) {
-    return fail('MISSING_INDEX_HTML', 422, `bundle must contain a root "${ENTRYPOINT}" entrypoint`);
-  }
-
-  // 3. Per-path: relative-only (no absolute URL/leading slash, no ".." traversal).
+  // 2. Per-path: relative-only (no absolute URL/leading slash, no ".." traversal).
   for (const f of files) {
     const bad = classifyPath(f.path);
     if (bad) return { ok: false, error: bad };
   }
+
+  // Infer only a root HTML target so index.html and the original document share the same asset base.
+  // Explicit index.html always wins. Paths are validated before inference, never hidden by an alias.
+  const hasIndex = files.some((f) => f.path === ENTRYPOINT);
+  const rootHtml = files.filter((f) => !f.path.includes('/') && /\.(html|htm)$/i.test(f.path));
+  if (!hasIndex && rootHtml.length !== 1) {
+    return fail('MISSING_INDEX_HTML', 422, 'include a root index.html or exactly one root HTML file (.html or .htm)');
+  }
+  const aliases = hasIndex ? undefined : { [ENTRYPOINT]: rootHtml[0].path };
 
   // 4. Caps (server-authoritative). Count first, then per-file, then total.
   if (files.length > maxFiles) {
@@ -182,6 +186,6 @@ export async function validateBundle(
 
   return {
     ok: true,
-    bundle: { files: bundleFiles, entrypoint: ENTRYPOINT, contentHash, totalBytes },
+    bundle: { files: bundleFiles, entrypoint: ENTRYPOINT, contentHash, totalBytes, ...(aliases ? { aliases } : {}) },
   };
 }

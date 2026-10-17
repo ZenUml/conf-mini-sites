@@ -41,9 +41,9 @@ export const launcherEmpty = () =>
   `</div>` +
   // body — editorial invite: kicker rule, Fraunces headline, helper copy, brand CTA
   `<div class="px-5 py-6 text-center">` +
-    `<p class="kicker-rule text-kick font-semibold uppercase text-brand-blue mb-2 inline-block">Multi-file bundle</p>` +
+    `<p class="kicker-rule text-kick font-semibold uppercase text-brand-blue mb-2 inline-block">HTML file or folder</p>` +
     `<h2 class="display opsz-small text-[26px] font-semibold text-ink-900 leading-tight">Host a mini-site here.</h2>` +
-    `<p class="mt-1.5 text-meta text-ink-500 max-w-[42ch] mx-auto">Upload a folder (index.html + JS/CSS/assets) and it renders live, embedded on this page.</p>` +
+    `<p class="mt-1.5 text-meta text-ink-500 max-w-[42ch] mx-auto">Upload an HTML file or a folder (index.html + assets) and it renders live, embedded on this page.</p>` +
     `<button id="btn-add" type="button" class="group mt-4 inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg bg-brand-blue hover:bg-brand-hover active:scale-[.99] text-white text-lead font-semibold transition-all shadow-btn">${ICONS.plus}Add mini-site</button>` +
     `<p id="dbg" class="mt-3 text-meta text-stop-deep"></p>` +
   `</div>` +

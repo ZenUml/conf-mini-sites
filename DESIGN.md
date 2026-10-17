@@ -84,8 +84,8 @@ namespace = "mini-sites-prod"
 
 **One user Worker per macro instance**, whose only job is to serve its own static bundle via **Workers Static
 Assets** — `index.html` plus sibling `app.js`, `style.css`, `assets/*` resolve exactly as on a normal static
-host. *This native relative-path serving is the property that distinguishes a multi-file bundle from the
-single-file `.html` the existing HTML macros already handle, and it is the product's core capability.*
+host. Native relative-path serving supports multi-file sites. A standalone HTML file is also supported;
+both pickers preserve its filename and the backend exposes `index.html` as a virtual alias when there is exactly one root HTML candidate.
 
 **Non-routability is the security primitive — and it is ENFORCED, not assumed [hardened].** User Workers in a
 dispatch namespace have **no public route, no `*.workers.dev` subdomain, and no custom domain**, and are
@@ -493,8 +493,7 @@ idle ─files-selected─▶ validating ─ok─▶ uploading ─commit-ok─▶
   └──────retry──────── error ◀─fail───────┘──────reset───────────┘
 ```
 
-Client-side `validating` is **UX only** (instant rejection of a single `.html` → "use the existing HTML
-macro"); the server re-runs every check authoritatively. **Error surfaces must be distinct and actionable:**
+Client-side `validating` is **UX only** (entrypoint guidance before upload); the server re-runs every check authoritatively. **Error surfaces must be distinct and actionable:**
 `BUNDLE_NOT_MULTIFILE`, `MISSING_INDEX_HTML`, `ABSOLUTE_PATH_REJECTED`, `PATH_TRAVERSAL_REJECTED`,
 `TOO_MANY_FILES`, `BUNDLE_TOO_LARGE`, `SECRET_DETECTED`, `COMMIT_FAILED_ROLLED_BACK` — each maps to one
 analytics label so we can measure where authors bounce.
@@ -508,9 +507,9 @@ fails any step **never reaches `status=live`.**
   (reuse conf-app's verified-token-as-source-of-truth rule from `forge-upload-attachment.ts` [verified]).
 - **2 Authz (confused-deputy guard):** confirm the uploader can **write** the target space/page using *their*
   token (the v2 permission pattern in `forge-upload-attachment.ts:117-134`, generalized read→write).
-- **3 Bundle validation:** require multi-file with a root `index.html`; **every path relative** (no
+- **3 Bundle validation:** require one or more files with a root `index.html`, or infer a virtual `index.html` alias from exactly one root `.html`/`.htm` file (case-insensitive); **every path relative** (no
   `http(s)://`, no leading `/`, no `..` — same constraint shape as `ATTACHMENT_NAME_RE`, extended to a full
-  manifest); reject single-file `.html` as out of scope; **zip-bomb guard** (cap decompressed total + ratio).
+  manifest). Both pickers preserve original paths. An explicit root `index.html` takes precedence; ambiguous root candidates and nested-only HTML are rejected. The backend creates alias metadata after path validation, so relative assets retain the same root base. Aliases are serving paths and do not count as uploaded files or bytes. **Zip-bomb guard** (cap decompressed total + ratio).
 - **4 Size/count caps** — per-bundle, per-file, max file count, allowed MIME list; server-authoritative
   (mirrors `MAX_PNG_BYTES` + magic-byte checks, generalized to N files).
 - **5 Secret-leak scan (I7) [GATED ruleset]:** high-signal patterns (cloud keys, bearer tokens, PEM headers,

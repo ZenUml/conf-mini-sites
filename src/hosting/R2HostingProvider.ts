@@ -1,3 +1,4 @@
+import { bundleServingFiles } from './bundleServingFiles';
 // R2HostingProvider — the real substrate now that Workers for Platforms is NOT entitled on the account
 // (DESIGN §6.1 substrate swap). Implements HostingProvider against an object store: each instance's bundle
 // files live under the key prefix `${instanceId}/`, and serve() streams a file's bytes back. Those bytes are
@@ -56,7 +57,7 @@ export class R2HostingProvider implements HostingProvider {
   /** Replace the whole instance: drop every existing file under the prefix, then write the new bundle. */
   private async writeBundle(handle: InstanceHandle, bundle: ValidatedBundle): Promise<void> {
     await this.store.deletePrefix(prefixFor(handle)); // remove files the new bundle no longer contains
-    for (const file of bundle.files) {
+    for (const file of bundleServingFiles(bundle)) {
       await this.store.put(keyFor(handle, file.path), file.bytes, file.contentType);
     }
   }

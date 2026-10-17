@@ -39,6 +39,24 @@ describe('buildInstanceWorkerSource', () => {
     expect(await res.text()).toContain('hi');
   });
 
+  it('serves root and index.html as aliases while preserving the original HTML path and assets', async () => {
+    const { validateBundle } = await import('../pipeline/bundleValidation');
+    const result = await validateBundle([
+      { path: 'Dashboard.HTML', bytes: enc.encode('<script src="assets/app.js"></script>') },
+      { path: 'assets/app.js', bytes: enc.encode('console.log(1)') },
+    ]);
+    if (!result.ok) throw new Error('expected valid bundle');
+    const worker = await loadWorker(buildInstanceWorkerSource(result.bundle));
+    for (const path of ['/', '/index.html', '/Dashboard.HTML']) {
+      const response = await worker.fetch(new Request('https://instance' + path));
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      expect(await response.text()).toBe('<script src="assets/app.js"></script>');
+    }
+    expect(await (await worker.fetch(new Request('https://instance/assets/app.js'))).text()).toBe('console.log(1)');
+    expect((await worker.fetch(new Request('https://instance/toString'))).status).toBe(404);
+  });
+
   it('serves a relative sub-resource with the right content-type', async () => {
     const bundle = bundleOf('index.html', { 'index.html': 'x', 'assets/app.js': 'console.log(1)' });
     const worker = await loadWorker(buildInstanceWorkerSource(bundle));

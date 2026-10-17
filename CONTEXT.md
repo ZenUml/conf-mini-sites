@@ -1,6 +1,8 @@
 # Conf Mini-Sites
 
-A Confluence-embedded app that lets a user **upload a multi-file static bundle** (an AI-generated interactive mini-site: clickable prototype, filterable dashboard, troubleshooting tool) and host it as a live, embedded object on a Confluence page.
+A Confluence-embedded app that lets a user **upload a single HTML file or a folder of static files** (an AI-generated interactive mini-site: clickable prototype, filterable dashboard, troubleshooting tool) and host it as a live, embedded object on a Confluence page.
+
+**Upload contract:** both pickers preserve original filenames and relative paths. A root `index.html` is the explicit entrypoint. If it is absent and exactly one root file ends in `.html` or `.htm` (case-insensitive), the backend creates a virtual `index.html` alias to that file, including for a standalone upload. Multiple root HTML candidates or nested-only HTML require an explicit root `index.html`; this keeps relative asset URLs based at the folder root. Aliases do not increase upload file counts or byte caps. Every original file still passes path, size, and secret validation. WfP resolves alias metadata while serving; file-store adapters expose the same bytes under both paths. This describes the source contract, not deployment status.
 
 **Status: GO — Forge shell + Cloudflare Workers-for-Platforms backend (settled 2026-06-17).** This is the
 final architecture, reached through the user's sequential directives: use **Forge** (not Connect); **keep
@@ -35,7 +37,7 @@ half; bundle bytes do live on Cloudflare, so the external-processor disclosure s
 
 ## Glossary
 
-- **Mini-site / Static bundle** — a self-contained multi-file static web artifact (`index.html` + separate JS/CSS/asset files with **relative paths**). The thing we host. _Distinct from_ a **single-file artifact** (one self-contained `.html`), which existing HTML macros already handle — out of scope.
+- **Mini-site / Static bundle** — a static web artifact consisting of one HTML document or multiple files with **relative paths**. Original filenames are preserved; a sole root HTML file can provide the virtual `index.html` entrypoint.
 - **Macro instance** — one embedded mini-site on one Confluence page.
 - **Auth gateway** — the request path that authenticates the viewer and enforces the Confluence page's permissions before serving a bundle.
 - **Environment triad** — **dev** = the local `forge tunnel` / `local-dev` sandbox, driven by no CI; **staging** = the CI target, redeployed by every push on every branch and E2E-tested on master or a ready PR; **production** = what a published `vX.Y.Z` release ships. A change is only ever promoted dev → staging → production.

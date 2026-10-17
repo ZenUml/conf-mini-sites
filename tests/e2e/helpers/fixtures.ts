@@ -16,7 +16,7 @@ export const SAMPLE_BUNDLE_DIR = dir;
  *  sample under samples/. Used to verify folder uploads preserve subdirectories + relative fetch/img paths. */
 export const NESTED_BUNDLE_DIR = join(process.cwd(), 'samples/release-dashboard');
 
-/** Just index.html — a single-file bundle (should be rejected as BUNDLE_NOT_MULTIFILE). */
+/** Just index.html — a valid self-contained single-file bundle. */
 export const SINGLE_FILE = [join(dir, 'index.html')];
 
 /**

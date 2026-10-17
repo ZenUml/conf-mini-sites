@@ -768,7 +768,7 @@ Auth/authz failures on the serving plane are deliberately **opaque** (no existen
 | Code | HTTP | Surfaced where | Trigger (DESIGN ref) |
 |---|---|---|---|
 | `BUNDLE_NOT_MULTIFILE` | 422 | publish (sync) | Single-file `.html` uploaded — out of scope, "use the existing HTML macro" (`§3.2`, `§3.3` step 3) |
-| `MISSING_INDEX_HTML` | 422 | publish (sync) | No root `index.html` entrypoint (`§3.3` step 3) |
+| `MISSING_INDEX_HTML` | 422 | publish (sync) | No root `index.html` and no unique root HTML candidate for an alias (`§3.3` step 3) |
 | `ABSOLUTE_PATH_REJECTED` | 422 | publish (sync) | A manifest path is `http(s)://` or leading `/` (relative-only constraint, `§3.3` step 3) |
 | `PATH_TRAVERSAL_REJECTED` | 422 | publish (sync) | A manifest path contains `..` (same shape as `ATTACHMENT_NAME_RE`, `forge-upload-attachment.ts:59`, generalized to a manifest) |
 | `TOO_MANY_FILES` | 422 | publish (sync) | File count exceeds the server-authoritative cap (`§3.3` step 4) |

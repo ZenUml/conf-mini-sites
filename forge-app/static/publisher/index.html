@@ -62,17 +62,20 @@
 
         <!-- ── PICKER (idle) — drop a folder ── -->
         <div id="picker" class="lift">
-          <p class="kicker-rule text-kick font-semibold uppercase text-brand-blue mb-2.5">Multi-file bundle</p>
+          <p class="kicker-rule text-kick font-semibold uppercase text-brand-blue mb-2.5">HTML file or folder</p>
           <label id="dropzone" for="file-input"
             class="group flex flex-col items-center justify-center gap-2.5 w-full rounded-xl border-2 border-dashed border-surf-line bg-surf-page hover:border-brand-blue hover:bg-brand-tintBg/40 transition-colors cursor-pointer px-6 py-10 text-center">
             <span class="grid place-items-center w-12 h-12 rounded-xl bg-brand-tintBg text-brand-blue" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/><path d="M5 21h14"/></svg>
             </span>
             <span class="text-lead font-semibold text-ink-800">Choose a folder to publish</span>
-            <span class="text-meta text-ink-500">It must contain <span class="font-mono text-ink-600">index.html</span> and its relative assets (JS, CSS, images).</span>
-            <span class="mt-1 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand-blue group-hover:bg-brand-hover text-white text-meta font-semibold transition-colors">Browse files…</span>
+            <span class="text-meta text-ink-500">Choose a folder with index.html or one HTML file at its root, plus any relative assets (JS, CSS, images).</span>
+            <span class="mt-1 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand-blue group-hover:bg-brand-hover text-white text-meta font-semibold transition-colors">Choose a folder…</span>
           </label>
           <input id="file-input" type="file" webkitdirectory multiple class="sr-only" />
+          <label for="html-file-input" class="mt-3 inline-flex items-center justify-center h-9 px-4 rounded-lg border border-surf-line text-brand-blue text-meta font-semibold cursor-pointer">Choose an HTML file…</label>
+          <input id="html-file-input" type="file" accept=".html,.htm" class="sr-only" />
+          <p class="mt-2 text-meta text-ink-500">HTML filenames are preserved. If index.html is missing, it links to the only root HTML file. Upload a folder for separate assets.</p>
           <p id="picker-error" hidden class="mt-3 text-meta text-stop-deep"></p>
         </div>
 
@@ -84,7 +87,7 @@
               <p class="text-disp-sm font-extrabold text-ink-900 leading-none"><span id="sel-count" class="num-tab">0</span> <span class="text-[18px] font-bold text-ink-500">files</span></p>
               <p class="mt-1 font-mono text-meta text-ink-600 num-tab"><span id="sel-size">0 KB</span></p>
             </div>
-            <button id="btn-clear" type="button" class="mb-1 inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-meta font-medium text-ink-600 hover:text-ink-800 hover:bg-surf-sunk transition-colors">Choose different folder</button>
+            <button id="btn-clear" type="button" class="mb-1 inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-meta font-medium text-ink-600 hover:text-ink-800 hover:bg-surf-sunk transition-colors">Choose different files</button>
           </div>
           <button id="btn-publish" type="button"
             class="group mt-5 w-full h-11 rounded-lg bg-brand-blue hover:bg-brand-hover active:scale-[.99] text-white text-lead font-semibold transition-all inline-flex items-center justify-center gap-2 shadow-btn">

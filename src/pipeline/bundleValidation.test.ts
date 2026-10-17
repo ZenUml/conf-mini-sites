@@ -35,6 +35,34 @@ describe('validateBundle', () => {
     expect(r.bundle.totalBytes).toBe(enc.encode('<h1>hi</h1>').byteLength + enc.encode('console.log(1)').byteLength);
   });
 
+  it.each(['dashboard.html', 'My tool.HTML', 'report.HTM'])('preserves %s and creates an index alias without increasing caps', async (name) => {
+    const r = await validateBundle([file(name, '<h1>solo</h1>')], { maxFiles: 1, maxFileBytes: 13, maxTotalBytes: 13 });
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.bundle.files.map((f) => f.path)).toEqual([name]);
+    expect(r.bundle.aliases).toEqual({ 'index.html': name });
+    expect(r.bundle.entrypoint).toBe('index.html');
+    expect(r.bundle.totalBytes).toBe(13);
+  });
+
+  it('uses explicit index.html even with several other HTML files', async () => {
+    const r = await validateBundle([file('index.html', 'entry'), file('a.html', 'a'), file('b.htm', 'b')]);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.bundle.aliases).toBeUndefined();
+  });
+
+  it('infers a root HTML alongside nested assets', async () => {
+    const r = await validateBundle([file('dashboard.html', '<script src="assets/app.js"></script>'), file('assets/app.js', 'x')]);
+    if (!r.ok) throw new Error('expected ok');
+    expect(r.bundle.aliases).toEqual({ 'index.html': 'dashboard.html' });
+    expect(r.bundle.files[1].path).toBe('assets/app.js');
+  });
+
+  it.each([
+    ['a.html', 'b.htm'], ['nested/dashboard.html'], ['app.js'],
+  ])('rejects absent or ambiguous root HTML: %s', async (...paths) => {
+    expectError(await validateBundle(paths.map((path) => file(path, 'x'))), 'MISSING_INDEX_HTML');
+  });
+
   it('computes content-type by extension', async () => {
     const r = await validateBundle([
       file('index.html', '<h1>hi</h1>'),
@@ -67,10 +95,10 @@ describe('validateBundle', () => {
     expect(a.bundle.contentHash).not.toBe(b.bundle.contentHash);
   });
 
-  // §3.3 step 3 — reject single-file .html as out of scope ("use the existing HTML macro").
-  it('rejects a single .html file as BUNDLE_NOT_MULTIFILE', async () => {
+  // A self-contained HTML page needs no additional assets.
+  it('accepts a single root index.html file', async () => {
     const r = await validateBundle([file('index.html', '<h1>solo</h1>')]);
-    expectError(r, 'BUNDLE_NOT_MULTIFILE');
+    expect(r.ok).toBe(true);
   });
 
   it('rejects an empty file list as BUNDLE_NOT_MULTIFILE', async () => {
@@ -123,6 +151,12 @@ describe('validateBundle', () => {
     expectError(r, 'BUNDLE_TOO_LARGE');
   });
 
+  it.each(['index.html', 'dashboard.html'])('enforces size and count caps for single %s', async (name) => {
+    expectError(await validateBundle([file(name, 1)], { maxFiles: 0 }), 'TOO_MANY_FILES');
+    expectError(await validateBundle([file(name, 1001)], { maxFileBytes: 1000 }), 'BUNDLE_TOO_LARGE');
+    expectError(await validateBundle([file(name, 1001)], { maxTotalBytes: 1000 }), 'BUNDLE_TOO_LARGE');
+  });
+
   it('rejects an oversized total as BUNDLE_TOO_LARGE', async () => {
     // Each file is under maxFileBytes, but the sum exceeds maxTotalBytes (zip-bomb-style total guard).
     const r = await validateBundle(
@@ -141,10 +175,9 @@ describe('validateBundle', () => {
     expect(r.ok).toBe(true);
   });
 
-  // Ordering: structural rejections (multi-file / index) are checked before path rules, which are checked
-  // before caps — the first failing rule wins so the surfaced code is deterministic.
-  it('reports BUNDLE_NOT_MULTIFILE before any path/size rule when only one file is present', async () => {
+  // Ordering: empty input, path rules, entrypoint inference, then caps — the first failing rule wins so the surfaced code is deterministic.
+  it('rejects unsafe single-file paths before entrypoint inference', async () => {
     const r = await validateBundle([file('../solo.html', 'x')], { maxFiles: 0 });
-    expectError(r, 'BUNDLE_NOT_MULTIFILE');
+    expectError(r, 'PATH_TRAVERSAL_REJECTED');
   });
 });

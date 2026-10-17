@@ -8,10 +8,10 @@ const ICONS = {
 
 /** The idle folder-picker drop zone — kicker + dashed label with upload glyph, prompt, helper text, browse pill. */
 export const dropzone = ({
-  kicker = 'Multi-file bundle',
+  kicker = 'HTML file or folder',
   title = 'Choose a folder to publish',
-  helper = 'It must contain <span class="font-mono text-ink-600">index.html</span> and its relative assets (JS, CSS, images).',
-  browseLabel = 'Browse files…',
+  helper = 'Choose a folder with index.html or one HTML file at its root, plus any relative assets (JS, CSS, images).',
+  browseLabel = 'Choose a folder…',
 } = {}) =>
   `<div id="picker" class="lift">` +
   `<p class="kicker-rule text-kick font-semibold uppercase text-brand-blue mb-2.5">${kicker}</p>` +
@@ -22,5 +22,6 @@ export const dropzone = ({
   `<span class="mt-1 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand-blue group-hover:bg-brand-hover text-white text-meta font-semibold transition-colors">${browseLabel}</span>` +
   `</label>` +
   `<input id="file-input" type="file" webkitdirectory multiple class="sr-only" />` +
+  `<label for="html-file-input" class="mt-3 inline-flex items-center justify-center h-9 px-4 rounded-lg border border-surf-line text-brand-blue text-meta font-semibold cursor-pointer">Choose an HTML file…</label>          <input id="html-file-input" type="file" accept=".html,.htm" class="sr-only" />          <p class="mt-2 text-meta text-ink-500">HTML filenames are preserved. If index.html is missing, it links to the only root HTML file. Upload a folder for separate assets.</p>` +
   `<p id="picker-error" hidden class="mt-3 text-meta text-stop-deep"></p>` +
   `</div>`;

@@ -31,7 +31,7 @@ export type PublishResult =
   | { readonly ok: false; readonly code: string; readonly status: number; readonly message: string };
 
 export async function publish(files: RawBundleFile[], ctx: PublishContext, deps: PublishDeps): Promise<PublishResult> {
-  // 1. Validate the bundle shape (multi-file, root index.html, relative paths, caps).
+  // 1. Validate the bundle shape (non-empty, relative paths, explicit/inferred root entrypoint, caps).
   const validated = await validateBundle(files);
   if (!validated.ok) {
     return { ok: false, code: validated.error.code, status: validated.error.status, message: validated.error.message };

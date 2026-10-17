@@ -3,7 +3,7 @@ import { checklistRow } from './checklistRow.js';
 export default { title: 'Upload/ChecklistRow' };
 
 export const Pending = {
-  render: () => checklistRow({ label: 'index.html found at root', note: 'entry point detected', state: 'pending' }),
+  render: () => checklistRow({ label: 'Entry page available at index.html', note: 'original filename preserved', state: 'pending' }),
 };
 
 export const Passed = {

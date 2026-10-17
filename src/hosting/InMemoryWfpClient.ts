@@ -1,3 +1,4 @@
+import { bundleServingFiles } from './bundleServingFiles';
 // InMemoryWfpClient — a fake WfpClient backed by a Map<workerName, files>. It lets CloudflareWfPProvider
 // run the full HostingProvider contract with no Cloudflare account: uploadWorker stores the bundle's files
 // indexed by normalized relative path, deleteWorker drops the entry (idempotent), and dispatchFetch returns
@@ -12,7 +13,7 @@ const norm = (p: string): string => p.replace(/^\/+/, '');
 
 function index(bundle: ValidatedBundle): Map<string, BundleFile> {
   const m = new Map<string, BundleFile>();
-  for (const f of bundle.files) m.set(norm(f.path), f);
+  for (const f of bundleServingFiles(bundle)) m.set(norm(f.path), f);
   return m;
 }
 

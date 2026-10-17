@@ -5,6 +5,7 @@
 // progress/toast visual language; the data is real (selected files, real validation result, real serve URL).
 import { invoke, view, router } from '@forge/bridge';
 import { startSessionReplay } from './sessionReplay';
+import { selectUploadFiles } from './uploadSelection';
 
 const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (id) => document.getElementById(id);
@@ -56,11 +57,6 @@ function chunkedBase64(bytes) {
   for (let i = 0; i < bytes.length; i += C) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + C));
   return btoa(bin);
 }
-function relPath(file) {
-  const p = file.webkitRelativePath || file.name; const s = p.indexOf('/');
-  return s >= 0 ? p.slice(s + 1) : p;
-}
-
 /* ---------- state ---------- */
 let FILES = []; // [{file, path, size}]
 let lastUrl = '', lastRef = '', lastPageUrl = '';
@@ -100,22 +96,20 @@ function wireCopy(btnId, labelId, getText, toastMsg) {
 }
 
 /* ---------- picker ---------- */
-function onFilesPicked(fileList) {
-  const arr = [...fileList].filter((f) => f.size >= 0);
-  FILES = arr.map((f) => ({ file: f, path: relPath(f), size: f.size }));
+function onFilesPicked(fileList, mode = 'folder') {
+  // Cancelling a picker preserves the current selection.
+  if (!fileList.length) return;
+  const selection = selectUploadFiles(fileList, mode);
   const err = $('picker-error');
-  const fileCount = FILES.length;
-  const totalBytes = FILES.reduce((n, f) => n + f.size, 0);
-  if (FILES.length < 2) {
-    err.hidden = false; err.textContent = 'Pick a folder with at least two files (index.html + assets).';
-    track('folder_selected', { outcome: 'rejected', reject_reason: 'too_few_files', file_count: fileCount, total_bytes: totalBytes });
+  const fileCount = fileList.length;
+  const totalBytes = [...fileList].reduce((n, f) => n + f.size, 0);
+  if (!selection.ok) {
+    FILES = [];
+    err.hidden = false; err.textContent = selection.message;
+    track('folder_selected', { outcome: 'rejected', reject_reason: selection.reason, file_count: fileCount, total_bytes: totalBytes });
     return;
   }
-  if (!FILES.some((f) => f.path === 'index.html')) {
-    err.hidden = false; err.textContent = 'No index.html at the folder root — that file is the entry point.';
-    track('folder_selected', { outcome: 'rejected', reject_reason: 'missing_index_html', file_count: fileCount, total_bytes: totalBytes });
-    return;
-  }
+  FILES = selection.files;
   err.hidden = true;
   $('sel-count').textContent = String(FILES.length);
   $('sel-size').textContent = fmtSize(totalBytes);
@@ -145,7 +139,7 @@ function buildManifest() {
   $('up-count').textContent = '0';
 }
 const CHECKS = [
-  { id: 'root', label: 'index.html found at root', note: 'entry point detected' },
+  { id: 'root', label: 'Entry page available at index.html', note: 'original filename preserved' },
   { id: 'rel', label: 'All paths relative · no absolute URLs', note: 'references resolved' },
   { id: 'caps', label: 'Within size & file-count limits', note: '' },
   { id: 'secret', label: 'Scanning for leaked secrets', note: 'AWS, GCP, tokens, keys', shield: true },
@@ -274,7 +268,7 @@ function onPublishFail(res) {
   $('manifest').querySelectorAll('.status').forEach((s) => { if (!s.dataset.up) { s.dataset.up = 'halt'; s.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8993A4" stroke-width="2.4" stroke-linecap="round"><path d="M6 12h12"/></svg>'; } });
   // map the failing code to the right checklist row
   if (code === 'SECRET_DETECTED') { setCheck('root', 'ok'); setCheck('rel', 'ok'); setCheck('caps', 'ok'); setCheck('secret', 'stop'); $('narrator').textContent = 'Stopped — secret detected'; }
-  else if (code === 'BUNDLE_NO_INDEX' || code === 'BUNDLE_NOT_MULTIFILE') { setCheck('root', 'stop'); $('narrator').textContent = 'Stopped — bundle structure'; }
+  else if (code === 'MISSING_INDEX_HTML' || code === 'BUNDLE_NO_INDEX' || code === 'BUNDLE_NOT_MULTIFILE') { setCheck('root', 'stop'); $('narrator').textContent = 'Stopped — bundle structure'; }
   else if (/SIZE|COUNT|LIMIT|TOO_/i.test(code)) { setCheck('root', 'ok'); setCheck('rel', 'ok'); setCheck('caps', 'stop'); $('narrator').textContent = 'Stopped — size/limits'; }
   // EAG-92 — the license gate fires BEFORE validation, so no checklist row is "stopped"; show an upgrade prompt.
   else if (code === 'LICENSE_INACTIVE') {
@@ -304,11 +298,12 @@ function goPreview() { show(false); if (!reduce) { const pane = $('preview-pane'
 
 /* ---------- wiring ---------- */
 $('file-input').addEventListener('change', (e) => onFilesPicked(e.target.files));
-$('btn-clear').addEventListener('click', () => { FILES = []; $('file-input').value = ''; showUploadSub('picker'); });
+$('html-file-input').addEventListener('change', (e) => onFilesPicked(e.target.files, 'html'));
+$('btn-clear').addEventListener('click', () => { FILES = []; $('file-input').value = ''; $('html-file-input').value = ''; $('picker-error').hidden = true; showUploadSub('picker'); });
 $('btn-publish').addEventListener('click', doPublish);
 $('go-preview').addEventListener('click', async () => { await loadPreview(); goPreview(); });
-$('btn-secret-retry').addEventListener('click', () => { FILES = []; $('file-input').value = ''; showUploadSub('picker'); });
-$('btn-replace').addEventListener('click', () => { FILES = []; $('file-input').value = ''; show(true); showUploadSub('picker'); });
+$('btn-secret-retry').addEventListener('click', () => { FILES = []; $('file-input').value = ''; $('html-file-input').value = ''; $('picker-error').hidden = true; showUploadSub('picker'); });
+$('btn-replace').addEventListener('click', () => { FILES = []; $('file-input').value = ''; $('html-file-input').value = ''; $('picker-error').hidden = true; show(true); showUploadSub('picker'); });
 $('btn-reload').addEventListener('click', () => { if (lastUrl) $('preview-frame').src = lastUrl + (lastUrl.indexOf('?') < 0 ? '?' : '&') + 'r=' + (reduce ? 1 : 2); });
 $('btn-done').addEventListener('click', () => view.close({ published: !!lastUrl }));
 $('btn-close').addEventListener('click', () => view.close({ published: !!lastUrl }));

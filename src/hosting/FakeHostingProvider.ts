@@ -1,3 +1,4 @@
+import { bundleServingFiles } from './bundleServingFiles';
 // In-memory HostingProvider for tests and local upper-layer development (no Cloudflare needed).
 import type {
   HostingProvider, InstanceHandle, ValidatedBundle, ServeAuthContext, BundleFile, HostingCapabilities,
@@ -7,7 +8,7 @@ const norm = (p: string): string => p.replace(/^\/+/, '');
 
 function index(bundle: ValidatedBundle): Map<string, BundleFile> {
   const m = new Map<string, BundleFile>();
-  for (const f of bundle.files) m.set(norm(f.path), f);
+  for (const f of bundleServingFiles(bundle)) m.set(norm(f.path), f);
   return m;
 }
 

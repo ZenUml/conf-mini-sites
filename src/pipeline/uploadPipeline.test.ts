@@ -32,18 +32,18 @@ describe('uploadPipeline.publish', () => {
     expect((await deps.jobStore.get('job-1'))?.state).toBe('queued');
   });
 
-  it('single-file upload → BUNDLE_NOT_MULTIFILE, nothing staged or enqueued', async () => {
+  it('single-file index.html upload stages and enqueues', async () => {
     const deps = makeDeps();
     const res = await publish([f('index.html', '<h1>x</h1>')], ctx(), deps);
-    expect(res.ok).toBe(false);
-    if (res.ok) return;
-    expect(res.code).toBe('BUNDLE_NOT_MULTIFILE');
-    expect(await deps.jobStore.get('job-1')).toBeNull();
+    expect(res.ok).toBe(true);
+    expect((await deps.jobStore.get('job-1'))?.state).toBe('queued');
   });
 
-  it('secret in the bundle → SECRET_DETECTED, hard fail before staging/enqueue', async () => {
+  it.each([
+    { files: [f('dashboard.html', '<script>const k = "AKIAIOSFODNN7EXAMPLE";</script>')] },
+    { files: [f('index.html', '<h1>x</h1>'), f('app.js', 'const k = "AKIAIOSFODNN7EXAMPLE";')] },
+  ])('secret in the bundle → SECRET_DETECTED, hard fail before staging/enqueue', async ({ files }) => {
     const deps = makeDeps();
-    const files = [f('index.html', '<h1>x</h1>'), f('app.js', 'const k = "AKIAIOSFODNN7EXAMPLE";')];
     const res = await publish(files, ctx(), deps);
     expect(res.ok).toBe(false);
     if (res.ok) return;

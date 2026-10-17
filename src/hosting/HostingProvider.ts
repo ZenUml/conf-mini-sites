@@ -16,6 +16,8 @@ export interface BundleFile {
  *  (validation, secret-scan, CSP posture). The provider only persists/serves it — never re-validates. */
 export interface ValidatedBundle {
   readonly files: ReadonlyArray<BundleFile>;
+  /** Virtual paths mapped to original uploaded paths. Aliases do not count toward upload caps. */
+  readonly aliases?: Readonly<Record<string, string>>;
   readonly entrypoint: string; // usually "index.html"
   readonly contentHash: string;
   readonly totalBytes: number;

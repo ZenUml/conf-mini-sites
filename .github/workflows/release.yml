@@ -127,7 +127,8 @@ jobs:
       - name: Deploy Forge app to production
         if: steps.forge.outputs.ok == 'true'
         working-directory: forge-app
-        run: pnpm forge:deploy:prod
+        # Approved release includes the declared Mixpanel egress permission change.
+        run: pnpm forge:deploy:prod --approve MAJOR_VERSION_RULE
         env:
           FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
           FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}

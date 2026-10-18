@@ -96,25 +96,6 @@ resolver.define('trackEvent', async (req) => {
   return { ok: true };
 });
 
-// Session-replay config for the Custom UI. The recorder runs in the iframe, so it needs the project
-// token in the browser — a Mixpanel project token is a write-only public credential (it is in every
-// web app that ships the SDK), unlike the Import-API credential the resolver uses. Sampling lives in a
-// Forge environment variable so it can be dialled without a redeploy:
-//   forge variables set MIXPANEL_BROWSER_TOKEN <token>
-//   forge variables set SESSION_REPLAY_PERCENT 100
-// Unset token or percent = replay simply never starts (startSessionReplay returns a skip reason).
-resolver.define('getAnalyticsConfig', async (req) => {
-  const { cloudId } = await instanceIdFromContext(req.context);
-  const percent = Number(process.env.SESSION_REPLAY_PERCENT);
-  return {
-    token: process.env.MIXPANEL_BROWSER_TOKEN || '',
-    recordSessionsPercent: Number.isFinite(percent) ? percent : 0,
-    cloudId,
-    accountId: typeof req.context?.accountId === 'string' ? req.context.accountId : undefined,
-    environmentType: typeof req.context?.environmentType === 'string' ? req.context.environmentType : undefined,
-  };
-});
-
 resolver.define('getServeUrl', async (req) => {
   const { instanceId, cloudId } = await instanceIdFromContext(req.context);
   const path = `/serve-url?instanceId=${encodeURIComponent(instanceId)}&cloudId=${encodeURIComponent(cloudId)}`;

@@ -513,7 +513,8 @@ fails any step **never reaches `status=live`.**
 - **4 Size/count caps** — per-bundle, per-file, max file count, allowed MIME list; server-authoritative
   (mirrors `MAX_PNG_BYTES` + magic-byte checks, generalized to N files).
 - **5 Secret-leak scan (I7) [GATED ruleset]:** high-signal patterns (cloud keys, bearer tokens, PEM headers,
-  `.env` assignments) + entropy + allow-list; a confirmed hit ⇒ **hard fail**, no bytes persisted.
+  `.env` assignments) + entropy + allow-list; a named credential hit ⇒ **hard fail**, no bytes persisted.
+  Entropy alone produces a nonblocking warning; it does not establish that content contains a credential.
 - **6 Malicious-JS posture handoff (I6):** the pipeline does not try to prove JS safe (undecidable); it
   **records the serving contract** (per-instance strict CSP, isolated per-bundle origin, `sandbox` framing, no
   ambient app credentials) and attaches it to the committed instance metadata. The serving layer (§5.3)

@@ -1,6 +1,6 @@
 // Secret-leak scanner — DESIGN §5.4 step 5 / I7.
 //
-// Invariant (I7): every upload is scanned before it is servable; a confirmed hit ⇒ hard fail.
+// Invariant (I7): every upload is scanned before it is servable; a named credential hit ⇒ hard fail; entropy alone is an advisory warning.
 // This module is the *detector* only — it returns the hits; the pipeline (caller) decides go/no-go.
 //
 // RESIDUAL (I7, stated to customers as best-effort, NOT a guarantee): detection is heuristic.
@@ -24,6 +24,7 @@ export interface SecretHit {
 
 export interface ScanResult {
   hits: SecretHit[];
+  warnings: SecretHit[];
 }
 
 const decoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: false });
@@ -90,10 +91,8 @@ function shannonEntropy(s: string): number {
 }
 
 /** True when a candidate base64-ish run is a known-benign shape and must NOT be flagged (allow-list). */
-function isAllowListed(run: string, line: string): boolean {
+function isAllowListed(run: string): boolean {
   if (UUID.test(run)) return true;
-  // A base64 image data-URI: the whole line carries `data:image/...;base64,`. The payload is benign.
-  if (/data:image\/[a-z0-9.+-]+;base64,/i.test(line)) return true;
   // Pure-hex runs (e.g. a long hash / hex color body) are structured, not secret-shaped.
   if (/^[0-9a-fA-F]+$/.test(run)) return true;
   return false;
@@ -122,10 +121,35 @@ const NAMED_PATTERNS: { kind: string; re: RegExp }[] = [
 const LINE_WINDOW = 64 * 1024;
 const LINE_WINDOW_OVERLAP = 512;
 
+// Mask only resource spans for entropy analysis, before slicing. Named secret patterns always see
+// the original content, including credentials placed beside or inside a resource reference.
+function entropyText(line: string): string {
+  const spans: [number, number][] = [];
+  const prefixes = /data:image\/[a-z0-9.+-]+;base64,|chrome-extension:\/\/[a-p]{32}\//gi;
+  for (const match of line.matchAll(prefixes)) {
+    const start = match.index!;
+    // A saved URL can contain another URL in its query. Do not rescan its suffix for every prefix.
+    if (spans.length && start < spans[spans.length - 1][1]) continue;
+    let end = start + match[0].length;
+    const image = match[0].toLowerCase().startsWith('data:');
+    while (end < line.length && (image ? /[A-Za-z0-9+/=]/ : /[^\s"'<>`]/).test(line[end])) end++;
+    spans.push([start, end]);
+  }
+  if (!spans.length) return line;
+  let result = '', offset = 0;
+  for (const [start, end] of spans) {
+    if (start < offset) continue;
+    result += line.slice(offset, start) + ' '.repeat(end - start);
+    offset = end;
+  }
+  return result + line.slice(offset);
+}
+
 /** Scan one line, slicing it into bounded windows when it is longer than the regex engine tolerates. */
 function scanLine(line: string, file: string, lineNo: number, out: SecretHit[]): void {
+  const entropyLine = entropyText(line);
   if (line.length <= LINE_WINDOW) {
-    scanWindow(line, file, lineNo, out);
+    scanWindow(line, entropyLine, file, lineNo, out);
     return;
   }
   // A long line can produce the same kind in window after window (a minified bundle is thousands of
@@ -133,7 +157,7 @@ function scanLine(line: string, file: string, lineNo: number, out: SecretHit[]):
   const windowHits: SecretHit[] = [];
   const step = LINE_WINDOW - LINE_WINDOW_OVERLAP;
   for (let start = 0; start < line.length; start += step) {
-    scanWindow(line.slice(start, start + LINE_WINDOW), file, lineNo, windowHits);
+    scanWindow(line.slice(start, start + LINE_WINDOW), entropyLine.slice(start, start + LINE_WINDOW), file, lineNo, windowHits);
   }
   const seen = new Set<string>();
   for (const hit of windowHits) {
@@ -143,7 +167,7 @@ function scanLine(line: string, file: string, lineNo: number, out: SecretHit[]):
   }
 }
 
-function scanWindow(line: string, file: string, lineNo: number, out: SecretHit[]): void {
+function scanWindow(line: string, entropyLine: string, file: string, lineNo: number, out: SecretHit[]): void {
   let matchedNamed = false;
   for (const { kind, re } of NAMED_PATTERNS) {
     if (re.test(line)) {
@@ -158,10 +182,10 @@ function scanWindow(line: string, file: string, lineNo: number, out: SecretHit[]
   // A hex color on the line should never trip the entropy fallback.
   if (HEX_COLOR.test(line) && line.replace(HEX_COLOR, '').trim().length === 0) return;
 
-  const runs = line.match(BASE64ISH_RUN);
+  const runs = entropyLine.match(BASE64ISH_RUN);
   if (!runs) return;
   for (const run of runs) {
-    if (isAllowListed(run, line)) continue;
+    if (isAllowListed(run)) continue;
     // High-entropy + long ⇒ likely a random secret. The 4.0 bits/char threshold separates random
     // tokens from structured identifiers (UUIDs are ~3.7, words are lower) while keeping CPU low.
     if (run.length >= 40 && shannonEntropy(run) >= 4.0) {
@@ -185,5 +209,5 @@ export function scanForSecrets(files: ScanFile[]): ScanResult {
       scanLine(lines[i], f.path, i + 1, hits);
     }
   }
-  return { hits };
+  return { hits: hits.filter((hit) => hit.kind !== 'high-entropy'), warnings: hits.filter((hit) => hit.kind === 'high-entropy').slice(0, 20) };
 }

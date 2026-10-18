@@ -112,18 +112,6 @@ permissions:
         - address: https://conf-mini-sites-remote-dev.zenuml.workers.dev
         - address: https://conf-mini-sites-remote-staging.zenuml.workers.dev
         - address: https://conf-mini-sites-remote-production.zenuml.workers.dev
-        # Session Replay. The recorder has to run in the iframe, so unlike every other event in this app
-        # it talks to Mixpanel from the browser: *.mixpanel.com for ingestion, cdn.mxpnl.com for the
-        # recorder bundle the SDK fetches on first record. Same host set conf-app declares for the same
-        # feature. See forge-app/ui-src/sessionReplay.js.
-        - address: https://*.mixpanel.com
-        - address: https://cdn.mxpnl.com
-        - address: https://*.cdn.mxpnl.com
-    # CSP script-src for the Session Replay recorder, which the Mixpanel SDK loads at first record
-    # rather than bundling. Without it the SDK initialises and the recording silently never starts.
-    scripts:
-      - https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js
-      - https://cdn.mxpnl.com/libs/mixpanel-recorder.min.js
     frames:
       - address: https://conf-mini-sites-dispatch-dev.zenuml.workers.dev
         # Staging dispatch Worker — the nested mini-site iframe in the staging Custom UI.

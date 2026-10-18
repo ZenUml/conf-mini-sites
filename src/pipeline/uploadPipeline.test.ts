@@ -70,3 +70,11 @@ describe('uploadPipeline.publish', () => {
     expect(res.status).toBe(409);
   });
 });
+
+
+it('publishes entropy-only content with a redacted advisory warning', async () => {
+  const deps = makeDeps();
+  const result = await publish([f('dashboard.html', '<p>AbCdEfGhIjKlMnOpQrStUvWxYz0123456789+/ABCD</p>')], ctx(), deps);
+  expect(result).toMatchObject({ ok: true, warnings: [{ file: 'dashboard.html', line: 1, kind: 'high-entropy' }] });
+  expect((await deps.jobStore.get('job-1'))?.state).toBe('queued');
+});

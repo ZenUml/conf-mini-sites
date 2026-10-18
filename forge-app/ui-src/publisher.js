@@ -5,6 +5,7 @@
 // progress/toast visual language; the data is real (selected files, real validation result, real serve URL).
 import { invoke, view, router } from '@forge/bridge';
 import { selectUploadFiles } from './uploadSelection';
+import { renderPublishWarning } from './publishWarning';
 
 const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (id) => document.getElementById(id);
@@ -147,7 +148,7 @@ function checkRowHTML(c, doneVal) {
       '</span>'
     : '<span class="status inline-grid place-items-center w-5 h-5">' + (done ? greenCheck() : stop ? '<span class="inline-grid place-items-center w-4 h-4 rounded-full bg-stop-base"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' : pendingDot()) + '</span>';
   const right = stop ? '<span class="shrink-0 text-micro font-semibold text-stop-deep">Stopped</span>'
-    : done ? '<span class="shrink-0 text-micro font-semibold text-ok-deep">' + (c.shield ? 'No secrets' : 'Passed') + '</span>'
+    : done ? '<span class="shrink-0 text-micro font-semibold text-ok-deep">' + (c.shield ? 'Scan passed' : 'Passed') + '</span>'
     : (c.shield ? '<span class="shrink-0 text-micro font-medium text-ink-500">in progress</span>' : '');
   return lead +
     '<span class="flex-1 min-w-0"><span class="block ' + (c.shield ? 'text-body font-semibold text-ink-800' : 'text-body font-medium ' + (done ? 'text-ink-800' : 'text-ink-600')) + ' leading-tight">' + c.label + '</span>' +
@@ -208,7 +209,7 @@ async function doPublish() {
   showUploadSub('progress');
   buildManifest(); buildChecklist();
   $('bar-root').classList.remove('bar-done'); $('bar-fill').classList.remove('bg-stop-base'); $('bar-fill').classList.add('bg-brand-blue');
-  $('secret-notice').hidden = true; $('handoff').hidden = true;
+  $('secret-notice').hidden = true; $('publish-warning').hidden = true; $('handoff').hidden = true;
   startRamp();
   let res;
   try {
@@ -238,10 +239,10 @@ async function doPublish() {
     res = { ok: false, code: 'NETWORK', message: String((e && e.message) || e) };
   }
   stopRamp();
-  if (res && res.ok) return onPublishOk();
+  if (res && res.ok) return onPublishOk(res);
   onPublishFail(res || {});
 }
-function onPublishOk() {
+function onPublishOk(res) {
   setPct(100);
   ['root', 'rel', 'caps', 'secret'].forEach((id) => setCheck(id, 'ok'));
   $('bar-root').classList.add('bar-done');
@@ -249,6 +250,7 @@ function onPublishOk() {
   $('up-state').textContent = 'uploaded';
   $('manifest').querySelectorAll('.status').forEach((s) => { if (!s.dataset.up) { s.dataset.up = '1'; s.innerHTML = greenCheck(); } });
   $('up-count').textContent = String(FILES.length);
+  renderPublishWarning(res.warnings, $('publish-warning'), $('checklist').querySelector('[data-id="secret"]'));
   $('handoff').hidden = false;
 }
 function onPublishFail(res) {

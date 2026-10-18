@@ -6,6 +6,7 @@
 import { validateBundle } from './bundleValidation';
 import type { RawBundleFile } from './bundleValidation';
 import { scanForSecrets } from './secretScan';
+import type { SecretHit } from './secretScan';
 import type { InstanceStore } from '../db/InstanceStore';
 import type { ProvisioningJobStore } from '../provision/ProvisioningJob';
 
@@ -27,7 +28,7 @@ export interface PublishDeps {
 }
 
 export type PublishResult =
-  | { readonly ok: true; readonly jobId: string; readonly statusUrl: string }
+  | { readonly ok: true; readonly jobId: string; readonly statusUrl: string; readonly warnings: SecretHit[] }
   | { readonly ok: false; readonly code: string; readonly status: number; readonly message: string };
 
 export async function publish(files: RawBundleFile[], ctx: PublishContext, deps: PublishDeps): Promise<PublishResult> {
@@ -38,7 +39,7 @@ export async function publish(files: RawBundleFile[], ctx: PublishContext, deps:
   }
   const bundle = validated.bundle;
 
-  // 2. Secret-leak scan — a hit is a HARD fail; nothing is staged or enqueued (I7).
+  // 2. Named credential hits block; entropy-only warnings do not prevent publication.
   const scan = scanForSecrets(files);
   if (scan.hits.length > 0) {
     const h = scan.hits[0]!;
@@ -63,5 +64,5 @@ export async function publish(files: RawBundleFile[], ctx: PublishContext, deps:
   }
 
   // 5. 202 {jobId}: publish does not block on provisioning — the client polls statusUrl (DESIGN §3.4).
-  return { ok: true, jobId: row.jobId, statusUrl: `/api/jobs/${row.jobId}` };
+  return { ok: true, jobId: row.jobId, statusUrl: `/api/jobs/${row.jobId}`, warnings: scan.warnings };
 }

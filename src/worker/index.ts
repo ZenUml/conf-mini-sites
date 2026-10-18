@@ -217,7 +217,7 @@ async function runPublish(
   // record only means this instance won't be auto-collected, never that publish fails.
   const pubStore = makeInstanceStore(env);
   if (pubStore && cloudId) ctx.waitUntil(pubStore.recordActive(instanceId, cloudId).catch(() => {}));
-  return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length }));
+  return cors(json({ ok: true, instanceId, entrypoint: validated.bundle.entrypoint, files: validated.bundle.files.length, warnings: scan.warnings }));
 }
 
 // Every browser-facing route answers through cors(); an UNCAUGHT throw does not. Cloudflare turns one

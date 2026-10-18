@@ -110,7 +110,7 @@ describe('scanForSecrets — file handling', () => {
   });
 
   it('returns no hits for an empty input', () => {
-    expect(scanForSecrets([])).toEqual({ hits: [] });
+    expect(scanForSecrets([])).toEqual({ hits: [], warnings: [] });
   });
 });
 
@@ -133,4 +133,38 @@ describe('very long single lines', () => {
     const res = scanForSecrets([fileOf('app.min.js', line)]);
     expect(res.hits.map((h) => h.kind)).toContain('aws-access-key-id');
   });
+});
+
+
+describe('resource spans and advisory entropy', () => {
+  const token = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789+/ABCD';
+  const image = 'data:image/png;base64,' + token.repeat(5000);
+  it('excludes long image payloads across windows and Chrome resource references', () => {
+    expect(scanForSecrets([fileOf('saved.html', `<img src="${image}"><img data-savepage-src="chrome-extension://${'abcdefghijklmnop'.repeat(2)}/assets/logo-O35E636P.png">`)]))
+      .toEqual({ hits: [], warnings: [] });
+  });
+  it('warns for entropy alone without exposing the value', () => {
+    expect(scanForSecrets([fileOf('index.html', token)]))
+      .toEqual({ hits: [], warnings: [{ file: 'index.html', line: 1, kind: 'high-entropy' }] });
+  });
+  it('does not exempt unrelated tokens on a line containing an image', () => {
+    expect(scanForSecrets([fileOf('index.html', `<img src="data:image/png;base64,AAAA"> ${token}`)]).warnings).toHaveLength(1);
+  });
+  it('keeps named credentials blocking beside resources and across a window boundary', () => {
+    const body = `<img src="${image}">` + ' '.repeat(65024 - (image.length + 12) % 65024 - 5) + ' AKIAIOSFODNN7EXAMPLE';
+    expect(scanForSecrets([fileOf('index.html', body)]).hits).toContainEqual({ file: 'index.html', line: 1, kind: 'aws-access-key-id' });
+  });
+});
+
+it('bounds advisory metadata for large bundles', () => {
+  const token = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789+/ABCD';
+  const result = scanForSecrets([fileOf('index.html', Array(100).fill(token).join('\n'))]);
+  expect(result.hits).toEqual([]);
+  expect(result.warnings).toHaveLength(20);
+});
+
+it('scans nested saved resource URLs without rescanning each suffix', () => {
+  const prefix = `chrome-extension://${'abcdefghijklmnop'.repeat(2)}/`;
+  expect(scanForSecrets([fileOf('saved.html', `<img data-savepage-src="${prefix.repeat(20000)}logo.png">`)]))
+    .toEqual({ hits: [], warnings: [] });
 });

@@ -36,6 +36,18 @@ function grantFor(instanceId: string, expMs: number): Promise<string> {
 
 const req = (path: string, method = 'GET'): Request => new Request(`https://dispatch${path}`, { method });
 
+const EXPECTED_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "frame-ancestors https://*.atlassian.net",
+  "base-uri 'self'",
+  "form-action 'none'",
+].join('; ');
+
 describe('parseServeRoute', () => {
   it('parses entrypoint (empty path ⇒ index.html)', () => {
     expect(parseServeRoute('/v/inst-1/g/TOKEN/')).toEqual({ instanceId: 'inst-1', grant: 'TOKEN', filePath: 'index.html' });
@@ -54,13 +66,17 @@ describe('parseServeRoute', () => {
 });
 
 describe('handleForgeServe — authorization', () => {
-  it('serves the entrypoint with a valid grant, injects <base> + CSP', async () => {
+  it('serves the entrypoint with a valid grant, injects <base>, the exact local-font CSP, and nosniff', async () => {
     const grant = await grantFor('inst-1', NOW + TTL);
     const res = await handleForgeServe(req(`/v/inst-1/g/${grant}/`), deps);
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain(`<base href="/v/inst-1/g/${grant}/">`);
-    expect(res.headers.get('content-security-policy')).toContain("frame-ancestors https://*.atlassian.net");
+    const csp = res.headers.get('content-security-policy');
+    expect(csp).toBe(EXPECTED_CSP);
+    expect(csp).not.toContain('font-src *');
+    expect(csp).not.toContain('font-src blob:');
+    expect(csp).not.toMatch(/font-src[^;]*https?:\/\//);
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
